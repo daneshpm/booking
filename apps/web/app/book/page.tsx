@@ -1,0 +1,16 @@
+import { redirect } from 'next/navigation';
+import { prisma } from '@zoho-bookings/database';
+
+export const dynamic = 'force-dynamic';
+
+export default async function BookRootPage() {
+  const workspace = await prisma.workspace.findFirst({
+    where: { slug: 'acme-consulting' },
+  });
+
+  if (workspace) {
+    redirect(`/book/${workspace.slug}`);
+  }
+
+  redirect('/services');
+}

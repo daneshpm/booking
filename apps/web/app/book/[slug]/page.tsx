@@ -1,0 +1,240 @@
+import * as React from 'react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { prisma } from '@zoho-bookings/database';
+import {
+  Clock,
+  DollarSign,
+  MapPin,
+  Video,
+  Building,
+  Phone,
+  ArrowRight,
+  Sparkles,
+  Calendar,
+  Globe,
+} from 'lucide-react';
+import { Button, Badge } from '@zoho-bookings/ui';
+
+export const dynamic = 'force-dynamic';
+
+interface BookingPortalPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export default async function BookingPortalPage({ params }: BookingPortalPageProps) {
+  const { slug } = await params;
+
+  // 1. Try finding workspace by slug
+  let workspace = await prisma.workspace.findUnique({
+    where: { slug },
+    include: {
+      services: {
+        where: { isActive: true },
+        include: { category: true },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+
+  // 2. If not found by workspace slug, check bookingPage slug
+  if (!workspace) {
+    const bookingPage = await prisma.bookingPage.findFirst({
+      where: { slug },
+      include: {
+        workspace: {
+          include: {
+            services: {
+              where: { isActive: true },
+              include: { category: true },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (bookingPage?.workspace) {
+      workspace = bookingPage.workspace;
+    }
+  }
+
+  // 3. If still not found, check if slug is actually a service under default workspace
+  if (!workspace) {
+    const defaultWorkspace = await prisma.workspace.findFirst({
+      where: { slug: 'acme-consulting' },
+    });
+
+    if (defaultWorkspace) {
+      const service = await prisma.service.findUnique({
+        where: {
+          workspaceId_slug: {
+            workspaceId: defaultWorkspace.id,
+            slug,
+          },
+        },
+      });
+
+      if (service) {
+        // Redirect or render direct service booker
+        return (
+          <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+            <div className="text-center space-y-4">
+              <p className="text-sm text-slate-400">Loading service booking page...</p>
+              <Link href={`/book/${defaultWorkspace.slug}/${service.slug}`}>
+                <Button variant="primary">Proceed to Booking</Button>
+              </Link>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    return notFound();
+  }
+
+  const formatLocationLabel = (type: string) => {
+    switch (type) {
+      case 'ONLINE_MEETING':
+        return 'Online Video';
+      case 'IN_PERSON_BUSINESS':
+        return 'In Office';
+      case 'PHONE_CALL':
+        return 'Phone Call';
+      default:
+        return 'In Person';
+    }
+  };
+
+  const getLocationIcon = (type: string) => {
+    switch (type) {
+      case 'ONLINE_MEETING':
+        return <Video className="h-3.5 w-3.5 text-purple-400" />;
+      case 'IN_PERSON_BUSINESS':
+        return <Building className="h-3.5 w-3.5 text-blue-400" />;
+      case 'PHONE_CALL':
+        return <Phone className="h-3.5 w-3.5 text-emerald-400" />;
+      default:
+        return <MapPin className="h-3.5 w-3.5 text-amber-400" />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between">
+      {/* Header */}
+      <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-500/20">
+            {workspace.name.charAt(0)}
+          </div>
+          <div>
+            <span className="text-base font-black tracking-tight text-white block">
+              {workspace.name}
+            </span>
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <Globe className="h-3 w-3 text-blue-400" />
+              {workspace.timezone}
+            </span>
+          </div>
+        </div>
+
+        <Link href="/services">
+          <Button variant="outline" size="sm" className="text-xs bg-slate-900 border-slate-800 text-slate-300">
+            Admin Portal
+          </Button>
+        </Link>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto px-6 py-12 w-full space-y-10">
+        {/* Intro */}
+        <div className="text-center space-y-3 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800 text-blue-300 text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5 text-blue-400" />
+            <span>Select a Service to Schedule</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+            Schedule an Appointment
+          </h1>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Choose an appointment type below to view open dates and instant time slots.
+          </p>
+        </div>
+
+        {/* Services List */}
+        {workspace.services.length === 0 ? (
+          <div className="p-12 text-center rounded-2xl border border-slate-800 bg-slate-900/40 max-w-md mx-auto">
+            <Calendar className="h-8 w-8 text-slate-500 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-white">No active services</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              There are currently no public services available for booking.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {workspace.services.map((service) => (
+              <div
+                key={service.id}
+                className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/80 transition-all flex flex-col justify-between group shadow-xl hover:shadow-blue-500/10"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                        {service.name}
+                      </h3>
+                      {service.category && (
+                        <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider block mt-0.5">
+                          {service.category.name}
+                        </span>
+                      )}
+                    </div>
+                    <Badge variant="info" className="text-xs font-bold">
+                      {Number(service.price) > 0 ? `$${Number(service.price).toFixed(2)}` : 'Free'}
+                    </Badge>
+                  </div>
+
+                  {service.description && (
+                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+                      {service.description}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2.5 pt-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-medium text-slate-300">
+                      <Clock className="h-3.5 w-3.5 text-blue-400" />
+                      <span>{service.durationMinutes} mins</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-medium text-slate-300">
+                      {getLocationIcon(service.locationType)}
+                      <span>{formatLocationLabel(service.locationType)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    Instant confirmation
+                  </span>
+                  <Link href={`/book/${workspace.slug}/${service.slug}`}>
+                    <Button variant="primary" className="gap-2 text-xs shadow-lg shadow-blue-500/20">
+                      Book Now
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-900 px-6 py-6 text-center text-xs text-slate-500">
+        Powered by Zoho Bookings Engine
+      </footer>
+    </div>
+  );
+}
