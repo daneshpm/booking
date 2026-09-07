@@ -77,11 +77,13 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
       if (service) {
         // Redirect or render direct service booker
         return (
-          <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+          <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-4">
             <div className="text-center space-y-4">
-              <p className="text-sm text-slate-400">Loading service booking page...</p>
+              <p className="text-sm text-slate-600">Loading service booking page...</p>
               <Link href={`/book/${defaultWorkspace.slug}/${service.slug}`}>
-                <Button variant="primary">Proceed to Booking</Button>
+                <Button variant="primary" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Proceed to Booking
+                </Button>
               </Link>
             </div>
           </div>
@@ -108,37 +110,37 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
   const getLocationIcon = (type: string) => {
     switch (type) {
       case 'ONLINE_MEETING':
-        return <Video className="h-3.5 w-3.5 text-purple-400" />;
+        return <Video className="h-3.5 w-3.5 text-purple-600" />;
       case 'IN_PERSON_BUSINESS':
-        return <Building className="h-3.5 w-3.5 text-blue-400" />;
+        return <Building className="h-3.5 w-3.5 text-indigo-600" />;
       case 'PHONE_CALL':
-        return <Phone className="h-3.5 w-3.5 text-emerald-400" />;
+        return <Phone className="h-3.5 w-3.5 text-emerald-600" />;
       default:
-        return <MapPin className="h-3.5 w-3.5 text-amber-400" />;
+        return <MapPin className="h-3.5 w-3.5 text-amber-600" />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between">
+    <div className="min-h-screen bg-[#fafbfc] text-slate-900 flex flex-col justify-between">
       {/* Header */}
-      <header className="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-slate-200/80 bg-white/85 backdrop-blur-md px-6 py-4 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-500/20">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white font-black shadow-md shadow-indigo-600/20">
             {workspace.name.charAt(0)}
           </div>
           <div>
-            <span className="text-base font-black tracking-tight text-white block">
+            <span className="text-base font-black tracking-tight text-slate-900 block">
               {workspace.name}
             </span>
-            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
-              <Globe className="h-3 w-3 text-blue-400" />
+            <span className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
+              <Globe className="h-3 w-3 text-indigo-600" />
               {workspace.timezone}
             </span>
           </div>
         </div>
 
         <Link href="/services">
-          <Button variant="outline" size="sm" className="text-xs bg-slate-900 border-slate-800 text-slate-300">
+          <Button variant="outline" size="sm" className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs">
             Admin Portal
           </Button>
         </Link>
@@ -148,25 +150,25 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
       <main className="max-w-5xl mx-auto px-6 py-12 w-full space-y-10">
         {/* Intro */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800 text-blue-300 text-xs font-semibold">
-            <Calendar className="h-3.5 w-3.5 text-blue-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+            <Calendar className="h-3.5 w-3.5 text-indigo-600" />
             <span>Select an Appointment Type</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
             Schedule an Appointment
           </h1>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <p className="text-sm text-slate-600 leading-relaxed">
             Choose an appointment type below to view open dates and instant time slots.
           </p>
         </div>
 
         {/* Services List */}
         {workspace.services.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl border border-slate-800 bg-slate-900/40 max-w-md mx-auto">
-            <Calendar className="h-8 w-8 text-slate-500 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white">No active services</h3>
-            <p className="text-xs text-slate-400 mt-1">
+          <div className="p-12 text-center rounded-2xl border border-slate-200 bg-white shadow-sm max-w-md mx-auto">
+            <Calendar className="h-8 w-8 text-slate-400 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-900">No active services</h3>
+            <p className="text-xs text-slate-500 mt-1">
               There are currently no public services available for booking.
             </p>
           </div>
@@ -175,50 +177,50 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
             {workspace.services.map((service) => (
               <div
                 key={service.id}
-                className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800/80 hover:border-blue-500/80 transition-all flex flex-col justify-between group shadow-xl hover:shadow-blue-500/10"
+                className="p-6 rounded-3xl bg-white border border-slate-200 hover:border-indigo-400 transition-all flex flex-col justify-between group shadow-sm hover:shadow-md hover:shadow-indigo-500/5"
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
+                      <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                         {service.name}
                       </h3>
                       {service.category && (
-                        <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider block mt-0.5">
+                        <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider block mt-0.5">
                           {service.category.name}
                         </span>
                       )}
                     </div>
-                    <Badge variant="info" className="text-xs font-bold">
+                    <Badge variant="info" className="text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
                       {Number(service.price) > 0 ? `$${Number(service.price).toFixed(2)}` : 'Free'}
                     </Badge>
                   </div>
 
                   {service.description && (
-                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
                       {service.description}
                     </p>
                   )}
 
                   <div className="flex flex-wrap gap-2.5 pt-2">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-medium text-slate-300">
-                      <Clock className="h-3.5 w-3.5 text-blue-400" />
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
+                      <Clock className="h-3.5 w-3.5 text-indigo-600" />
                       <span>{service.durationMinutes} mins</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-medium text-slate-300">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
                       {getLocationIcon(service.locationType)}
                       <span>{formatLocationLabel(service.locationType)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
+                <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 font-medium">
                     Instant confirmation
                   </span>
                   <Link href={`/book/${workspace.slug}/${service.slug}`}>
-                    <Button variant="primary" className="gap-2 text-xs shadow-lg shadow-blue-500/20">
+                    <Button variant="primary" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all">
                       Book Now
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
@@ -231,7 +233,7 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 px-6 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white px-6 py-6 text-center text-xs text-slate-500">
         Powered by ApexBookings Engine
       </footer>
     </div>
