@@ -9,7 +9,7 @@ import { loginUserAction } from '../signup/actions';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('owner@acmeconsulting.com');
+  const [email, setEmail] = React.useState('danesh@rooman.com');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -45,7 +45,7 @@ export default function LoginPage() {
             <CheckCircle2 className="h-6 w-6 text-white" />
           </div>
           <span className="text-2xl font-black tracking-tight text-slate-900">
-            Bookings
+            Rooman<span className="text-[#5c34ad]">Bookings</span>
           </span>
         </Link>
         <h2 className="mt-4 text-2xl font-extrabold text-slate-900 tracking-tight">

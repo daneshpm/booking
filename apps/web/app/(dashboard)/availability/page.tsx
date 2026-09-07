@@ -6,6 +6,19 @@ export const dynamic = 'force-dynamic';
 
 export default async function AvailabilityPage() {
   let workspace = await prisma.workspace.findFirst({
+    where: { slug: 'rooman-technologies' },
+    include: {
+      staff: {
+        include: {
+          workingHours: {
+            include: { breaks: true },
+            orderBy: { dayOfWeek: 'asc' },
+          },
+        },
+        orderBy: { name: 'asc' },
+      },
+    },
+  }) || await prisma.workspace.findFirst({
     where: { slug: 'acme-consulting' },
     include: {
       staff: {
@@ -23,10 +36,10 @@ export default async function AvailabilityPage() {
   if (!workspace) {
     workspace = await prisma.workspace.create({
       data: {
-        name: 'Acme Advisory & Wellness',
-        slug: 'acme-consulting',
-        timezone: 'America/New_York',
-        currency: 'USD',
+        name: 'Rooman Technologies',
+        slug: 'rooman-technologies',
+        timezone: 'Asia/Kolkata',
+        currency: 'INR',
       },
       include: {
         staff: {

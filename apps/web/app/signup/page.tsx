@@ -55,7 +55,7 @@ export default function SignupPage() {
             <CheckCircle2 className="h-6 w-6 text-white" />
           </div>
           <span className="text-2xl font-black tracking-tight text-slate-900">
-            Bookings
+            Rooman<span className="text-[#5c34ad]">Bookings</span>
           </span>
         </Link>
         <h2 className="mt-4 text-2xl font-extrabold text-slate-900 tracking-tight">

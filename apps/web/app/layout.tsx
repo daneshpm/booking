@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ApexBookings | Enterprise Appointment Scheduling Platform',
+  title: 'Rooman Bookings | Rooman Technologies Appointment & Skilling Portal',
   description:
-    'Modern, multi-tenant appointment scheduling platform with pure availability calculations, buffer management, concurrency safety, and automated video meetings.',
+    'Official consultation and skilling scheduling platform for Rooman Technologies. Book 1-on-1 IT career counseling, enterprise workforce upskilling, and University Center of Excellence sessions.',
 };
 
 export default function RootLayout({

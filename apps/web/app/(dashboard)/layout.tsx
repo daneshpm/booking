@@ -160,7 +160,7 @@ export default function DashboardLayout({
                   <span className="text-[11px] text-slate-400 block truncate">admin@{workspaceName.replace(/\s+/g, '')}.com</span>
                 </div>
                 <Link
-                  href="/book/acme-consulting"
+                  href="/book/rooman-technologies"
                   target="_blank"
                   className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
                 >

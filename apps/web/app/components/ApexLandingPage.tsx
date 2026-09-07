@@ -28,19 +28,25 @@ import {
   Building2,
   Sliders,
   RefreshCw,
+  Award,
+  BookOpen,
+  Sparkles,
+  MapPin,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { Button, Badge } from '@bookings/ui';
 
 export function ApexLandingPage() {
   // Tabs for "Here's How It Works"
-  const [activeTab, setActiveTab] = React.useState<'CLIENTS' | 'TEAM'>('CLIENTS');
+  const [activeTab, setActiveTab] = React.useState<'STUDENTS' | 'ENTERPRISE'>('STUDENTS');
 
   // Pricing billing period: monthly or yearly (save 20%)
   const [annualBilling, setAnnualBilling] = React.useState(true);
 
   // Interactive scheduler preview state
   const [demoSelectedDay, setDemoSelectedDay] = React.useState('Mon, Sep 14');
-  const [demoSelectedTime, setDemoSelectedTime] = React.useState('10:00 AM');
+  const [demoSelectedTime, setDemoSelectedTime] = React.useState('10:30 AM');
   const [demoBooked, setDemoBooked] = React.useState(false);
 
   // FAQ accordion state
@@ -62,15 +68,17 @@ export function ApexLandingPage() {
       {/* 1. ANNOUNCEMENT TOP BANNER                           */}
       {/* ---------------------------------------------------- */}
       <div className="bg-indigo-50/90 border-b border-indigo-100 text-xs text-indigo-950 py-2 px-4 text-center">
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 flex-wrap">
           <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="font-bold text-indigo-900">ApexBookings 2.0:</span>
-          <span className="text-indigo-800/90 font-medium">PostgreSQL concurrency locks, timezone intelligence & automated video meetings.</span>
+          <span className="font-bold text-indigo-900">Rooman Technologies:</span>
+          <span className="text-indigo-800/90 font-medium">
+            25+ Years of IT Skilling Excellence • 1.5M+ Trained • Centers of Excellence across India.
+          </span>
           <Link
-            href="/book/acme-consulting"
+            href="/book/rooman-technologies"
             className="text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 inline-flex items-center gap-1"
           >
-            <span>Explore Live Demo</span>
+            <span>Book Free Career Guidance</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -83,40 +91,40 @@ export function ApexLandingPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
                 <Calendar className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
                   <span className="text-lg font-black tracking-tight text-slate-900">
-                    Apex<span className="text-indigo-600">Bookings</span>
+                    Rooman<span className="text-indigo-600">Bookings</span>
                   </span>
                   <Badge variant="info" className="text-[9px] px-1.5 py-0 uppercase font-bold tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
-                    Enterprise
+                    Official Portal
                   </Badge>
                 </div>
                 <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-                  Appointment Scheduling Platform
+                  Rooman Technologies • Est. 1999
                 </span>
               </div>
             </Link>
 
             <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
-              <a href="#features" className="hover:text-slate-900 transition-colors">
-                Features
+              <a href="#services" className="hover:text-slate-900 transition-colors">
+                Skilling Programs
               </a>
               <a href="#how-it-works" className="hover:text-slate-900 transition-colors">
                 How It Works
               </a>
               <a href="#solutions" className="hover:text-slate-900 transition-colors">
-                Solutions
+                Academic & CoE
               </a>
               <a href="#live-demo" className="hover:text-slate-900 transition-colors flex items-center gap-1.5">
-                <span>Live Sandbox</span>
+                <span>Book Slot</span>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
               </a>
               <a href="#pricing" className="hover:text-slate-900 transition-colors">
-                Pricing
+                Pricing & Plans
               </a>
               <a href="#faq" className="hover:text-slate-900 transition-colors">
                 FAQ
@@ -139,17 +147,17 @@ export function ApexLandingPage() {
                 type="button"
                 className="px-3.5 py-2 text-xs font-bold text-indigo-700 hover:text-indigo-900 rounded-xl hover:bg-indigo-50 transition-all"
               >
-                Dashboard
+                Faculty Dashboard
               </button>
             </Link>
 
-            <Link href="/signup">
+            <Link href="/book/rooman-technologies">
               <Button
                 variant="primary"
                 size="sm"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/25 px-4 py-2 rounded-xl transition-all"
               >
-                START FREE TRIAL
+                BOOK CONSULTATION
               </Button>
             </Link>
           </div>
@@ -157,7 +165,7 @@ export function ApexLandingPage() {
       </header>
 
       {/* ---------------------------------------------------- */}
-      {/* 3. HERO SECTION (INSPIRED BY TOP BOOKING SAAS)       */}
+      {/* 3. HERO SECTION                                      */}
       {/* ---------------------------------------------------- */}
       <section className="relative pt-16 pb-20 px-4 sm:px-8 overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-[#fafbfc]">
         <div className="absolute top-10 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -167,48 +175,47 @@ export function ApexLandingPage() {
           {/* Left Column: Hero Messaging */}
           <div className="lg:col-span-7 space-y-6 text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold uppercase tracking-wider shadow-xs">
-              <Layers className="h-3.5 w-3.5 text-indigo-600" />
-              <span>Multi-Tenant Scheduling Platform</span>
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Upskilling India&apos;s Tech Workforce Since 1999</span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
-              Automate appointments.{' '}
-              <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 bg-clip-text text-transparent">
-                Protect your team&apos;s focus.
+              Accelerate your tech career.{' '}
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-800 bg-clip-text text-transparent">
+                Book expert Rooman mentoring.
               </span>
             </h1>
 
             <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed font-normal">
-              ApexBookings replaces messy email chains with frictionless client booking portals.
-              Powered by pure timezone-aware availability, automatic buffer protection, staff shifts,
-              and concurrency locks to guarantee zero double-bookings.
+              Rooman Bookings connects students, job seekers, and university leaders directly with certified industry instructors. 
+              Schedule 1-on-1 certification guidance, technical mock interviews, and university Center of Excellence (CoE) partnerships in seconds.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link href="/signup">
+              <Link href="/book/rooman-technologies/career-guidance">
                 <Button
                   size="lg"
                   variant="primary"
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm px-6 py-3.5 shadow-lg shadow-indigo-600/25 rounded-xl transition-all"
                 >
-                  START FREE TRIAL
+                  BOOK 1-ON-1 GUIDANCE (FREE)
                   <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
               </Link>
 
               <Link
-                href="/appointments"
+                href="/book/rooman-technologies"
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-900 font-bold text-xs transition-all shadow-xs"
               >
-                <Sliders className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Open Appointments Dashboard</span>
+                <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Browse All Rooman Services</span>
               </Link>
 
               <Link
-                href="/book/acme-consulting"
+                href="/appointments"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 px-3 py-2 transition-colors"
               >
-                <span>Preview Client Booker</span>
+                <span>Instructor Dashboard</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -216,15 +223,15 @@ export function ApexLandingPage() {
             <div className="flex flex-wrap items-center gap-6 pt-2 text-xs text-slate-600 font-medium">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Zero double-booking guarantee</span>
+                <span>100% Placement Assistance</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Auto Google Meet & Zoom links</span>
+                <span>Cisco, AWS & Microsoft Mentors</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Intelligent prep & wrap buffers</span>
+                <span>Instant Google Meet video sessions</span>
               </div>
             </div>
           </div>
@@ -236,31 +243,31 @@ export function ApexLandingPage() {
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center font-bold text-white text-base shadow-sm">
-                      SJ
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-700 flex items-center justify-center font-bold text-white text-base shadow-sm">
+                      PS
                     </div>
                     <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Sarah Jenkins</h2>
-                    <span className="text-xs text-slate-500 block">Principal Advisory Consultant</span>
+                    <h2 className="text-sm font-bold text-slate-900">Priya Sharma</h2>
+                    <span className="text-xs text-slate-500 block">Principal AI & Cloud Architect • Rooman</span>
                   </div>
                 </div>
                 <Badge variant="success" className="text-[10px] uppercase font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
-                  Accepting Clients
+                  Slots Open
                 </Badge>
               </div>
 
               {/* Service Details */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-900 text-sm">Initial Strategy Consultation</span>
-                  <span className="font-extrabold text-emerald-600 text-sm">$85.00</span>
+                  <span className="font-bold text-slate-900 text-sm">1-on-1 IT Career & Certification Guidance</span>
+                  <span className="font-extrabold text-emerald-600 text-sm">FREE (₹0)</span>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-600">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>45 mins</span>
+                    <span>30 mins</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Video className="h-3.5 w-3.5 text-purple-600" />
@@ -272,7 +279,7 @@ export function ApexLandingPage() {
               {/* Interactive Day Selector */}
               <div className="pt-2">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Select Date (New York EDT)
+                  Select Date (Indian Standard Time - IST)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {['Mon, Sep 14', 'Tue, Sep 15', 'Wed, Sep 16'].map((day) => (
@@ -295,10 +302,10 @@ export function ApexLandingPage() {
               {/* Clickable Open Time Slots */}
               <div className="pt-4">
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Available Slots
+                  Available Slots (IST)
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {['09:00 AM', '10:00 AM', '11:15 AM', '02:00 PM'].map((time) => {
+                  {['10:30 AM', '02:00 PM', '04:30 PM', '06:00 PM'].map((time) => {
                     const isSelected = demoSelectedTime === time;
                     return (
                       <button
@@ -324,7 +331,7 @@ export function ApexLandingPage() {
                 <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-medium">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>
-                    Selected {demoSelectedDay} at {demoSelectedTime}!
+                    Selected {demoSelectedDay} at {demoSelectedTime}! Confirming with Rooman mentor...
                   </span>
                 </div>
               )}
@@ -333,10 +340,10 @@ export function ApexLandingPage() {
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                 <div className="flex items-center gap-1.5 text-indigo-600 font-semibold">
                   <Shield className="h-3.5 w-3.5" />
-                  <span>15m Prep/Wrap Buffer Auto-Protected</span>
+                  <span>Zero-Collision Real Time Scheduling</span>
                 </div>
                 <Link
-                  href="/book/acme-consulting"
+                  href="/book/rooman-technologies"
                   className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1"
                 >
                   <span>Book Real Slot</span>
@@ -354,35 +361,35 @@ export function ApexLandingPage() {
       <section className="py-14 border-y border-slate-200/80 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <p className="text-center text-xs font-bold tracking-wider text-slate-500 uppercase mb-8">
-            Engineered for high-performing advisory practices, clinics, and professional firms
+            Rooman Technologies • Over Two Decades of Impact in Tech Education & Placements
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">100%</span>
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">1.5M+</span>
               <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Pure Concurrency Protection
+                Students & Professionals Trained
               </span>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block">85%</span>
+              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block">1,000+</span>
               <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Reduction in No-Shows
+                Hiring & Academic Partners
               </span>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block">99.99%</span>
+              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block">98.4%</span>
               <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Availability Engine SLA
+                Placement Assistance Success
               </span>
             </div>
 
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">0ms</span>
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">25+ Yrs</span>
               <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Scheduling Double-Bookings
+                Pioneering IT Training Since 1999
               </span>
             </div>
           </div>
@@ -390,49 +397,49 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 5. "HERE'S HOW APEXBOOKINGS WORKS" (INTERACTIVE)     */}
+      {/* 5. "HERE'S HOW ROOMAN BOOKINGS WORKS"                */}
       {/* ---------------------------------------------------- */}
       <section id="how-it-works" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto text-center space-y-12">
         <div>
           <Badge variant="info" className="text-xs px-3 py-1 font-bold uppercase tracking-wider mb-3 bg-indigo-50 text-indigo-700 border-indigo-200">
-            Streamlined 3-Step Flow
+            Frictionless Consultation
           </Badge>
           <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Here&apos;s how <span className="text-indigo-600">ApexBookings</span> works
+            Here&apos;s how <span className="text-indigo-600">Rooman Bookings</span> works
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto mt-3">
-            Designed for an effortless client booking experience and airtight calendar control for your team.
+            Whether you are a student exploring AI/Cloud careers or a university director setting up a CoE, scheduling takes seconds.
           </p>
 
           {/* Perspective Tab Buttons */}
           <div className="inline-flex items-center p-1.5 rounded-2xl bg-slate-100 border border-slate-200 mt-8">
             <button
               type="button"
-              onClick={() => setActiveTab('CLIENTS')}
+              onClick={() => setActiveTab('STUDENTS')}
               className={`px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
-                activeTab === 'CLIENTS'
+                activeTab === 'STUDENTS'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              For your clients
+              For Students & Job Seekers
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('TEAM')}
+              onClick={() => setActiveTab('ENTERPRISE')}
               className={`px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
-                activeTab === 'TEAM'
+                activeTab === 'ENTERPRISE'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              For you & your team
+              For Universities & Corporates
             </button>
           </div>
         </div>
 
-        {/* Tab 1: For Clients */}
-        {activeTab === 'CLIENTS' && (
+        {/* Tab 1: For Students */}
+        {activeTab === 'STUDENTS' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
             <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group space-y-4">
               <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
@@ -441,10 +448,9 @@ export function ApexLandingPage() {
               <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
                 <Clock className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Pick a convenient time slot</h3>
+              <h3 className="text-lg font-bold text-slate-900">Select Specialization & Slot</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Clients pick their preferred meeting time in seconds. Available slots automatically adapt
-                to their local timezone with zero confusion.
+                Choose between AI/ML, Cloud DevOps, Cybersecurity, Cisco Networking, or Full-Stack. Pick a convenient time slot in Indian Standard Time (IST).
               </p>
             </div>
 
@@ -455,10 +461,9 @@ export function ApexLandingPage() {
               <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
                 <Users className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Fill in booking details</h3>
+              <h3 className="text-lg font-bold text-slate-900">Share Goals & Resume</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Clients share intake details, contact information, and meeting goals to help your team prepare
-                before the conversation begins.
+                Tell us your academic background, target certifications, and dream companies so our instructors can prepare tailored advice for your session.
               </p>
             </div>
 
@@ -469,29 +474,27 @@ export function ApexLandingPage() {
               <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
                 <CalendarCheck className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Instant confirmation & meeting link</h3>
+              <h3 className="text-lg font-bold text-slate-900">Live Video Mentoring</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Both parties receive instant confirmations, auto-generated Google Meet video links, and automated
-                reminders so no one forgets.
+                Receive an instant Google Meet calendar invite with meeting notes. Meet your Rooman mentor and build your career roadmap.
               </p>
             </div>
           </div>
         )}
 
-        {/* Tab 2: For Team */}
-        {activeTab === 'TEAM' && (
+        {/* Tab 2: For Enterprise & Universities */}
+        {activeTab === 'ENTERPRISE' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
             <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-200 transition-all group space-y-4">
               <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
                 STEP 01
               </span>
               <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                <Layers className="h-6 w-6" />
+                <GraduationCap className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Configure services & pricing</h3>
+              <h3 className="text-lg font-bold text-slate-900">Select Partnership Scope</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Set up consultations, discovery calls, reviews, and team sessions with custom durations, locations,
-                and pricing tiers.
+                Choose between On-Campus Center of Excellence (CoE) setup, Faculty Development Programs (FDP), or Corporate Engineering Team Reskilling.
               </p>
             </div>
 
@@ -502,10 +505,9 @@ export function ApexLandingPage() {
               <div className="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
                 <Shield className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Define shifts & buffers</h3>
+              <h3 className="text-lg font-bold text-slate-900">Direct Director Meeting</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Set weekly staff hours, lunch breaks, holiday leaves, and prep/wrap-up buffers to protect your team
-                from meeting exhaustion.
+                Connect directly with Rooman Academic Directors and Enterprise Leads. Review curriculum alignment, lab hardware, and placement MOUs.
               </p>
             </div>
 
@@ -516,10 +518,9 @@ export function ApexLandingPage() {
               <div className="h-12 w-12 rounded-2xl bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:scale-110 transition-transform">
                 <Zap className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Appointments on autopilot</h3>
+              <h3 className="text-lg font-bold text-slate-900">MOU & Lab Rollout</h3>
               <p className="text-xs leading-relaxed text-slate-600">
-                Confirmed bookings appear immediately on your admin calendar. Easily mark completed, reschedule,
-                or cancel with live database updates.
+                Finalize timelines, lab installations, and student cohort schedules with full institutional backing from Rooman Technologies.
               </p>
             </div>
           </div>
@@ -527,92 +528,80 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 6. SIX CORE PLATFORM PILLARS                         */}
+      {/* 6. SIX CORE ROBUST ENGINE PILLARS                    */}
       {/* ---------------------------------------------------- */}
-      <section id="features" className="py-24 px-4 sm:px-8 bg-slate-50/80 border-t border-slate-200/80">
+      <section id="features" className="py-20 px-4 sm:px-8 bg-slate-50/80 border-y border-slate-200/80">
         <div className="max-w-7xl mx-auto space-y-16">
           <div className="text-center space-y-3">
-            <Badge variant="warning" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
-              Core Architecture
+            <Badge variant="default" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-slate-200/80 text-slate-700 border-slate-300">
+              Enterprise Grade Platform
             </Badge>
             <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-              Built for speed, accuracy, and operational scale
+              Enterprise scheduling precision
             </h2>
-            <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-              Engineered with clean domain-driven architecture, PostgreSQL concurrency checks, and responsive design.
+            <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
+              Engineered with transactional integrity to handle thousands of concurrent counseling sessions across India.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-            {/* 1. Concurrency Protection */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-105 transition-transform">
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
                 <Lock className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Concurrency Race-Condition Locks</h3>
+              <h3 className="text-base font-bold text-slate-900">Zero Double-Bookings</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Unique idempotency keys and pre-commit interval collision validation guarantee zero double-bookings,
-                even when multiple clients book simultaneously.
+                PostgreSQL transactional locks guarantee that two students cannot book the same mentor slot simultaneously, even under heavy admission traffic.
               </p>
             </div>
 
-            {/* 2. Buffer Times & Shift Management */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-purple-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <Clock className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Timezone Intelligence</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Built with date-fns-tz and stored in UTC. Automatically converts meeting times seamlessly for international students and overseas enterprise clients.
+              </p>
+            </div>
+
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <Shield className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Buffer Zones & Break Protection</h3>
+              <h3 className="text-base font-bold text-slate-900">Prep & Review Buffers</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Automatically pad meetings with prep and wrap-up buffers (e.g. 15 mins). Enforce staff lunch breaks
-                and custom holiday leave overrides.
+                Automatic 10-15 minute buffer protection before and after mock interviews, allowing mentors to review resumes and finalize scorecards.
               </p>
             </div>
 
-            {/* 3. Real-Time Slot Engine */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
-                <RefreshCw className="h-5 w-5" />
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
+                <Layers className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Dynamic Slot Generation</h3>
+              <h3 className="text-base font-bold text-slate-900">Faculty Shift Management</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Our mathematical availability engine computes open slots on the fly from staff schedules,
-                filtering out past times and existing bookings in real time.
+                Configure unique working shifts, lunch breaks, and holiday schedules for senior trainers across Cisco, AWS, Red Hat, and AI disciplines.
               </p>
             </div>
 
-            {/* 4. Automated Video Conferencing */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-cyan-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:scale-105 transition-transform">
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
                 <Video className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Automated Video Meetings</h3>
+              <h3 className="text-base font-bold text-slate-900">Automated Google Meet Video</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Automatically generates unique Google Meet or video conferencing links for every online consultation,
-                displayed right on the calendar.
+                Instant video meeting links provisioned for every booking, embedded in calendar invitations and guest confirmation pages.
               </p>
             </div>
 
-            {/* 5. Multi-Staff & Round Robin */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
-                <Users className="h-5 w-5" />
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+              <div className="h-11 w-11 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+                <Bell className="h-5 w-5" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Multi-Staff Team Management</h3>
+              <h3 className="text-base font-bold text-slate-900">Multi-Tenant Routing</h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Assign specific services to individual specialists or pool team availability. Clients can select
-                their preferred advisor with ease.
-              </p>
-            </div>
-
-            {/* 6. Admin Control & Audit Logs */}
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 hover:border-rose-300 shadow-sm hover:shadow-md transition-all space-y-3 group">
-              <div className="h-10 w-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 group-hover:scale-105 transition-transform">
-                <CalendarCheck className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Admin Calendar & Full Audit Logs</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Review appointments by status, mark as completed, cancel, or reschedule. Every action is recorded
-                in immutable PostgreSQL audit logs.
+                Dedicated booking catalogs for each regional Rooman center, university partner campus, and corporate client portal.
               </p>
             </div>
           </div>
@@ -620,63 +609,63 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 7. INDUSTRY SOLUTIONS SECTION                        */}
+      {/* 7. ROOOMAN ACADEMIC & CORPORATE SOLUTIONS            */}
       {/* ---------------------------------------------------- */}
       <section id="solutions" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto space-y-16">
         <div className="text-center space-y-3">
           <Badge variant="purple" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border-purple-200">
-            Tailored Solutions
+            Specialized Tracks
           </Badge>
           <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Built for service professionals and teams
+            Consultation tracks for every stage
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            Whether you&apos;re a boutique consultancy, medical clinic, or advisory practice, ApexBookings fits your flow.
+            From fresh engineering graduates to university deans and enterprise CTOs, Rooman Technologies provides specialized advisory.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
           <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <Briefcase className="h-7 w-7 text-indigo-600" />
-            <h4 className="text-base font-bold text-slate-900">Consulting & Advisory</h4>
+            <GraduationCap className="h-7 w-7 text-indigo-600" />
+            <h4 className="text-base font-bold text-slate-900">Career & Certification</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Paid client advisory sessions, discovery interviews, and contract strategy meetings with Google Meet.
+              1-on-1 counseling for fresh graduates and IT aspirants. Discover high-growth career roadmaps in AI, Cloud, and Cybersecurity.
             </p>
-            <Link href="/book/acme-consulting" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-block pt-1">
-              View Demo Portal →
+            <Link href="/book/rooman-technologies/career-guidance" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-block pt-1">
+              Book Free Session →
             </Link>
           </div>
 
           <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <HeartHandshake className="h-7 w-7 text-rose-600" />
-            <h4 className="text-base font-bold text-slate-900">Healthcare & Therapy</h4>
+            <Award className="h-7 w-7 text-rose-600" />
+            <h4 className="text-base font-bold text-slate-900">Technical Mock Interviews</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Patient telehealth appointments, multi-specialist shift coverage, and buffer-protected clinical sessions.
+              45-minute rigorous technical interview practice with senior industry architects. Includes coding, system design, and scorecards.
             </p>
-            <Link href="/book/acme-consulting" className="text-xs font-bold text-rose-600 hover:text-rose-800 inline-block pt-1">
-              View Demo Portal →
+            <Link href="/book/rooman-technologies/mock-interview-assessment" className="text-xs font-bold text-rose-600 hover:text-rose-800 inline-block pt-1">
+              Book Mock Interview →
             </Link>
           </div>
 
           <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <GraduationCap className="h-7 w-7 text-amber-600" />
-            <h4 className="text-base font-bold text-slate-900">Coaching & Education</h4>
+            <Building2 className="h-7 w-7 text-amber-600" />
+            <h4 className="text-base font-bold text-slate-900">University CoE Labs</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Executive coaching sprints, student office hours, recurring curriculum reviews, and intake questionnaires.
+              Consultation for college deans, trustees, and principals to set up on-campus Centers of Excellence with Cisco, Red Hat & AWS equipment.
             </p>
-            <Link href="/book/acme-consulting" className="text-xs font-bold text-amber-600 hover:text-amber-800 inline-block pt-1">
-              View Demo Portal →
+            <Link href="/book/rooman-technologies/university-coe-consultation" className="text-xs font-bold text-amber-600 hover:text-amber-800 inline-block pt-1">
+              Schedule CoE Meeting →
             </Link>
           </div>
 
           <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <Building2 className="h-7 w-7 text-purple-600" />
-            <h4 className="text-base font-bold text-slate-900">Financial & Corporate</h4>
+            <Briefcase className="h-7 w-7 text-purple-600" />
+            <h4 className="text-base font-bold text-slate-900">Corporate Upskilling</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Quarterly tax reviews, investment consultations, and high-security client scheduling with full audit trails.
+              Customized training programs for corporate engineering teams. Upskill in Generative AI, Cloud Infrastructure, and Cyber Defense.
             </p>
-            <Link href="/book/acme-consulting" className="text-xs font-bold text-purple-600 hover:text-purple-800 inline-block pt-1">
-              View Demo Portal →
+            <Link href="/book/rooman-technologies/corporate-upskilling-discovery" className="text-xs font-bold text-purple-600 hover:text-purple-800 inline-block pt-1">
+              Explore Enterprise →
             </Link>
           </div>
         </div>
@@ -688,24 +677,23 @@ export function ApexLandingPage() {
       <section id="live-demo" className="py-20 px-4 sm:px-8 bg-slate-50/60 border-y border-slate-200/80">
         <div className="max-w-5xl mx-auto rounded-3xl bg-white border border-slate-200 p-8 md:p-12 shadow-xl shadow-slate-200/40 text-center space-y-8">
           <Badge variant="info" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
-            Experience It Live
+            Live Booking Portal
           </Badge>
           <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Try the real booking engine in your browser right now
+            Ready to schedule with Rooman Technologies?
           </h2>
           <p className="text-sm text-slate-600 max-w-xl mx-auto">
-            Book an appointment slot on our demo workspace. Watch how staff shifts, lunch breaks, and buffer times
-            are calculated live from PostgreSQL with zero mock delays.
+            Experience our instant appointment booking flow. Choose your program, select an expert instructor, and reserve your video meeting slot.
           </p>
 
           <div className="flex flex-wrap justify-center gap-4 pt-2">
-            <Link href="/book/acme-consulting">
+            <Link href="/book/rooman-technologies">
               <Button
                 size="lg"
                 variant="primary"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm px-8 py-4 shadow-lg shadow-indigo-600/25 rounded-xl transition-all"
               >
-                Launch Client Booking Portal
+                Launch Rooman Booking Catalog
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </Link>
@@ -716,7 +704,7 @@ export function ApexLandingPage() {
                 variant="outline"
                 className="bg-white border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-900 font-bold text-sm px-8 py-4 rounded-xl shadow-xs"
               >
-                View Admin Calendar
+                View Instructor Calendar
               </Button>
             </Link>
           </div>
@@ -729,175 +717,142 @@ export function ApexLandingPage() {
       <section id="pricing" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto space-y-16 text-center">
         <div className="space-y-4">
           <Badge variant="success" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-200">
-            Simple Pricing
+            Consultation Tiers
           </Badge>
           <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Transparent plans for solo advisors and growing teams
+            Accessible counseling and advanced assessments
           </h2>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            Everything you need with zero hidden charges. Upgrade as your team and client volume expands.
+            100% free career roadmapping for students, accessible mock interviews, and tailored enterprise partnership packages.
           </p>
-
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 p-1.5 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-bold mt-4">
-            <button
-              type="button"
-              onClick={() => setAnnualBilling(false)}
-              className={`px-4 py-2 rounded-xl transition-all ${
-                !annualBilling ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Monthly Billing
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnnualBilling(true)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all ${
-                annualBilling ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <span>Annual Billing</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold uppercase ${
-                annualBilling ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-              }`}>
-                Save 20%
-              </span>
-            </button>
-          </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left items-stretch">
-          {/* Plan 1: Free Forever */}
-          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+          {/* Plan 1: Student Free */}
+          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
             <div className="space-y-4">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Starter</span>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Student Career Guidance</h3>
+                <p className="text-xs text-slate-500 mt-1">1-on-1 counseling for fresh graduates & job seekers</p>
+              </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">$0</span>
-                <span className="text-xs text-slate-500 font-semibold">/ forever</span>
+                <span className="text-4xl font-black text-slate-900">₹0</span>
+                <span className="text-xs font-bold text-emerald-600 ml-1">FREE</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Great for solo practitioners and independent specialists starting out.
-              </p>
-
-              <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs text-slate-700">
-                <div className="flex items-center gap-2">
+              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>1 Staff Member profile</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>30-minute 1-on-1 session</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Unlimited client appointments</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>AI, Cloud & Cybersecurity roadmap</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Google Meet video generation</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>Google Meet video call</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Admin calendar & customers list</span>
-                </div>
-              </div>
+                  <span>Course syllabus & certification guidance</span>
+                </li>
+              </ul>
             </div>
-
-            <Link href="/book/acme-consulting" className="w-full">
+            <Link href="/book/rooman-technologies/career-guidance" className="w-full">
               <button
                 type="button"
-                className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all"
+                className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-xs"
               >
-                Start Free
+                Book Free Counseling
               </button>
             </Link>
           </div>
 
-          {/* Plan 2: Professional (Most Popular) */}
-          <div className="p-8 rounded-3xl bg-white border-2 border-indigo-600 flex flex-col justify-between space-y-6 relative shadow-xl shadow-indigo-600/10">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
-              MOST POPULAR
-            </span>
-
-            <div className="space-y-4 pt-2">
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Professional</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">{annualBilling ? '$12' : '$15'}</span>
-                <span className="text-xs text-slate-500 font-semibold">/ staff / mo</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                For growing practices that need buffer protection, multi-staff scheduling, and payments.
-              </p>
-
-              <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs text-slate-700">
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Up to 10 Staff Members</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Intelligent Prep & Wrap Buffers</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Custom Staff Shifts & Holiday Overrides</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Online Payments & Deposits</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Full Audit Logs & Concurrency Safety</span>
-                </div>
-              </div>
+          {/* Plan 2: Pro Mock Interview (Featured) */}
+          <div className="p-8 rounded-3xl bg-white border-2 border-indigo-600 shadow-xl shadow-indigo-600/10 space-y-6 flex flex-col justify-between relative">
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+              <span className="bg-indigo-600 text-white font-bold text-[10px] tracking-wider uppercase px-3 py-1 rounded-full shadow-sm">
+                Most Popular
+              </span>
             </div>
-
-            <Link href="/book/acme-consulting" className="w-full">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Technical Mock Interview</h3>
+                <p className="text-xs text-slate-500 mt-1">Rigorous placement readiness evaluation</p>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black text-slate-900">₹499</span>
+                <span className="text-xs text-slate-500">/ session</span>
+              </div>
+              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span>45-minute live technical interview</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span>Coding / System design / Networking evaluation</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span>Detailed written scorecard & feedback</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span>Resume & LinkedIn profile critique</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span>Priority placement drive referral</span>
+                </li>
+              </ul>
+            </div>
+            <Link href="/book/rooman-technologies/mock-interview-assessment" className="w-full">
               <button
                 type="button"
-                className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md shadow-indigo-600/25 transition-all"
+                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/25"
               >
-                GET STARTED TODAY
+                Schedule Mock Interview
               </button>
             </Link>
           </div>
 
-          {/* Plan 3: Enterprise */}
-          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-6">
+          {/* Plan 3: University CoE & Corporate */}
+          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
             <div className="space-y-4">
-              <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Enterprise</span>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">University CoE & Enterprise</h3>
+                <p className="text-xs text-slate-500 mt-1">Institutional partnerships & workforce training</p>
+              </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">{annualBilling ? '$24' : '$29'}</span>
-                <span className="text-xs text-slate-500 font-semibold">/ staff / mo</span>
+                <span className="text-4xl font-black text-slate-900">Custom</span>
+                <span className="text-xs text-slate-500">MOU Based</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                For organizations requiring unlimited multi-tenant workspaces, SLA, and custom domain white-labeling.
-              </p>
-
-              <div className="pt-4 border-t border-slate-100 space-y-2.5 text-xs text-slate-700">
-                <div className="flex items-center gap-2">
+              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Unlimited Staff & Workspaces</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>60-minute executive briefing</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Custom Domain & Brand White-Label</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>On-campus Center of Excellence lab setup</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Round-Robin Team Distribution</span>
-                </div>
-                <div className="flex items-center gap-2">
+                  <span>Faculty Development Programs (FDP)</span>
+                </li>
+                <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Priority 24/7 Dedicated Support & SLA</span>
-                </div>
-              </div>
+                  <span>Dedicated corporate training cohorts</span>
+                </li>
+              </ul>
             </div>
-
-            <Link href="/book/acme-consulting" className="w-full">
+            <Link href="/book/rooman-technologies/university-coe-consultation" className="w-full">
               <button
                 type="button"
-                className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all"
+                className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-xs"
               >
-                Contact Enterprise
+                Schedule Partnership Call
               </button>
             </Link>
           </div>
@@ -916,31 +871,31 @@ export function ApexLandingPage() {
             Frequently Asked Questions
           </h2>
           <p className="text-xs sm:text-sm text-slate-600">
-            Learn more about concurrency locks, buffer intervals, and client scheduling.
+            Learn more about Rooman Technologies courses, booking procedures, and CoE partnerships.
           </p>
         </div>
 
         <div className="space-y-4 text-left">
           {[
             {
-              q: 'How does ApexBookings prevent double-booking conflicts?',
-              a: 'Our platform uses PostgreSQL interval collision validation paired with unique client idempotency keys. When two clients attempt to book the exact same slot concurrently, the system accepts the first confirmed transaction and gracefully alerts the second client to choose an alternative open slot.',
+              q: 'Who will I meet during the 1-on-1 Career Guidance session?',
+              a: 'You will meet directly with certified Rooman senior technical advisors and industry mentors specializing in AI/ML, Cloud Computing (AWS/Azure), Cybersecurity, or Cisco Networking. They will review your goals and explain industry-demanded skill paths.',
             },
             {
-              q: 'What are buffer zones and how do they prevent meeting fatigue?',
-              a: 'Buffer zones allow you to define preparation time (before) and wrap-up time (after) for any service (e.g. 15 minutes). The slot generator automatically blocks out that extra time on your calendar, guaranteeing you never have back-to-back calls without a break.',
+              q: 'Is the 1-on-1 career consultation really 100% free?',
+              a: 'Yes! As part of Rooman Technologies mission to upskill Indias tech workforce, initial 30-minute career counseling and course roadmapping sessions are completely free of cost with zero obligations.',
             },
             {
-              q: 'Can staff members have different working shifts and break times?',
-              a: 'Yes! Every staff member in your workspace can configure unique working days, shift hours (e.g. 09:00 - 17:00), daily lunch breaks, and specific holiday date overrides directly from the Availability tab.',
+              q: 'How does the Technical Mock Interview work?',
+              a: 'The mock interview is a 45-minute live 1-on-1 technical session conducted over Google Meet. You will be evaluated on practical problem-solving, theoretical concepts, and communication. Afterwards, you receive a detailed written scorecard highlighting your strengths and areas for improvement.',
             },
             {
-              q: 'Are video meeting links generated automatically?',
-              a: 'Yes. For any service configured as an online meeting, ApexBookings automatically provisions a unique meeting link (e.g. Google Meet) and includes it in the confirmation screen and calendar record.',
+              q: 'How can our university or engineering college partner with Rooman for a Center of Excellence (CoE)?',
+              a: 'College trustees, deans, and department heads can schedule an Executive CoE Discovery Session through this portal. Our Academic Director will present the CoE framework, hardware and software lab requirements, curriculum integration, and joint placement support.',
             },
             {
-              q: 'Can I manage appointments, reschedule, or mark them as completed?',
-              a: 'Yes! The Bookings & Calendar page allows team members to filter appointments by status, mark sessions as Completed, reschedule to a new time slot with automatic collision checks, or cancel appointments.',
+              q: 'What certifications does Rooman Technologies prepare students for?',
+              a: 'Rooman prepares students for globally recognized credentials including Cisco (CCNA, CCNP), Microsoft Azure, AWS Cloud Architect, Red Hat (RHCSA/RHCE), CompTIA Security+, CEH (Certified Ethical Hacker), and specialized Full-Stack AI certifications.',
             },
           ].map((item, idx) => {
             const isOpen = openFaq === idx;
@@ -975,31 +930,31 @@ export function ApexLandingPage() {
       {/* ---------------------------------------------------- */}
       {/* 11. BOTTOM CTA BANNER                                */}
       {/* ---------------------------------------------------- */}
-      <section className="py-20 px-4 sm:px-8 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white text-center">
+      <section className="py-20 px-4 sm:px-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 text-white text-center">
         <div className="max-w-4xl mx-auto space-y-6">
           <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Ready to upgrade your appointment scheduling?
+            Take the next leap in your tech career today
           </h2>
           <p className="text-sm sm:text-base text-indigo-200 max-w-xl mx-auto font-medium">
-            Join modern consultancies, clinics, and professional firms scheduling client meetings on autopilot.
+            Join over 1.5 million professionals trained by Rooman Technologies across India. Reserve your slot in under 60 seconds.
           </p>
           <div className="pt-2 flex flex-wrap justify-center gap-4">
-            <Link href="/signup">
+            <Link href="/book/rooman-technologies/career-guidance">
               <Button
                 size="lg"
                 variant="primary"
                 className="bg-white hover:bg-slate-100 text-indigo-950 font-black text-sm px-8 py-4 shadow-xl rounded-xl transition-all"
               >
-                START FREE TRIAL
+                BOOK FREE CAREER GUIDANCE
               </Button>
             </Link>
-            <Link href="/appointments">
+            <Link href="/book/rooman-technologies">
               <Button
                 size="lg"
                 variant="outline"
                 className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm px-8 py-4 rounded-xl transition-all"
               >
-                Open Appointments Dashboard
+                Browse All Rooman Services
               </Button>
             </Link>
           </div>
@@ -1007,24 +962,24 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 12. ENTERPRISE SAAS FOOTER                           */}
+      {/* 12. ROOOMAN ENTERPRISE FOOTER                        */}
       {/* ---------------------------------------------------- */}
       <footer className="bg-white border-t border-slate-200 pt-16 pb-12 px-4 sm:px-8 text-xs text-slate-600">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 mb-12 text-left">
           {/* Col 1: Brand */}
           <div className="col-span-2 md:col-span-1 space-y-3">
             <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
-              <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white">
+              <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white">
                 <Calendar className="h-3.5 w-3.5" />
               </div>
-              <span>ApexBookings</span>
+              <span>Rooman Bookings</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Enterprise appointment scheduling platform with pure availability calculations, buffer management, and concurrency safety.
+              Official consultation & appointment scheduling platform for Rooman Technologies. Pioneering IT vocational training and certification in India since 1999.
             </p>
             <div className="pt-2">
               <span className="inline-block px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] text-slate-600 font-semibold">
-                SOC 2 • GDPR • HIPAA Ready
+                Bangalore • Nationwide Centers
               </span>
             </div>
           </div>
@@ -1032,71 +987,68 @@ export function ApexLandingPage() {
           {/* Col 2 */}
           <div className="space-y-2.5">
             <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Architecture
+              IT Certification
             </span>
-            <a href="#features" className="block hover:text-indigo-600 transition-colors">Availability Engine</a>
-            <a href="#features" className="block hover:text-indigo-600 transition-colors">Concurrency Locks</a>
-            <a href="#features" className="block hover:text-indigo-600 transition-colors">Buffer Protection</a>
-            <a href="#features" className="block hover:text-indigo-600 transition-colors">Shift Management</a>
-            <a href="#features" className="block hover:text-indigo-600 transition-colors">Google Meet Links</a>
+            <span className="block text-slate-600">Artificial Intelligence & ML</span>
+            <span className="block text-slate-600">Cloud Computing (AWS / Azure)</span>
+            <span className="block text-slate-600">Cybersecurity & Ethical Hacking</span>
+            <span className="block text-slate-600">Cisco CCNA / CCNP Routing</span>
+            <span className="block text-slate-600">Red Hat Enterprise Linux</span>
           </div>
 
           {/* Col 3 */}
           <div className="space-y-2.5">
             <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Solutions
+              Institutional
             </span>
-            <a href="#solutions" className="block hover:text-indigo-600 transition-colors">Consulting & Advisory</a>
-            <a href="#solutions" className="block hover:text-indigo-600 transition-colors">Healthcare & Clinics</a>
-            <a href="#solutions" className="block hover:text-indigo-600 transition-colors">Executive Coaching</a>
-            <a href="#solutions" className="block hover:text-indigo-600 transition-colors">Financial Advisory</a>
-            <a href="#solutions" className="block hover:text-indigo-600 transition-colors">Salons & Spas</a>
+            <span className="block text-slate-600">Center of Excellence (CoE)</span>
+            <span className="block text-slate-600">College Faculty Development</span>
+            <span className="block text-slate-600">Corporate Team Reskilling</span>
+            <span className="block text-slate-600">PMKVY & NSDC Initiatives</span>
+            <span className="block text-slate-600">Campus Placement Drives</span>
           </div>
 
           {/* Col 4 */}
           <div className="space-y-2.5">
             <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Platform Links
+              Quick Portals
             </span>
+            <Link href="/book/rooman-technologies" className="block hover:text-indigo-600 transition-colors">
+              Rooman Booking Catalog
+            </Link>
             <Link href="/appointments" className="block hover:text-indigo-600 transition-colors">
-              Appointments Dashboard
+              Faculty Dashboard
             </Link>
-            <Link href="/event-types" className="block hover:text-indigo-600 transition-colors">
-              Event Types
+            <Link href="/calendar" className="block hover:text-indigo-600 transition-colors">
+              Schedule Calendar
             </Link>
-            <Link href="/schedules" className="block hover:text-indigo-600 transition-colors">
-              Schedules & Availability
-            </Link>
-            <Link href="/workflows" className="block hover:text-indigo-600 transition-colors">
-              Automated Workflows
-            </Link>
-            <Link href="/signup" className="block hover:text-indigo-600 transition-colors">
-              Sign Up Free
+            <Link href="/login" className="block hover:text-indigo-600 transition-colors">
+              Staff Sign In
             </Link>
           </div>
 
           {/* Col 5 */}
           <div className="space-y-2.5">
             <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Integrations
+              Headquarters
             </span>
-            <span className="block text-slate-500">Google Calendar</span>
-            <span className="block text-slate-500">Microsoft Outlook</span>
-            <span className="block text-slate-500">Google Meet Video</span>
-            <span className="block text-slate-500">Stripe & Deposits</span>
-            <span className="block text-slate-500">PostgreSQL Audit Logs</span>
+            <span className="block text-slate-500">Rooman Technologies Pvt. Ltd.</span>
+            <span className="block text-slate-500">Bengaluru, Karnataka, India</span>
+            <span className="block text-slate-500">info@rooman.net</span>
+            <a href="https://www.rooman.com" target="_blank" rel="noreferrer" className="block text-indigo-600 hover:underline">
+              www.rooman.com ↗
+            </a>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
           <span>
-            © {new Date().getFullYear()} ApexBookings Enterprise Platform. Built with Clean Domain-Driven Architecture.
+            © {new Date().getFullYear()} Rooman Technologies Pvt. Ltd. All Rights Reserved. Rooman Bookings Platform.
           </span>
           <div className="flex items-center gap-6">
             <span className="hover:text-slate-900 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-900 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-slate-900 cursor-pointer">Security</span>
-            <span className="hover:text-slate-900 cursor-pointer">Compliance</span>
+            <span className="hover:text-slate-900 cursor-pointer">Centers across India</span>
           </div>
         </div>
       </footer>

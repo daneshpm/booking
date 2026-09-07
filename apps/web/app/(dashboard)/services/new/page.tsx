@@ -5,9 +5,11 @@ import { ServiceForm } from '@bookings/feature-services';
 export const dynamic = 'force-dynamic';
 
 export default async function NewServicePage() {
-  let workspaceId = 'acme-consulting-ws';
+  let workspaceId = 'rooman-technologies-ws';
   try {
     const workspace = await prisma.workspace.findUnique({
+      where: { slug: 'rooman-technologies' },
+    }) || await prisma.workspace.findUnique({
       where: { slug: 'acme-consulting' },
     });
     if (workspace) workspaceId = workspace.id;

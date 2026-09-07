@@ -5,6 +5,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function BookRootPage() {
   const workspace = await prisma.workspace.findFirst({
+    where: { slug: 'rooman-technologies' },
+  }) || await prisma.workspace.findFirst({
     where: { slug: 'acme-consulting' },
   });
 

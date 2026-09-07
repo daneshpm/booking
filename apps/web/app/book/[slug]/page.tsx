@@ -61,6 +61,8 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
   // 3. If still not found, check if slug is actually a service under default workspace
   if (!workspace) {
     const defaultWorkspace = await prisma.workspace.findFirst({
+      where: { slug: 'rooman-technologies' },
+    }) || await prisma.workspace.findFirst({
       where: { slug: 'acme-consulting' },
     });
 
@@ -234,7 +236,7 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white px-6 py-6 text-center text-xs text-slate-500">
-        Powered by ApexBookings Engine
+        Powered by Rooman Bookings | Rooman Technologies
       </footer>
     </div>
   );
