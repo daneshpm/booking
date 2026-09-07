@@ -8,44 +8,30 @@ import {
   Shield,
   CheckCircle2,
   Video,
-  DollarSign,
-  Users,
   ArrowRight,
   ChevronDown,
   ChevronUp,
-  Play,
   Check,
   ExternalLink,
   Zap,
   Lock,
   Bell,
   Layers,
-  Smartphone,
-  CalendarCheck,
-  Briefcase,
-  HeartHandshake,
   GraduationCap,
   Building2,
-  Sliders,
-  RefreshCw,
   Award,
-  BookOpen,
   Sparkles,
-  MapPin,
-  Phone,
-  Mail,
+  ArrowUpRight,
+  CheckCircle,
 } from 'lucide-react';
-import { Button, Badge } from '@bookings/ui';
+import { Button } from '@bookings/ui';
 
 export function ApexLandingPage() {
   // Tabs for "Here's How It Works"
-  const [activeTab, setActiveTab] = React.useState<'STUDENTS' | 'ENTERPRISE'>('STUDENTS');
-
-  // Pricing billing period: monthly or yearly (save 20%)
-  const [annualBilling, setAnnualBilling] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState<'STUDENTS' | 'INSTITUTIONAL'>('STUDENTS');
 
   // Interactive scheduler preview state
-  const [demoSelectedDay, setDemoSelectedDay] = React.useState('Mon, Sep 14');
+  const [demoSelectedDay, setDemoSelectedDay] = React.useState('Tomorrow');
   const [demoSelectedTime, setDemoSelectedTime] = React.useState('10:30 AM');
   const [demoBooked, setDemoBooked] = React.useState(false);
 
@@ -63,68 +49,38 @@ export function ApexLandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
       {/* ---------------------------------------------------- */}
-      {/* 1. ANNOUNCEMENT TOP BANNER                           */}
+      {/* 1. AIRY, CLEAN, PREMIUM HEADER (NO CONGESTION)       */}
       {/* ---------------------------------------------------- */}
-      <div className="bg-indigo-50/90 border-b border-indigo-100 text-xs text-indigo-950 py-2 px-4 text-center">
-        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 flex-wrap">
-          <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
-          <span className="font-bold text-indigo-900">Rooman Technologies:</span>
-          <span className="text-indigo-800/90 font-medium">
-            25+ Years of IT Skilling Excellence • 1.5M+ Trained • Centers of Excellence across India.
-          </span>
-          <Link
-            href="/book/rooman-technologies"
-            className="text-indigo-600 hover:text-indigo-800 font-bold underline ml-1 inline-flex items-center gap-1"
-          >
-            <span>Book Free Career Guidance</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-      </div>
-
-      {/* ---------------------------------------------------- */}
-      {/* 2. STICKY PRODUCT HEADER                            */}
-      {/* ---------------------------------------------------- */}
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-slate-200/80 px-4 sm:px-8 py-3.5 transition-all shadow-xs">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 px-6 sm:px-12 py-4 transition-all">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
+          {/* Brand Mark with Official Rooman Logo */}
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
-                <Calendar className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-lg font-black tracking-tight text-slate-900">
-                    Rooman<span className="text-indigo-600">Bookings</span>
-                  </span>
-                  <Badge variant="info" className="text-[9px] px-1.5 py-0 uppercase font-bold tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
-                    Official Portal
-                  </Badge>
-                </div>
-                <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-                  Rooman Technologies • Est. 1999
-                </span>
-              </div>
+            <Link href="/" className="flex items-center gap-3 group">
+              <img
+                src="/rooman-logo.png"
+                alt="Rooman Technologies"
+                className="h-7 w-auto object-contain transition-transform group-hover:opacity-90"
+              />
+              <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-widest text-slate-400 pl-3 border-l border-slate-200">
+                Bookings
+              </span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
-              <a href="#services" className="hover:text-slate-900 transition-colors">
-                Skilling Programs
+            {/* Clean, spacious primary nav */}
+            <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-slate-600">
+              <a href="#tracks" className="hover:text-slate-900 transition-colors">
+                Programs
               </a>
               <a href="#how-it-works" className="hover:text-slate-900 transition-colors">
                 How It Works
               </a>
-              <a href="#solutions" className="hover:text-slate-900 transition-colors">
-                Academic & CoE
-              </a>
-              <a href="#live-demo" className="hover:text-slate-900 transition-colors flex items-center gap-1.5">
-                <span>Book Slot</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <a href="#coe" className="hover:text-slate-900 transition-colors">
+                Centers of Excellence
               </a>
               <a href="#pricing" className="hover:text-slate-900 transition-colors">
-                Pricing & Plans
+                Pricing
               </a>
               <a href="#faq" className="hover:text-slate-900 transition-colors">
                 FAQ
@@ -132,32 +88,22 @@ export function ApexLandingPage() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <button
-                type="button"
-                className="px-3.5 py-2 text-xs font-bold text-slate-700 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-all"
-              >
-                Sign In
-              </button>
-            </Link>
-
-            <Link href="/appointments">
-              <button
-                type="button"
-                className="px-3.5 py-2 text-xs font-bold text-indigo-700 hover:text-indigo-900 rounded-xl hover:bg-indigo-50 transition-all"
-              >
-                Faculty Dashboard
-              </button>
+          {/* Right Action Area - Clean & Uncluttered */}
+          <div className="flex items-center gap-5">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              Sign In
             </Link>
 
             <Link href="/book/rooman-technologies">
               <Button
                 variant="primary"
                 size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/25 px-4 py-2 rounded-xl transition-all"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition-all"
               >
-                BOOK CONSULTATION
+                Book a Session
               </Button>
             </Link>
           </div>
@@ -165,30 +111,26 @@ export function ApexLandingPage() {
       </header>
 
       {/* ---------------------------------------------------- */}
-      {/* 3. HERO SECTION                                      */}
+      {/* 2. EDITORIAL HERO SECTION                            */}
       {/* ---------------------------------------------------- */}
-      <section className="relative pt-16 pb-20 px-4 sm:px-8 overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-[#fafbfc]">
-        <div className="absolute top-10 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-20 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Column: Hero Messaging */}
+      <section className="relative pt-16 pb-20 px-6 sm:px-12 bg-gradient-to-b from-slate-50/50 via-white to-white overflow-hidden">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+          {/* Left Hero Narrative */}
           <div className="lg:col-span-7 space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold uppercase tracking-wider shadow-xs">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-              <span>Upskilling India&apos;s Tech Workforce Since 1999</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold tracking-wide">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span>Official Rooman Technologies Consultation Portal</span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
+            <h1 className="text-4xl sm:text-6xl font-black text-slate-950 tracking-tight leading-[1.1]">
               Accelerate your tech career.{' '}
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-800 bg-clip-text text-transparent">
+              <span className="text-indigo-600">
                 Book expert Rooman mentoring.
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed font-normal">
-              Rooman Bookings connects students, job seekers, and university leaders directly with certified industry instructors. 
-              Schedule 1-on-1 certification guidance, technical mock interviews, and university Center of Excellence (CoE) partnerships in seconds.
+            <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed">
+              Connect directly with senior instructors from Rooman Technologies. Schedule 1-on-1 certification guidance, technical mock interviews, and university Center of Excellence (CoE) consultations in seconds.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -196,101 +138,91 @@ export function ApexLandingPage() {
                 <Button
                   size="lg"
                   variant="primary"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm px-6 py-3.5 shadow-lg shadow-indigo-600/25 rounded-xl transition-all"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-md shadow-indigo-600/20 transition-all"
                 >
-                  BOOK 1-ON-1 GUIDANCE (FREE)
-                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                  Book Free 1-on-1 Guidance
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </Link>
 
               <Link
                 href="/book/rooman-technologies"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-900 font-bold text-xs transition-all shadow-xs"
+                className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 font-semibold text-sm transition-all hover:bg-slate-50"
               >
-                <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Browse All Rooman Services</span>
-              </Link>
-
-              <Link
-                href="/appointments"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 px-3 py-2 transition-colors"
-              >
-                <span>Instructor Dashboard</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <span>View All Services</span>
               </Link>
             </div>
 
-            <div className="flex flex-wrap items-center gap-6 pt-2 text-xs text-slate-600 font-medium">
+            {/* Quiet trust markers */}
+            <div className="flex flex-wrap items-center gap-6 pt-4 text-xs font-medium text-slate-500">
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>100% Placement Assistance</span>
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
+                <span>100% Free Career Roadmap</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Cisco, AWS & Microsoft Mentors</span>
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
+                <span>Cisco, AWS & AI Certified Faculty</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Instant Google Meet video sessions</span>
+                <CheckCircle className="h-4 w-4 text-indigo-600" />
+                <span>Automated Google Meet Video</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Live Interactive Scheduler Preview Widget */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative rounded-3xl bg-white border border-slate-200 shadow-xl shadow-slate-200/60 p-6">
-              {/* Host Profile */}
+          {/* Right Live Interactive Scheduler Preview */}
+          <div className="lg:col-span-5">
+            <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xl shadow-slate-200/50 p-6 space-y-5">
+              {/* Mentor Header */}
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-700 flex items-center justify-center font-bold text-white text-base shadow-sm">
-                      PS
-                    </div>
-                    <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                  <div className="h-11 w-11 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                    PS
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-slate-900">Priya Sharma</h2>
-                    <span className="text-xs text-slate-500 block">Principal AI & Cloud Architect • Rooman</span>
+                    <span className="text-xs text-slate-500">Principal AI & Cloud Architect • Rooman</span>
                   </div>
                 </div>
-                <Badge variant="success" className="text-[10px] uppercase font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
-                  Slots Open
-                </Badge>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Slots Available
+                </span>
               </div>
 
-              {/* Service Details */}
-              <div className="py-4 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-slate-900 text-sm">1-on-1 IT Career & Certification Guidance</span>
-                  <span className="font-extrabold text-emerald-600 text-sm">FREE (₹0)</span>
+              {/* Service Offering Title */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-sm">1-on-1 Career & Certification Guidance</span>
+                  <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">FREE</span>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-slate-600">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>30 mins</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Video className="h-3.5 w-3.5 text-purple-600" />
-                    <span>Google Meet Video</span>
-                  </div>
+                <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                    30 mins
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Video className="h-3.5 w-3.5 text-slate-400" />
+                    Google Meet
+                  </span>
                 </div>
               </div>
 
-              {/* Interactive Day Selector */}
-              <div className="pt-2">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Select Date (Indian Standard Time - IST)
-                </label>
+              {/* Day Selection */}
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                  Select Day (IST)
+                </span>
                 <div className="grid grid-cols-3 gap-2">
-                  {['Mon, Sep 14', 'Tue, Sep 15', 'Wed, Sep 16'].map((day) => (
+                  {['Today', 'Tomorrow', 'Thursday'].map((day) => (
                     <button
                       key={day}
                       type="button"
                       onClick={() => setDemoSelectedDay(day)}
-                      className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition-all ${
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
                         demoSelectedDay === day
-                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm scale-[1.02]'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60'
                       }`}
                     >
                       {day}
@@ -299,11 +231,11 @@ export function ApexLandingPage() {
                 </div>
               </div>
 
-              {/* Clickable Open Time Slots */}
-              <div className="pt-4">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Available Slots (IST)
-                </label>
+              {/* Open Slots */}
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                  Select Open Slot
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   {['10:30 AM', '02:00 PM', '04:30 PM', '06:00 PM'].map((time) => {
                     const isSelected = demoSelectedTime === time;
@@ -312,10 +244,10 @@ export function ApexLandingPage() {
                         key={time}
                         type="button"
                         onClick={() => handleDemoSlotClick(time)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                        className={`p-2.5 rounded-lg text-xs font-semibold text-left flex items-center justify-between transition-all ${
                           isSelected
-                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-indigo-50/70 hover:text-indigo-700 hover:border-indigo-300'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-50 hover:bg-indigo-50/80 text-slate-800 border border-slate-200/60'
                         }`}
                       >
                         <span>{time}</span>
@@ -326,25 +258,23 @@ export function ApexLandingPage() {
                 </div>
               </div>
 
-              {/* Instant Feedback Toast */}
+              {/* Confirmation Simulation */}
               {demoBooked && (
-                <div className="mt-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2 font-medium">
+                <div className="p-3 rounded-lg bg-emerald-50 text-emerald-800 text-xs flex items-center gap-2 border border-emerald-100 font-medium">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Selected {demoSelectedDay} at {demoSelectedTime}! Confirming with Rooman mentor...
-                  </span>
+                  <span>Selected {demoSelectedDay} at {demoSelectedTime}! Loading reservation...</span>
                 </div>
               )}
 
-              {/* Buffer & Real Booking Link */}
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <div className="flex items-center gap-1.5 text-indigo-600 font-semibold">
-                  <Shield className="h-3.5 w-3.5" />
-                  <span>Zero-Collision Real Time Scheduling</span>
-                </div>
+              {/* Bottom Real Action */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-indigo-500" />
+                  Live Slot Verification
+                </span>
                 <Link
                   href="/book/rooman-technologies"
-                  className="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1"
+                  className="font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                 >
                   <span>Book Real Slot</span>
                   <ExternalLink className="h-3 w-3" />
@@ -356,558 +286,429 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 4. KEY METRICS & PROOF BAR                           */}
+      {/* 3. AIRY SOCIAL PROOF STRIP (NO CARD BOXES!)         */}
       {/* ---------------------------------------------------- */}
-      <section className="py-14 border-y border-slate-200/80 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <p className="text-center text-xs font-bold tracking-wider text-slate-500 uppercase mb-8">
-            Rooman Technologies • Over Two Decades of Impact in Tech Education & Placements
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">1.5M+</span>
-              <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Students & Professionals Trained
-              </span>
+      <section className="py-12 border-y border-slate-100 bg-white">
+        <div className="max-w-7xl mx-auto px-6 sm:px-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 items-center text-center md:text-left divide-y md:divide-y-0 md:divide-x divide-slate-100">
+            <div className="pt-4 md:pt-0 md:px-4">
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">1.5M+</span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Students & Professionals Trained</p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block">1,000+</span>
-              <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Hiring & Academic Partners
-              </span>
+            <div className="pt-4 md:pt-0 md:px-6">
+              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block tracking-tight">1,000+</span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Hiring & Academic Partners</p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block">98.4%</span>
-              <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Placement Assistance Success
-              </span>
+            <div className="pt-4 md:pt-0 md:px-6">
+              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block tracking-tight">98.4%</span>
+              <p className="text-xs text-slate-500 font-medium mt-1">Placement Assistance Rate</p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block">25+ Yrs</span>
-              <span className="text-xs text-slate-600 font-semibold mt-1 block">
-                Pioneering IT Training Since 1999
-              </span>
+            <div className="pt-4 md:pt-0 md:px-6">
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">25+ Yrs</span>
+              <p className="text-xs text-slate-500 font-medium mt-1">IT Training Pioneer (Est. 1999)</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 5. "HERE'S HOW ROOMAN BOOKINGS WORKS"                */}
+      {/* 4. EDITORIAL CONSULTATION TRACKS (NOT MONOTONOUS)   */}
       {/* ---------------------------------------------------- */}
-      <section id="how-it-works" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto text-center space-y-12">
-        <div>
-          <Badge variant="info" className="text-xs px-3 py-1 font-bold uppercase tracking-wider mb-3 bg-indigo-50 text-indigo-700 border-indigo-200">
-            Frictionless Consultation
-          </Badge>
-          <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Here&apos;s how <span className="text-indigo-600">Rooman Bookings</span> works
+      <section id="tracks" className="py-20 px-6 sm:px-12 max-w-7xl mx-auto">
+        <div className="max-w-3xl mb-12">
+          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+            Focused Pathways
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight mt-2">
+            Tailored consultations for students, colleges, and enterprise teams
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto mt-3">
-            Whether you are a student exploring AI/Cloud careers or a university director setting up a CoE, scheduling takes seconds.
+          <p className="text-base text-slate-600 mt-3">
+            Select the consultation track that matches your goals. Each session is led directly by certified Rooman domain experts.
           </p>
-
-          {/* Perspective Tab Buttons */}
-          <div className="inline-flex items-center p-1.5 rounded-2xl bg-slate-100 border border-slate-200 mt-8">
-            <button
-              type="button"
-              onClick={() => setActiveTab('STUDENTS')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
-                activeTab === 'STUDENTS'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              For Students & Job Seekers
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('ENTERPRISE')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
-                activeTab === 'ENTERPRISE'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              For Universities & Corporates
-            </button>
-          </div>
         </div>
 
-        {/* Tab 1: For Students */}
-        {activeTab === 'STUDENTS' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 01
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                <Clock className="h-6 w-6" />
+        {/* Clean Editorial Rows instead of repetitive cards */}
+        <div className="divide-y divide-slate-200 border-y border-slate-200">
+          {/* Row 1 */}
+          <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-slate-50/50 transition-colors px-4 -mx-4 rounded-xl">
+            <div className="md:col-span-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                  Free • 30 mins
+                </span>
+                <span className="text-xs text-slate-400">1-on-1 Video</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Select Specialization & Slot</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Choose between AI/ML, Cloud DevOps, Cybersecurity, Cisco Networking, or Full-Stack. Pick a convenient time slot in Indian Standard Time (IST).
-              </p>
+              <h3 className="text-xl font-bold text-slate-950">IT Career & Certification Guidance</h3>
+              <p className="text-xs text-slate-500">For fresh graduates & IT job aspirants</p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 02
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                <Users className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Share Goals & Resume</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Tell us your academic background, target certifications, and dream companies so our instructors can prepare tailored advice for your session.
-              </p>
+            <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
+              Personalized career roadmapping with senior advisors. Learn which certifications (Cisco CCNA, AWS Cloud, AI/ML, Red Hat) match industry hiring demand and placement drives.
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 03
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <CalendarCheck className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Live Video Mentoring</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Receive an instant Google Meet calendar invite with meeting notes. Meet your Rooman mentor and build your career roadmap.
-              </p>
+            <div className="md:col-span-3 flex justify-start md:justify-end">
+              <Link href="/book/rooman-technologies/career-guidance">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-5 py-2.5 rounded-lg"
+                >
+                  Book Free Slot
+                  <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
             </div>
           </div>
-        )}
 
-        {/* Tab 2: For Enterprise & Universities */}
-        {activeTab === 'ENTERPRISE' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 01
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                <GraduationCap className="h-6 w-6" />
+          {/* Row 2 */}
+          <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-slate-50/50 transition-colors px-4 -mx-4 rounded-xl">
+            <div className="md:col-span-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                  ₹499 • 45 mins
+                </span>
+                <span className="text-xs text-slate-400">Includes Scorecard</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Select Partnership Scope</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Choose between On-Campus Center of Excellence (CoE) setup, Faculty Development Programs (FDP), or Corporate Engineering Team Reskilling.
-              </p>
+              <h3 className="text-xl font-bold text-slate-950">Technical Mock Interview & Assessment</h3>
+              <p className="text-xs text-slate-500">For students preparing for placement drives</p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 02
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
-                <Shield className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">Direct Director Meeting</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Connect directly with Rooman Academic Directors and Enterprise Leads. Review curriculum alignment, lab hardware, and placement MOUs.
-              </p>
+            <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
+              Comprehensive live technical interview with a principal architect. Assesses coding, system design, or networking fundamentals with an actionable evaluation scorecard.
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-200 transition-all group space-y-4">
-              <span className="text-xs font-black text-indigo-600 tracking-widest uppercase block">
-                STEP 03
-              </span>
-              <div className="h-12 w-12 rounded-2xl bg-cyan-50 flex items-center justify-center text-cyan-600 group-hover:scale-110 transition-transform">
-                <Zap className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900">MOU & Lab Rollout</h3>
-              <p className="text-xs leading-relaxed text-slate-600">
-                Finalize timelines, lab installations, and student cohort schedules with full institutional backing from Rooman Technologies.
-              </p>
+            <div className="md:col-span-3 flex justify-start md:justify-end">
+              <Link href="/book/rooman-technologies/mock-interview-assessment">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow-sm"
+                >
+                  Schedule Interview
+                  <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
             </div>
           </div>
-        )}
-      </section>
 
-      {/* ---------------------------------------------------- */}
-      {/* 6. SIX CORE ROBUST ENGINE PILLARS                    */}
-      {/* ---------------------------------------------------- */}
-      <section id="features" className="py-20 px-4 sm:px-8 bg-slate-50/80 border-y border-slate-200/80">
-        <div className="max-w-7xl mx-auto space-y-16">
-          <div className="text-center space-y-3">
-            <Badge variant="default" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-slate-200/80 text-slate-700 border-slate-300">
-              Enterprise Grade Platform
-            </Badge>
-            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-              Enterprise scheduling precision
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-              Engineered with transactional integrity to handle thousands of concurrent counseling sessions across India.
-            </p>
+          {/* Row 3 */}
+          <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-slate-50/50 transition-colors px-4 -mx-4 rounded-xl">
+            <div className="md:col-span-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                  Institutional MOU
+                </span>
+                <span className="text-xs text-slate-400">60 mins</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-950">University Center of Excellence (CoE)</h3>
+              <p className="text-xs text-slate-500">For college principals, trustees & deans</p>
+            </div>
+
+            <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
+              Strategic consultation with Rooman Academic Directors to establish on-campus CoE labs, Cisco/AWS/Red Hat hardware infrastructure, and joint placement drives for students.
+            </div>
+
+            <div className="md:col-span-3 flex justify-start md:justify-end">
+              <Link href="/book/rooman-technologies/university-coe-consultation">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-300 hover:bg-slate-100 text-slate-800 font-semibold text-xs px-5 py-2.5 rounded-lg"
+                >
+                  Schedule CoE Briefing
+                  <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                <Lock className="h-5 w-5" />
+          {/* Row 4 */}
+          <div className="py-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center hover:bg-slate-50/50 transition-colors px-4 -mx-4 rounded-xl">
+            <div className="md:col-span-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                  Enterprise Cohort
+                </span>
+                <span className="text-xs text-slate-400">45 mins</span>
               </div>
-              <h3 className="text-base font-bold text-slate-900">Zero Double-Bookings</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                PostgreSQL transactional locks guarantee that two students cannot book the same mentor slot simultaneously, even under heavy admission traffic.
-              </p>
+              <h3 className="text-xl font-bold text-slate-950">Corporate Workforce Upskilling</h3>
+              <p className="text-xs text-slate-500">For CTOs, HR heads & engineering leads</p>
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                <Clock className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Timezone Intelligence</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Built with date-fns-tz and stored in UTC. Automatically converts meeting times seamlessly for international students and overseas enterprise clients.
-              </p>
+            <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
+              Customized training programs to upskill software engineering and IT operations teams in Generative AI, Cloud Infrastructure, and Cyber Defense.
             </div>
 
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                <Shield className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Prep & Review Buffers</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Automatic 10-15 minute buffer protection before and after mock interviews, allowing mentors to review resumes and finalize scorecards.
-              </p>
-            </div>
-
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
-                <Layers className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Faculty Shift Management</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Configure unique working shifts, lunch breaks, and holiday schedules for senior trainers across Cisco, AWS, Red Hat, and AI disciplines.
-              </p>
-            </div>
-
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
-                <Video className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Automated Google Meet Video</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Instant video meeting links provisioned for every booking, embedded in calendar invitations and guest confirmation pages.
-              </p>
-            </div>
-
-            <div className="p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
-              <div className="h-11 w-11 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-                <Bell className="h-5 w-5" />
-              </div>
-              <h3 className="text-base font-bold text-slate-900">Multi-Tenant Routing</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Dedicated booking catalogs for each regional Rooman center, university partner campus, and corporate client portal.
-              </p>
+            <div className="md:col-span-3 flex justify-start md:justify-end">
+              <Link href="/book/rooman-technologies/corporate-upskilling-discovery">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-300 hover:bg-slate-100 text-slate-800 font-semibold text-xs px-5 py-2.5 rounded-lg"
+                >
+                  Discuss Corporate Cohort
+                  <ArrowUpRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 7. ROOOMAN ACADEMIC & CORPORATE SOLUTIONS            */}
+      {/* 5. HOW IT WORKS (CONNECTED TIMELINE - NO BOXED CARDS)*/}
       {/* ---------------------------------------------------- */}
-      <section id="solutions" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto space-y-16">
-        <div className="text-center space-y-3">
-          <Badge variant="purple" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border-purple-200">
-            Specialized Tracks
-          </Badge>
-          <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Consultation tracks for every stage
-          </h2>
-          <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            From fresh engineering graduates to university deans and enterprise CTOs, Rooman Technologies provides specialized advisory.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <GraduationCap className="h-7 w-7 text-indigo-600" />
-            <h4 className="text-base font-bold text-slate-900">Career & Certification</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              1-on-1 counseling for fresh graduates and IT aspirants. Discover high-growth career roadmaps in AI, Cloud, and Cybersecurity.
-            </p>
-            <Link href="/book/rooman-technologies/career-guidance" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 inline-block pt-1">
-              Book Free Session →
-            </Link>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <Award className="h-7 w-7 text-rose-600" />
-            <h4 className="text-base font-bold text-slate-900">Technical Mock Interviews</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              45-minute rigorous technical interview practice with senior industry architects. Includes coding, system design, and scorecards.
-            </p>
-            <Link href="/book/rooman-technologies/mock-interview-assessment" className="text-xs font-bold text-rose-600 hover:text-rose-800 inline-block pt-1">
-              Book Mock Interview →
-            </Link>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <Building2 className="h-7 w-7 text-amber-600" />
-            <h4 className="text-base font-bold text-slate-900">University CoE Labs</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Consultation for college deans, trustees, and principals to set up on-campus Centers of Excellence with Cisco, Red Hat & AWS equipment.
-            </p>
-            <Link href="/book/rooman-technologies/university-coe-consultation" className="text-xs font-bold text-amber-600 hover:text-amber-800 inline-block pt-1">
-              Schedule CoE Meeting →
-            </Link>
-          </div>
-
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 hover:border-slate-300 shadow-sm hover:shadow-md transition-all">
-            <Briefcase className="h-7 w-7 text-purple-600" />
-            <h4 className="text-base font-bold text-slate-900">Corporate Upskilling</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Customized training programs for corporate engineering teams. Upskill in Generative AI, Cloud Infrastructure, and Cyber Defense.
-            </p>
-            <Link href="/book/rooman-technologies/corporate-upskilling-discovery" className="text-xs font-bold text-purple-600 hover:text-purple-800 inline-block pt-1">
-              Explore Enterprise →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* 8. INTERACTIVE LIVE BOOKING SANDBOX                  */}
-      {/* ---------------------------------------------------- */}
-      <section id="live-demo" className="py-20 px-4 sm:px-8 bg-slate-50/60 border-y border-slate-200/80">
-        <div className="max-w-5xl mx-auto rounded-3xl bg-white border border-slate-200 p-8 md:p-12 shadow-xl shadow-slate-200/40 text-center space-y-8">
-          <Badge variant="info" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
-            Live Booking Portal
-          </Badge>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Ready to schedule with Rooman Technologies?
-          </h2>
-          <p className="text-sm text-slate-600 max-w-xl mx-auto">
-            Experience our instant appointment booking flow. Choose your program, select an expert instructor, and reserve your video meeting slot.
-          </p>
-
-          <div className="flex flex-wrap justify-center gap-4 pt-2">
-            <Link href="/book/rooman-technologies">
-              <Button
-                size="lg"
-                variant="primary"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm px-8 py-4 shadow-lg shadow-indigo-600/25 rounded-xl transition-all"
-              >
-                Launch Rooman Booking Catalog
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </Link>
-
-            <Link href="/calendar">
-              <Button
-                size="lg"
-                variant="outline"
-                className="bg-white border-slate-200 hover:border-slate-300 text-slate-800 hover:text-slate-900 font-bold text-sm px-8 py-4 rounded-xl shadow-xs"
-              >
-                View Instructor Calendar
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* 9. TRANSPARENT PRICING SECTION                       */}
-      {/* ---------------------------------------------------- */}
-      <section id="pricing" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto space-y-16 text-center">
-        <div className="space-y-4">
-          <Badge variant="success" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border-emerald-200">
-            Consultation Tiers
-          </Badge>
-          <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight">
-            Accessible counseling and advanced assessments
-          </h2>
-          <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            100% free career roadmapping for students, accessible mock interviews, and tailored enterprise partnership packages.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          {/* Plan 1: Student Free */}
-          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Student Career Guidance</h3>
-                <p className="text-xs text-slate-500 mt-1">1-on-1 counseling for fresh graduates & job seekers</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹0</span>
-                <span className="text-xs font-bold text-emerald-600 ml-1">FREE</span>
-              </div>
-              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>30-minute 1-on-1 session</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>AI, Cloud & Cybersecurity roadmap</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Google Meet video call</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Course syllabus & certification guidance</span>
-                </li>
-              </ul>
+      <section id="how-it-works" className="py-20 px-6 sm:px-12 bg-slate-50/70 border-y border-slate-100">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-16 gap-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+                Simple Process
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight mt-2">
+                How scheduling works
+              </h2>
             </div>
-            <Link href="/book/rooman-technologies/career-guidance" className="w-full">
+
+            <div className="inline-flex p-1 rounded-lg bg-slate-200/80 text-xs font-semibold">
               <button
                 type="button"
-                className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-xs"
+                onClick={() => setActiveTab('STUDENTS')}
+                className={`px-4 py-2 rounded-md transition-all ${
+                  activeTab === 'STUDENTS' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                Book Free Counseling
+                For Students & Aspirants
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('INSTITUTIONAL')}
+                className={`px-4 py-2 rounded-md transition-all ${
+                  activeTab === 'INSTITUTIONAL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                For Universities & Corporates
+              </button>
+            </div>
+          </div>
+
+          {/* Timeline steps */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative">
+            <div className="space-y-3">
+              <div className="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">
+                1
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {activeTab === 'STUDENTS' ? 'Choose Your Domain' : 'Define Institutional Scope'}
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {activeTab === 'STUDENTS'
+                  ? 'Select your focus area: AI, Cloud Computing, Cybersecurity, or Cisco Networking. Pick a date & time in IST.'
+                  : 'Select your objective: Center of Excellence setup, Faculty Development Program (FDP), or Corporate Upskilling cohort.'}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+                2
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {activeTab === 'STUDENTS' ? 'Share Background & Resume' : 'Direct Director Meeting'}
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {activeTab === 'STUDENTS'
+                  ? 'Tell us your academic history and dream roles so the Rooman mentor can prepare personalized recommendations.'
+                  : 'Meet directly with Rooman Academic Directors to review lab requirements, curriculum alignment, and placement support.'}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">
+                3
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {activeTab === 'STUDENTS' ? 'Instant Google Meet Video' : 'MOU & Lab Implementation'}
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {activeTab === 'STUDENTS'
+                  ? 'Receive immediate calendar invites and join your live video session with zero back-and-forth emails.'
+                  : 'Finalize agreements and launch on-campus Center of Excellence labs backed by Rooman Technologies.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------- */}
+      {/* 6. TRANSPARENT PRICING & TIERS                      */}
+      {/* ---------------------------------------------------- */}
+      <section id="pricing" className="py-20 px-6 sm:px-12 max-w-7xl mx-auto">
+        <div className="max-w-3xl mb-12">
+          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+            Transparent Options
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight mt-2">
+            Clear, accessible consultation options
+          </h2>
+          <p className="text-base text-slate-600 mt-2">
+            Zero hidden costs. 100% free guidance for all students exploring IT certification paths.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+          {/* Tier 1 */}
+          <div className="p-8 rounded-2xl border border-slate-200 bg-white space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Career Guidance</h3>
+              <p className="text-xs text-slate-500 mt-1">For fresh graduates and students</p>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-slate-900">₹0</span>
+              <span className="text-xs font-bold text-emerald-600 ml-1">FREE</span>
+            </div>
+            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>30-minute 1-on-1 counseling</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>AI, Cloud & Cybersecurity roadmap</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Google Meet video call</span>
+              </li>
+            </ul>
+            <Link href="/book/rooman-technologies/career-guidance" className="block w-full">
+              <Button
+                variant="outline"
+                className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
+              >
+                Book Free Guidance
+              </Button>
             </Link>
           </div>
 
-          {/* Plan 2: Pro Mock Interview (Featured) */}
-          <div className="p-8 rounded-3xl bg-white border-2 border-indigo-600 shadow-xl shadow-indigo-600/10 space-y-6 flex flex-col justify-between relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-              <span className="bg-indigo-600 text-white font-bold text-[10px] tracking-wider uppercase px-3 py-1 rounded-full shadow-sm">
-                Most Popular
-              </span>
+          {/* Tier 2: Featured Pro */}
+          <div className="p-8 rounded-2xl border-2 border-indigo-600 bg-white space-y-6 shadow-lg shadow-indigo-600/5 relative">
+            <span className="absolute -top-3 left-6 px-2.5 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider">
+              Most Popular
+            </span>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Mock Interview & Assessment</h3>
+              <p className="text-xs text-slate-500 mt-1">For placement-ready candidates</p>
             </div>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Technical Mock Interview</h3>
-                <p className="text-xs text-slate-500 mt-1">Rigorous placement readiness evaluation</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹499</span>
-                <span className="text-xs text-slate-500">/ session</span>
-              </div>
-              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span>45-minute live technical interview</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span>Coding / System design / Networking evaluation</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span>Detailed written scorecard & feedback</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span>Resume & LinkedIn profile critique</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                  <span>Priority placement drive referral</span>
-                </li>
-              </ul>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-slate-900">₹499</span>
+              <span className="text-xs text-slate-400">/ session</span>
             </div>
-            <Link href="/book/rooman-technologies/mock-interview-assessment" className="w-full">
-              <button
-                type="button"
-                className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-600/25"
+            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>45-minute live technical interview</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>Written evaluation scorecard</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>Coding, cloud or networking drill</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                <span>Resume & profile recommendations</span>
+              </li>
+            </ul>
+            <Link href="/book/rooman-technologies/mock-interview-assessment" className="block w-full">
+              <Button
+                variant="primary"
+                className="w-full py-2.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 Schedule Mock Interview
-              </button>
+              </Button>
             </Link>
           </div>
 
-          {/* Plan 3: University CoE & Corporate */}
-          <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">University CoE & Enterprise</h3>
-                <p className="text-xs text-slate-500 mt-1">Institutional partnerships & workforce training</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">Custom</span>
-                <span className="text-xs text-slate-500">MOU Based</span>
-              </div>
-              <ul className="space-y-2.5 text-xs text-slate-600 pt-2">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>60-minute executive briefing</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>On-campus Center of Excellence lab setup</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Faculty Development Programs (FDP)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Dedicated corporate training cohorts</span>
-                </li>
-              </ul>
+          {/* Tier 3 */}
+          <div className="p-8 rounded-2xl border border-slate-200 bg-white space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Center of Excellence & Enterprise</h3>
+              <p className="text-xs text-slate-500 mt-1">For universities & corporations</p>
             </div>
-            <Link href="/book/rooman-technologies/university-coe-consultation" className="w-full">
-              <button
-                type="button"
-                className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-xs"
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-slate-900">Custom</span>
+              <span className="text-xs text-slate-400">MOU Based</span>
+            </div>
+            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>60-minute executive briefing</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>On-campus CoE lab setup framework</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Custom corporate cohort syllabus</span>
+              </li>
+            </ul>
+            <Link href="/book/rooman-technologies/university-coe-consultation" className="block w-full">
+              <Button
+                variant="outline"
+                className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
               >
                 Schedule Partnership Call
-              </button>
+              </Button>
             </Link>
           </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 10. INTERACTIVE FAQ ACCORDION                        */}
+      {/* 7. CLEAN MINIMALIST FAQ ACCORDION                   */}
       {/* ---------------------------------------------------- */}
-      <section id="faq" className="py-24 px-4 sm:px-8 max-w-4xl mx-auto space-y-12">
-        <div className="text-center space-y-3">
-          <Badge variant="default" className="text-xs px-3 py-1 font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200">
-            Got Questions?
-          </Badge>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+      <section id="faq" className="py-20 px-6 sm:px-12 max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+            Answers
+          </span>
+          <h2 className="text-3xl font-black text-slate-950 tracking-tight mt-2">
             Frequently Asked Questions
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600">
-            Learn more about Rooman Technologies courses, booking procedures, and CoE partnerships.
-          </p>
         </div>
 
-        <div className="space-y-4 text-left">
+        <div className="divide-y divide-slate-200 border-y border-slate-200">
           {[
             {
-              q: 'Who will I meet during the 1-on-1 Career Guidance session?',
-              a: 'You will meet directly with certified Rooman senior technical advisors and industry mentors specializing in AI/ML, Cloud Computing (AWS/Azure), Cybersecurity, or Cisco Networking. They will review your goals and explain industry-demanded skill paths.',
+              q: 'Who conducts the 1-on-1 Career Guidance session?',
+              a: 'Sessions are conducted directly by certified Rooman instructors and senior career mentors with extensive industry experience in AI/ML, Cloud Computing, Cybersecurity, and Cisco networking.',
             },
             {
-              q: 'Is the 1-on-1 career consultation really 100% free?',
-              a: 'Yes! As part of Rooman Technologies mission to upskill Indias tech workforce, initial 30-minute career counseling and course roadmapping sessions are completely free of cost with zero obligations.',
+              q: 'Is the initial career consultation really 100% free?',
+              a: 'Yes. As part of Rooman Technologies mission to bridge the national IT skill gap, initial 30-minute career roadmapping sessions are completely free with no obligations.',
             },
             {
-              q: 'How does the Technical Mock Interview work?',
-              a: 'The mock interview is a 45-minute live 1-on-1 technical session conducted over Google Meet. You will be evaluated on practical problem-solving, theoretical concepts, and communication. Afterwards, you receive a detailed written scorecard highlighting your strengths and areas for improvement.',
+              q: 'What happens in a Technical Mock Interview?',
+              a: 'You participate in a 45-minute technical simulation over Google Meet. You will be evaluated on technical knowledge, problem-solving approach, and communication, followed by an actionable written scorecard.',
             },
             {
-              q: 'How can our university or engineering college partner with Rooman for a Center of Excellence (CoE)?',
-              a: 'College trustees, deans, and department heads can schedule an Executive CoE Discovery Session through this portal. Our Academic Director will present the CoE framework, hardware and software lab requirements, curriculum integration, and joint placement support.',
-            },
-            {
-              q: 'What certifications does Rooman Technologies prepare students for?',
-              a: 'Rooman prepares students for globally recognized credentials including Cisco (CCNA, CCNP), Microsoft Azure, AWS Cloud Architect, Red Hat (RHCSA/RHCE), CompTIA Security+, CEH (Certified Ethical Hacker), and specialized Full-Stack AI certifications.',
+              q: 'How do engineering colleges establish a Rooman Center of Excellence (CoE)?',
+              a: 'College leadership can schedule an Executive CoE Discovery session. Our team details lab hardware requirements, Cisco/AWS/Red Hat curriculum integration, and joint placement support.',
             },
           ].map((item, idx) => {
             const isOpen = openFaq === idx;
             return (
-              <div
-                key={item.q}
-                className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden transition-all"
-              >
+              <div key={item.q} className="py-5">
                 <button
                   type="button"
                   onClick={() => toggleFaq(idx)}
-                  className="w-full p-5 text-left font-bold text-sm text-slate-900 flex items-center justify-between hover:text-indigo-600 transition-colors"
+                  className="w-full text-left font-bold text-sm text-slate-900 flex items-center justify-between hover:text-indigo-600 transition-colors"
                 >
                   <span>{item.q}</span>
                   {isOpen ? (
@@ -917,9 +718,9 @@ export function ApexLandingPage() {
                   )}
                 </button>
                 {isOpen && (
-                  <div className="px-5 pb-5 text-xs leading-relaxed text-slate-600 border-t border-slate-100 pt-3">
+                  <p className="mt-3 text-xs leading-relaxed text-slate-600 max-w-2xl">
                     {item.a}
-                  </div>
+                  </p>
                 )}
               </div>
             );
@@ -928,33 +729,33 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 11. BOTTOM CTA BANNER                                */}
+      {/* 8. BOTTOM CTA                                        */}
       {/* ---------------------------------------------------- */}
-      <section className="py-20 px-4 sm:px-8 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-950 text-white text-center">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Take the next leap in your tech career today
+      <section className="py-16 px-6 sm:px-12 bg-slate-950 text-white text-center">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+            Ready to take the next step in your tech career?
           </h2>
-          <p className="text-sm sm:text-base text-indigo-200 max-w-xl mx-auto font-medium">
-            Join over 1.5 million professionals trained by Rooman Technologies across India. Reserve your slot in under 60 seconds.
+          <p className="text-sm text-slate-400 max-w-xl mx-auto">
+            Join over 1.5 million professionals trained by Rooman Technologies across India. Reserve your slot in under a minute.
           </p>
           <div className="pt-2 flex flex-wrap justify-center gap-4">
             <Link href="/book/rooman-technologies/career-guidance">
               <Button
                 size="lg"
                 variant="primary"
-                className="bg-white hover:bg-slate-100 text-indigo-950 font-black text-sm px-8 py-4 shadow-xl rounded-xl transition-all"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-6 py-3 rounded-lg"
               >
-                BOOK FREE CAREER GUIDANCE
+                Book Free Guidance Session
               </Button>
             </Link>
             <Link href="/book/rooman-technologies">
               <Button
                 size="lg"
                 variant="outline"
-                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm px-8 py-4 rounded-xl transition-all"
+                className="bg-transparent hover:bg-white/10 text-white border-white/20 font-semibold text-xs px-6 py-3 rounded-lg"
               >
-                Browse All Rooman Services
+                Browse All Services
               </Button>
             </Link>
           </div>
@@ -962,93 +763,37 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 12. ROOOMAN ENTERPRISE FOOTER                        */}
+      {/* 9. REFINED FOOTER                                    */}
       {/* ---------------------------------------------------- */}
-      <footer className="bg-white border-t border-slate-200 pt-16 pb-12 px-4 sm:px-8 text-xs text-slate-600">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 mb-12 text-left">
-          {/* Col 1: Brand */}
-          <div className="col-span-2 md:col-span-1 space-y-3">
-            <div className="flex items-center gap-2 font-black text-slate-900 text-sm">
-              <div className="h-6 w-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white">
-                <Calendar className="h-3.5 w-3.5" />
-              </div>
-              <span>Rooman Bookings</span>
-            </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              Official consultation & appointment scheduling platform for Rooman Technologies. Pioneering IT vocational training and certification in India since 1999.
-            </p>
-            <div className="pt-2">
-              <span className="inline-block px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] text-slate-600 font-semibold">
-                Bangalore • Nationwide Centers
-              </span>
-            </div>
+      <footer className="bg-white border-t border-slate-100 py-12 px-6 sm:px-12 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <img
+              src="/rooman-logo.png"
+              alt="Rooman Technologies"
+              className="h-6 w-auto object-contain"
+            />
+            <span className="text-[11px] text-slate-400 pl-3 border-l border-slate-200">
+              © {new Date().getFullYear()} Rooman Technologies Pvt. Ltd. Bengaluru, India.
+            </span>
           </div>
 
-          {/* Col 2 */}
-          <div className="space-y-2.5">
-            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              IT Certification
-            </span>
-            <span className="block text-slate-600">Artificial Intelligence & ML</span>
-            <span className="block text-slate-600">Cloud Computing (AWS / Azure)</span>
-            <span className="block text-slate-600">Cybersecurity & Ethical Hacking</span>
-            <span className="block text-slate-600">Cisco CCNA / CCNP Routing</span>
-            <span className="block text-slate-600">Red Hat Enterprise Linux</span>
-          </div>
-
-          {/* Col 3 */}
-          <div className="space-y-2.5">
-            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Institutional
-            </span>
-            <span className="block text-slate-600">Center of Excellence (CoE)</span>
-            <span className="block text-slate-600">College Faculty Development</span>
-            <span className="block text-slate-600">Corporate Team Reskilling</span>
-            <span className="block text-slate-600">PMKVY & NSDC Initiatives</span>
-            <span className="block text-slate-600">Campus Placement Drives</span>
-          </div>
-
-          {/* Col 4 */}
-          <div className="space-y-2.5">
-            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Quick Portals
-            </span>
-            <Link href="/book/rooman-technologies" className="block hover:text-indigo-600 transition-colors">
-              Rooman Booking Catalog
+          <div className="flex items-center gap-6 text-slate-600 font-medium">
+            <Link href="/book/rooman-technologies" className="hover:text-slate-900 transition-colors">
+              Booking Portal
             </Link>
-            <Link href="/appointments" className="block hover:text-indigo-600 transition-colors">
-              Faculty Dashboard
-            </Link>
-            <Link href="/calendar" className="block hover:text-indigo-600 transition-colors">
-              Schedule Calendar
-            </Link>
-            <Link href="/login" className="block hover:text-indigo-600 transition-colors">
+            <Link href="/login" className="hover:text-slate-900 transition-colors">
               Staff Sign In
             </Link>
-          </div>
-
-          {/* Col 5 */}
-          <div className="space-y-2.5">
-            <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider block mb-1">
-              Headquarters
-            </span>
-            <span className="block text-slate-500">Rooman Technologies Pvt. Ltd.</span>
-            <span className="block text-slate-500">Bengaluru, Karnataka, India</span>
-            <span className="block text-slate-500">info@rooman.net</span>
-            <a href="https://www.rooman.com" target="_blank" rel="noreferrer" className="block text-indigo-600 hover:underline">
-              www.rooman.com ↗
+            <a
+              href="https://www.rooman.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-slate-900 transition-colors flex items-center gap-1"
+            >
+              <span>rooman.com</span>
+              <ExternalLink className="h-3 w-3" />
             </a>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <span>
-            © {new Date().getFullYear()} Rooman Technologies Pvt. Ltd. All Rights Reserved. Rooman Bookings Platform.
-          </span>
-          <div className="flex items-center gap-6">
-            <span className="hover:text-slate-900 cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-900 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-slate-900 cursor-pointer">Centers across India</span>
           </div>
         </div>
       </footer>
