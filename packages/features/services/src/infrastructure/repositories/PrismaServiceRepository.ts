@@ -1,4 +1,4 @@
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 import type { IServiceRepository } from '../../domain/repositories/IServiceRepository';
 import type { Service } from '../../domain/entities/Service';
 import { ServiceMapper } from '../mappers/ServiceMapper';

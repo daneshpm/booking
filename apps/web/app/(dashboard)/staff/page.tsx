@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 import { StaffManagementClient } from './StaffManagementClient';
 
 export const dynamic = 'force-dynamic';
@@ -56,10 +56,22 @@ export default async function StaffPage() {
     }),
   ]);
 
+  const serializedStaff = staffMembers.map((m) => ({
+    ...m,
+    serviceAssignments: m.serviceAssignments.map((sa) => ({
+      ...sa,
+      priceOverride: sa.priceOverride ? Number(sa.priceOverride) : null,
+      service: {
+        ...sa.service,
+        price: sa.service.price ? Number(sa.service.price) : 0,
+      },
+    })),
+  }));
+
   return (
     <StaffManagementClient
       workspaceId={workspace.id}
-      initialStaff={staffMembers as any}
+      initialStaff={serializedStaff as any}
       availableServices={services}
       defaultTimezone={workspace.timezone}
     />

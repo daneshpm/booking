@@ -16,12 +16,17 @@ import {
   Mail,
   Phone,
   FileText,
-  Sparkles,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
-import { Button, Input, Textarea } from '@zoho-bookings/ui';
-import { createPublicBookingAction, type BookingResult } from './actions';
-import type { ServiceOutputDTO } from '@zoho-bookings/feature-services';
+import { Button, Input, Textarea } from '@bookings/ui';
+import {
+  createPublicBookingAction,
+  getAvailableSlotsAction,
+  type BookingResult,
+  type AvailableSlot,
+} from './actions';
+import type { ServiceOutputDTO } from '@bookings/feature-services';
 
 interface BookingFlowClientProps {
   workspace: {
@@ -58,7 +63,13 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
 
   const [selectedDate, setSelectedDate] = React.useState<string>(availableDates[0]?.dateStr || '');
   const [selectedTime, setSelectedTime] = React.useState<string | null>(null);
+  const [selectedSlotLabel, setSelectedSlotLabel] = React.useState<string | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = React.useState<string | undefined>(undefined);
   const [step, setStep] = React.useState<'SLOT' | 'DETAILS' | 'CONFIRMED'>('SLOT');
+
+  // Dynamic available slots state
+  const [availableSlots, setAvailableSlots] = React.useState<AvailableSlot[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = React.useState(true);
 
   // Customer Form state
   const [customerName, setCustomerName] = React.useState('');
@@ -69,20 +80,47 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [bookingResult, setBookingResult] = React.useState<BookingResult | null>(null);
 
-  // Computed slots based on duration
-  const sampleTimeSlots = [
-    { label: '09:00 AM', value: '09:00' },
-    { label: '09:45 AM', value: '09:45' },
-    { label: '10:30 AM', value: '10:30' },
-    { label: '11:15 AM', value: '11:15' },
-    { label: '01:30 PM', value: '13:30' },
-    { label: '02:15 PM', value: '14:15' },
-    { label: '03:00 PM', value: '15:00' },
-    { label: '04:00 PM', value: '16:00' },
-  ];
+  // Fetch real available slots when date changes
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadSlots() {
+      if (!selectedDate) return;
+      setIsLoadingSlots(true);
+      setErrorMsg(null);
+      try {
+        const result = await getAvailableSlotsAction(workspace.id, service.id, selectedDate);
+        if (isMounted) {
+          if (result.success) {
+            setAvailableSlots(result.slots);
+          } else {
+            setAvailableSlots([]);
+            if (result.error) {
+              console.warn('Slot generation notice:', result.error);
+            }
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to load slots:', err);
+          setAvailableSlots([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingSlots(false);
+        }
+      }
+    }
 
-  const handleSlotSelect = (slotVal: string) => {
-    setSelectedTime(slotVal);
+    loadSlots();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDate, workspace.id, service.id]);
+
+  const handleSlotSelect = (slot: AvailableSlot) => {
+    setSelectedTime(slot.time);
+    setSelectedSlotLabel(slot.label);
+    setSelectedStaffId(slot.staffId);
     setErrorMsg(null);
     setStep('DETAILS');
   };
@@ -100,6 +138,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     const result = await createPublicBookingAction({
       workspaceId: workspace.id,
       serviceId: service.id,
+      staffId: selectedStaffId,
       date: selectedDate,
       time: selectedTime,
       customerName,
@@ -205,7 +244,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
             <div className="space-y-6">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-950/60 border border-blue-800 text-blue-300 text-[10px] font-bold uppercase tracking-wider">
-                  <Sparkles className="h-3 w-3 text-blue-400" />
+                  <Clock className="h-3 w-3 text-blue-400" />
                   Step 1 of 2
                 </div>
                 <h2 className="text-xl font-bold text-white mt-2">Select Date & Time</h2>
@@ -247,22 +286,52 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
 
               {/* Time Slots */}
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-2">
-                  Available Times for {selectedDate}
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {sampleTimeSlots.map((slot) => (
-                    <button
-                      key={slot.value}
-                      type="button"
-                      onClick={() => handleSlotSelect(slot.value)}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:bg-blue-600 hover:border-blue-500 text-slate-200 hover:text-white transition-all group font-semibold text-xs shadow-sm hover:shadow-blue-500/20 active:scale-[0.98]"
-                    >
-                      <span>{slot.label}</span>
-                      <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-slate-300">
+                    Available Times for {selectedDate}
+                  </label>
+                  {isLoadingSlots && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-blue-400">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Checking shifts...</span>
+                    </div>
+                  )}
                 </div>
+
+                {isLoadingSlots ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {[1, 2, 3, 4, 5, 6].map((idx) => (
+                      <div
+                        key={idx}
+                        className="h-11 rounded-xl bg-slate-800/40 border border-slate-800 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : availableSlots.length === 0 ? (
+                  <div className="p-6 rounded-2xl border border-dashed border-slate-800 bg-slate-950/50 text-center">
+                    <Clock className="h-6 w-6 text-slate-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-slate-300">
+                      No Available Slots
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
+                      Staff are either fully booked or scheduled off on this date. Please choose another date above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {availableSlots.map((slot) => (
+                      <button
+                        key={slot.time}
+                        type="button"
+                        onClick={() => handleSlotSelect(slot)}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:bg-blue-600 hover:border-blue-500 text-slate-200 hover:text-white transition-all group font-semibold text-xs shadow-sm hover:shadow-blue-500/20 active:scale-[0.98]"
+                      >
+                        <span>{slot.label}</span>
+                        <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="p-3.5 rounded-2xl bg-blue-950/20 border border-blue-900/40 text-[11px] text-blue-300 flex items-center gap-2.5">
@@ -294,7 +363,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-blue-400" />
                     <span>
-                      {selectedDate} at {sampleTimeSlots.find((s) => s.value === selectedTime)?.label || selectedTime}
+                      {selectedDate} at {selectedSlotLabel || selectedTime}
                     </span>
                   </div>
                   <span className="text-[10px] font-bold text-blue-400 uppercase">

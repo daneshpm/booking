@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 import { SettingsClient } from './SettingsClient';
 
 export const dynamic = 'force-dynamic';

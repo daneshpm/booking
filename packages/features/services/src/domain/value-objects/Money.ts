@@ -1,4 +1,4 @@
-import { DomainError } from '@zoho-bookings/core';
+import { DomainError } from '@bookings/core';
 
 export class Money {
   private readonly _amount: number;

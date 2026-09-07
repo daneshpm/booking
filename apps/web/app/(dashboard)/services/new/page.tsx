@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { prisma } from '@zoho-bookings/database';
-import { ServiceForm } from '@zoho-bookings/feature-services';
+import { prisma } from '@bookings/database';
+import { ServiceForm } from '@bookings/feature-services';
 
 export const dynamic = 'force-dynamic';
 

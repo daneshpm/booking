@@ -1,4 +1,4 @@
-import { Result, NotFoundError } from '@zoho-bookings/core';
+import { Result, NotFoundError } from '@bookings/core';
 import type { IServiceRepository } from '../../domain/repositories/IServiceRepository';
 
 export class DeleteServiceUseCase {

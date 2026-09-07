@@ -11,7 +11,7 @@ import {
   CardFooter,
   Badge,
   Button,
-} from '@zoho-bookings/ui';
+} from '@bookings/ui';
 import {
   Clock,
   DollarSign,

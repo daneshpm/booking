@@ -3,25 +3,25 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: zoho_bookings_postgres
+    container_name: apex_postgres
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: zoho_bookings_dev
+      POSTGRES_DB: bookings_dev
     ports:
       - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d zoho_bookings_dev"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bookings_dev"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: zoho_bookings_redis
+    container_name: apex_redis
     restart: always
     ports:
       - "6379:6379"
@@ -30,7 +30,7 @@ services:
 
   mailpit:
     image: axllent/mailpit:latest
-    container_name: zoho_bookings_mailpit
+    container_name: apex_mailpit
     restart: always
     ports:
       - "8025:8025" # Web UI

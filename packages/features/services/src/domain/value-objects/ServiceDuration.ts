@@ -1,4 +1,4 @@
-import { DomainError } from '@zoho-bookings/core';
+import { DomainError } from '@bookings/core';
 
 export class ServiceDuration {
   private readonly _minutes: number;

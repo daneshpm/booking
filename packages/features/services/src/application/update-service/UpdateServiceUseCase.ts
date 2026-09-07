@@ -1,5 +1,5 @@
 import slugify from 'slugify';
-import { Result, NotFoundError, ConflictError } from '@zoho-bookings/core';
+import { Result, NotFoundError, ConflictError } from '@bookings/core';
 import type { IServiceRepository } from '../../domain/repositories/IServiceRepository';
 import type { UpdateServiceInputDTO } from './UpdateServiceDTO';
 import type { ServiceOutputDTO } from '../create-service/CreateServiceDTO';

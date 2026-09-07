@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 
 export const dynamic = 'force-dynamic';
 

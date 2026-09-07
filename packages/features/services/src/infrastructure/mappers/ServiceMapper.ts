@@ -1,6 +1,6 @@
-import type { Service as PrismaService } from '@zoho-bookings/database';
+import type { Service as PrismaService } from '@bookings/database';
 import { Service } from '../../domain/entities/Service';
-import type { LocationType } from '@zoho-bookings/core';
+import type { LocationType } from '@bookings/core';
 
 export class ServiceMapper {
   public static toDomain(raw: PrismaService): Service {

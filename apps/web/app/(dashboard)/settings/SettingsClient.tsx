@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Building, Globe, DollarSign, Check, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Select } from '@zoho-bookings/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, Select } from '@bookings/ui';
 import { updateWorkspaceSettingsAction } from './actions';
 
 interface SettingsClientProps {

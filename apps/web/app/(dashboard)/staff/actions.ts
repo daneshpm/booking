@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 import { z } from 'zod';
 
 const staffSchema = z.object({

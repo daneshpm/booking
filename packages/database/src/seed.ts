@@ -1,7 +1,7 @@
 import { prisma } from './client';
 
 async function main() {
-  console.log('🌱 Seeding Zoho Bookings development database...');
+  console.log('🌱 Seeding ApexBookings development database...');
 
   // 1. Create or upsert Demo User
   const demoUser = await prisma.user.upsert({

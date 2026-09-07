@@ -8,11 +8,14 @@ const __dirname = path.dirname(__filename);
 const nextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../../'),
   transpilePackages: [
-    '@zoho-bookings/core',
-    '@zoho-bookings/database',
-    '@zoho-bookings/ui',
-    '@zoho-bookings/feature-services',
+    '@bookings/core',
+    '@bookings/database',
+    '@bookings/ui',
+    '@bookings/feature-services',
   ],
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

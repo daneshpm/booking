@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { prisma } from '@zoho-bookings/database';
+import { prisma } from '@bookings/database';
 import {
   Clock,
   DollarSign,
@@ -10,11 +10,10 @@ import {
   Building,
   Phone,
   ArrowRight,
-  Sparkles,
   Calendar,
   Globe,
 } from 'lucide-react';
-import { Button, Badge } from '@zoho-bookings/ui';
+import { Button, Badge } from '@bookings/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,8 +149,8 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
         {/* Intro */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/60 border border-blue-800 text-blue-300 text-xs font-semibold">
-            <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-            <span>Select a Service to Schedule</span>
+            <Calendar className="h-3.5 w-3.5 text-blue-400" />
+            <span>Select an Appointment Type</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
@@ -233,7 +232,7 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
 
       {/* Footer */}
       <footer className="border-t border-slate-900 px-6 py-6 text-center text-xs text-slate-500">
-        Powered by Zoho Bookings Engine
+        Powered by ApexBookings Engine
       </footer>
     </div>
   );

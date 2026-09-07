@@ -1,4 +1,4 @@
-import { Result } from '@zoho-bookings/core';
+import { Result } from '@bookings/core';
 import type { IServiceRepository } from '../../domain/repositories/IServiceRepository';
 import type { ServiceOutputDTO } from '../create-service/CreateServiceDTO';
 

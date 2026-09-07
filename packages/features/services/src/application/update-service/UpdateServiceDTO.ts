@@ -1,4 +1,4 @@
-import type { LocationType } from '@zoho-bookings/core';
+import type { LocationType } from '@bookings/core';
 import type { ServiceOutputDTO } from '../create-service/CreateServiceDTO';
 
 export interface UpdateServiceInputDTO {

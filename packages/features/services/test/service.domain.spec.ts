@@ -3,7 +3,7 @@ import { ServiceDuration } from '../src/domain/value-objects/ServiceDuration.js'
 import { ServiceBuffer } from '../src/domain/value-objects/ServiceBuffer.js';
 import { Money } from '../src/domain/value-objects/Money.js';
 import { Service } from '../src/domain/entities/Service.js';
-import { DomainError } from '@zoho-bookings/core';
+import { DomainError } from '@bookings/core';
 
 describe('Service Domain Invariants', () => {
   describe('ServiceDuration', () => {

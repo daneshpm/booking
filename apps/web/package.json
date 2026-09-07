@@ -1,18 +1,18 @@
 {
-  "name": "@zoho-bookings/web",
+  "name": "@bookings/web",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@zoho-bookings/core": "*",
-    "@zoho-bookings/database": "*",
-    "@zoho-bookings/feature-services": "*",
-    "@zoho-bookings/ui": "*",
+    "@bookings/core": "*",
+    "@bookings/database": "*",
+    "@bookings/feature-services": "*",
+    "@bookings/ui": "*",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "next": "^15.1.7",

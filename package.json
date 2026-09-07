@@ -1,9 +1,9 @@
 {
-  "name": "zoho-bookings",
+  "name": "apex-bookings",
   "version": "1.0.0",
   "private": true,
   "packageManager": "npm@11.14.1",
-  "description": "Enterprise-grade multi-tenant appointment scheduling platform inspired by Zoho Bookings and Cal.diy architecture",
+  "description": "Enterprise-grade multi-tenant appointment scheduling platform inspired by modern scheduling architecture",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -14,11 +14,12 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "db:generate": "npm --workspace=@zoho-bookings/database run generate",
-    "db:push": "npm --workspace=@zoho-bookings/database run push",
-    "db:seed": "npm --workspace=@zoho-bookings/database run seed"
+    "db:generate": "npm --workspace=@bookings/database run generate",
+    "db:push": "npm --workspace=@bookings/database run push",
+    "db:seed": "npm --workspace=@bookings/database run seed"
   },
   "devDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "^1.2.5",
     "prettier": "^3.5.3",
     "turbo": "^2.4.4",
     "typescript": "^5.7.3",

@@ -14,7 +14,7 @@ import {
   CardDescription,
   CardContent,
   Alert,
-} from '@zoho-bookings/ui';
+} from '@bookings/ui';
 import {
   Clock,
   DollarSign,
@@ -24,7 +24,7 @@ import {
   Building,
   Phone,
   ArrowLeft,
-  Sparkles,
+  Check,
 } from 'lucide-react';
 import { createServiceAction, updateServiceAction } from '../api/service.actions';
 import type { ServiceFormData } from '../api/service.schema';
@@ -114,7 +114,7 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
             Cancel
           </Button>
           <Button type="submit" variant="primary" isLoading={isLoading} className="gap-2">
-            <Sparkles className="h-4 w-4" />
+            <Check className="h-4 w-4" />
             {isEditing ? 'Save Changes' : 'Create Service'}
           </Button>
         </div>
@@ -391,7 +391,7 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
           Cancel
         </Button>
         <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="gap-2">
-          <Sparkles className="h-5 w-5" />
+          <Check className="h-5 w-5" />
           {isEditing ? 'Update Service' : 'Create & Publish Service'}
         </Button>
       </div>

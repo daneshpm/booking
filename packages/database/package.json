@@ -1,5 +1,5 @@
 {
-  "name": "@zoho-bookings/database",
+  "name": "@bookings/database",
   "version": "1.0.0",
   "private": true,
   "main": "./src/index.ts",
@@ -9,12 +9,12 @@
     "push": "prisma db push",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "seed": "tsx --env-file=.env src/seed.ts",
+    "seed": "tsx --env-file=../../.env src/seed.ts",
     "studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
-    "@zoho-bookings/core": "*"
+    "@bookings/core": "*"
   },
   "devDependencies": {
     "prisma": "^6.4.1",

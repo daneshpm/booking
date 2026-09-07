@@ -7,7 +7,7 @@ import {
   Input,
   Select,
   Modal,
-} from '@zoho-bookings/ui';
+} from '@bookings/ui';
 import {
   Plus,
   Search,

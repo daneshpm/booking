@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Zoho Bookings | Enterprise Appointment Scheduling Platform',
+  title: 'ApexBookings | Enterprise Appointment Scheduling Platform',
   description:
-    'Modern, multi-tenant appointment scheduling platform for businesses, consultancies, and service providers.',
+    'Modern, multi-tenant appointment scheduling platform with pure availability calculations, buffer management, concurrency safety, and automated video meetings.',
 };
 
 export default function RootLayout({

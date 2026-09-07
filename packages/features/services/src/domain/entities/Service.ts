@@ -1,4 +1,4 @@
-import { DomainError, type LocationType } from '@zoho-bookings/core';
+import { DomainError, type LocationType } from '@bookings/core';
 import { ServiceDuration } from '../value-objects/ServiceDuration';
 import { ServiceBuffer } from '../value-objects/ServiceBuffer';
 import { Money } from '../value-objects/Money';

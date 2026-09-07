@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { notFound } from 'next/navigation';
-import { prisma } from '@zoho-bookings/database';
-import { PrismaServiceRepository } from '@zoho-bookings/feature-services';
-import { GetServiceByIdUseCase } from '@zoho-bookings/feature-services';
+import { prisma } from '@bookings/database';
+import { PrismaServiceRepository } from '@bookings/feature-services';
+import { GetServiceByIdUseCase } from '@bookings/feature-services';
 import { BookingFlowClient } from '../../BookingFlowClient';
 
 export const dynamic = 'force-dynamic';

@@ -18,7 +18,7 @@ import {
   Badge,
   Button,
   Modal,
-} from '@zoho-bookings/ui';
+} from '@bookings/ui';
 import {
   updateStaffWorkingHoursAction,
   type DayScheduleInput,

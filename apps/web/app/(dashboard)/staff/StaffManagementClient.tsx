@@ -29,7 +29,7 @@ import {
   Input,
   Select,
   Modal,
-} from '@zoho-bookings/ui';
+} from '@bookings/ui';
 import {
   createStaffAction,
   updateStaffAction,
