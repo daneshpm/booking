@@ -63,8 +63,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     const defaultWorkspace = await prisma.workspace.findFirst({
       where: { slug: 'rooman-technologies' },
     }) || await prisma.workspace.findFirst({
+      where: { slug: 'rooman' },
+    }) || await prisma.workspace.findFirst({
       where: { slug: 'acme-consulting' },
-    });
+    }) || await prisma.workspace.findFirst();
 
     if (defaultWorkspace) {
       const service = await prisma.service.findUnique({
