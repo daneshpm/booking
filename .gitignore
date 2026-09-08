@@ -32,5 +32,12 @@ yarn-error.log*
 *.swo
 .DS_Store
 Thumbs.db
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyd
+.pytest_cache/
 *.tsbuildinfo
 

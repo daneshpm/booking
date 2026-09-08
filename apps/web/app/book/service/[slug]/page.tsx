@@ -16,8 +16,12 @@ export default async function ServiceBookerPage({ params }: BookerPageProps) {
 
   try {
     const workspace = await prisma.workspace.findFirst({
+      where: { slug: 'rooman-technologies' },
+    }) || await prisma.workspace.findFirst({
+      where: { slug: 'rooman' },
+    }) || await prisma.workspace.findFirst({
       where: { slug: 'acme-consulting' },
-    });
+    }) || await prisma.workspace.findFirst();
 
     if (!workspace) return notFound();
 

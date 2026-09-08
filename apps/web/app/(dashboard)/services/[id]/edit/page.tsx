@@ -16,6 +16,8 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
 
   try {
     const workspace = await prisma.workspace.findUnique({
+      where: { slug: 'rooman-technologies' },
+    }) || await prisma.workspace.findUnique({
       where: { slug: 'acme-consulting' },
     });
 

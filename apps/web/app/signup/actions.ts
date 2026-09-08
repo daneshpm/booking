@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { prisma } from '@bookings/database';
+import { pythonLogin } from '@/lib/python-api';
 
 export interface SignupInput {
   name: string;
@@ -176,6 +177,29 @@ export async function signupUserAction(data: SignupInput): Promise<AuthResult> {
 export async function loginUserAction(email: string): Promise<AuthResult> {
   try {
     const cleanEmail = email.toLowerCase().trim();
+
+    // 1. Authenticate with FastAPI Python backend
+    try {
+      const pyAuth = await pythonLogin(cleanEmail, 'password123');
+      if (pyAuth && pyAuth.access_token) {
+        const cookieStore = await cookies();
+        cookieStore.set('auth_token', pyAuth.access_token, { path: '/', httpOnly: false });
+        if (pyAuth.workspace) {
+          cookieStore.set('active_workspace', pyAuth.workspace.slug, { path: '/', httpOnly: false });
+        }
+        cookieStore.set('user_name', pyAuth.user.name, { path: '/', httpOnly: false });
+        cookieStore.set('user_email', cleanEmail, { path: '/', httpOnly: false });
+
+        return {
+          success: true,
+          workspaceSlug: pyAuth.workspace?.slug || 'rooman',
+        };
+      }
+    } catch (apiErr: any) {
+      console.warn('Python auth API unavailable or credentials check failed:', apiErr.message);
+    }
+
+    // 2. Direct database lookup fallback
     const user = await prisma.user.findUnique({
       where: { email: cleanEmail },
       include: {

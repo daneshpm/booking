@@ -3,13 +3,13 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button, Input } from '@bookings/ui';
 import { loginUserAction } from '../signup/actions';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('owner@acmeconsulting.com');
+  const [email, setEmail] = React.useState('danesh@rooman.com');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -40,12 +40,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
-            <CheckCircle2 className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-2xl font-black tracking-tight text-slate-900">
-            Bookings
+        <Link href="/" className="inline-flex flex-col items-center gap-2">
+          <img
+            src="/rooman-logo.png"
+            alt="Rooman Technologies"
+            className="h-9 w-auto object-contain"
+          />
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            Bookings Portal
           </span>
         </Link>
         <h2 className="mt-4 text-2xl font-extrabold text-slate-900 tracking-tight">

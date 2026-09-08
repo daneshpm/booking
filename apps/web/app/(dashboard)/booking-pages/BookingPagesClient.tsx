@@ -55,7 +55,7 @@ export function BookingPagesClient({
   style="border: none; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08);"
 ></iframe>`;
 
-  const buttonSnippet = `<!-- ApexBookings Floating Button Widget -->
+  const buttonSnippet = `<!-- Rooman Bookings Floating Button Widget -->
 <script
   src="${baseUrl}/widget.js"
   data-booking-url="${embedUrl}"
