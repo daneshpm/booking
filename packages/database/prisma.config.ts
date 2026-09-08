@@ -8,6 +8,18 @@ import { defineConfig } from 'prisma/config';
  * the other CLI commands read it from here; the runtime client gets it through
  * the driver adapter in src/client.ts instead.
  */
+
+/**
+ * Scratch database used when replaying a migrations directory, which only
+ * `migrate dev` and `migrate diff --from-migrations` need.
+ *
+ * Deliberately left unset when SHADOW_DATABASE_URL is absent. Prisma drops and
+ * recreates whatever this points at, so defaulting it to the main database
+ * would be destructive; Prisma refuses that case outright, which would also
+ * break `migrate deploy` for everyone who never asked for a shadow database.
+ */
+const shadowDatabaseUrl = process.env.SHADOW_DATABASE_URL?.trim();
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -15,15 +27,6 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DATABASE_URL ?? '',
-    /*
-     * Replaying a migrations directory needs a scratch database to apply them
-     * into. Prisma 7 requires it here rather than as a CLI flag.
-     *
-     * SHADOW_DATABASE_URL should point at a disposable database: Prisma drops
-     * and recreates its contents. Falling back to DATABASE_URL is only safe for
-     * the throwaway database CI creates for the drift check, never for one
-     * holding real data.
-     */
-    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
+    ...(shadowDatabaseUrl ? { shadowDatabaseUrl } : {}),
   },
 });
