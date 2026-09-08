@@ -438,9 +438,21 @@ export function WorkflowsClient({
                   <select
                     id="wf-trigger"
                     value={form.trigger}
-                    onChange={(e) =>
-                      setForm({ ...form, trigger: e.target.value as WorkflowInput['trigger'] })
-                    }
+                    onChange={(e) => {
+                      const trigger = e.target.value as WorkflowInput['trigger'];
+                      // The sign encodes the direction, so switching between
+                      // before and after has to flip it. Left alone, the field
+                      // read "60 minutes before" while submitting +60, which
+                      // the server then rejected.
+                      const magnitude = Math.abs(form.offsetMinutes ?? 0);
+                      const offsetMinutes =
+                        trigger === 'BEFORE_APPOINTMENT'
+                          ? -magnitude
+                          : trigger === 'AFTER_APPOINTMENT'
+                            ? magnitude
+                            : 0;
+                      setForm({ ...form, trigger, offsetMinutes });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#5c34ad]"
                   >
                     {Object.entries(TRIGGER_LABELS).map(([value, label]) => (

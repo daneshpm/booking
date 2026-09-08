@@ -45,6 +45,14 @@ interface Window {
  */
 const MAX_TRACKED_KEYS = 20_000;
 
+/**
+ * Keys removed each time the ceiling is reached.
+ *
+ * Evicting one at a time would re-sort the whole map on every request once it
+ * is full, turning the protection into its own bottleneck.
+ */
+const EVICTION_BATCH = 2_000;
+
 /** Insertion order is iteration order for a Map, so the oldest keys come first. */
 const buckets = new Map<string, Window>();
 
@@ -59,12 +67,23 @@ function enforceCeiling(now: number): void {
   if (buckets.size < MAX_TRACKED_KEYS) return;
   if (evictExpired(now) < MAX_TRACKED_KEYS) return;
 
-  const excess = buckets.size - MAX_TRACKED_KEYS + 1;
-  let dropped = 0;
-  for (const key of buckets.keys()) {
-    buckets.delete(key);
-    dropped += 1;
-    if (dropped >= excess) break;
+  /*
+   * Evict whatever expires soonest rather than whatever was inserted first.
+   *
+   * Insertion order would drop the oldest live counter, and an attacker
+   * rotating a client-supplied header could use that to push out the
+   * per-account login bucket, which is exactly the counter that stops
+   * distributed password guessing. Dropping by imminent expiry costs an
+   * attacker their own freshest counters instead.
+   *
+   * A batch is evicted rather than a single entry, so the sort is paid once
+   * per batch instead of on every request once the map is full.
+   */
+  const byExpiry = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt);
+  const target = Math.max(buckets.size - MAX_TRACKED_KEYS + 1, EVICTION_BATCH);
+
+  for (let i = 0; i < target && i < byExpiry.length; i += 1) {
+    buckets.delete(byExpiry[i][0]);
   }
 }
 
@@ -98,7 +117,13 @@ function checkInMemory(key: string, options: RateLimitOptions): RateLimitResult 
 }
 
 let redis: RedisClientType | null = null;
-let redisUnavailable = false;
+/** In-flight connection, so concurrent callers share one attempt. */
+let connecting: Promise<RedisClientType | null> | null = null;
+/** When to next retry after a failure, rather than giving up for good. */
+let retryConnectionAfter = 0;
+
+/** How long to use the local fallback before trying Redis again. */
+const RECONNECT_BACKOFF_MS = 30_000;
 
 /**
  * Connect to Redis once, lazily.
@@ -108,39 +133,54 @@ let redisUnavailable = false;
  */
 async function getRedis(): Promise<RedisClientType | null> {
   if (redis?.isOpen) return redis;
-  if (redisUnavailable) return null;
 
   const url = process.env.REDIS_URL;
-  if (!url) {
-    redisUnavailable = true;
-    return null;
-  }
+  if (!url) return null;
 
-  try {
-    const client = createClient({
-      url,
-      socket: {
-        connectTimeout: 3000,
-        reconnectStrategy: (retries) => Math.min(retries * 200, 5000),
-      },
-    }) as RedisClientType;
+  // A blip at boot must not downgrade the instance to per-process limits for
+  // the rest of its life, so failures back off rather than latching.
+  if (Date.now() < retryConnectionAfter) return null;
 
-    // Without a listener an emitted error would take the process down.
-    client.on('error', (err) => {
-      console.error('Rate limiter Redis error:', err instanceof Error ? err.message : err);
-    });
+  // Concurrent cold-start requests share one attempt. Without this each would
+  // build its own client and leak all but the last, each retrying forever.
+  connecting ??= (async () => {
+    let client: RedisClientType | null = null;
+    try {
+      client = createClient({
+        url,
+        socket: {
+          connectTimeout: 3000,
+          reconnectStrategy: (retries) => Math.min(retries * 200, 5000),
+        },
+      }) as RedisClientType;
 
-    await client.connect();
-    redis = client;
-    return redis;
-  } catch (err) {
-    console.error(
-      'Rate limiter could not reach Redis, falling back to per-instance limits:',
-      err instanceof Error ? err.message : err
-    );
-    redisUnavailable = true;
-    return null;
-  }
+      // Without a listener an emitted error would take the process down.
+      client.on('error', (err) => {
+        console.error('Rate limiter Redis error:', err instanceof Error ? err.message : err);
+      });
+
+      await client.connect();
+      redis = client;
+      return redis;
+    } catch (err) {
+      console.error(
+        'Rate limiter could not reach Redis, using per-instance limits for now:',
+        err instanceof Error ? err.message : err
+      );
+      // Release the half-built client rather than leaving it reconnecting.
+      try {
+        client?.destroy();
+      } catch {
+        /* already closed or never opened */
+      }
+      retryConnectionAfter = Date.now() + RECONNECT_BACKOFF_MS;
+      return null;
+    } finally {
+      connecting = null;
+    }
+  })();
+
+  return connecting;
 }
 
 /**

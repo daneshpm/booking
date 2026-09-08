@@ -111,9 +111,12 @@ async function claimJob(job: Job, booking: BookingWithRelations): Promise<string
       select: { id: true },
     });
     return row.id;
-  } catch {
-    // Unique violation: another worker holds this one.
-    return null;
+  } catch (err) {
+    // P2002 is the unique violation, and the only error that means another
+    // worker holds this delivery. Treating every failure that way would let a
+    // database outage look like healthy operation in the sweep summary.
+    if ((err as { code?: string })?.code === 'P2002') return null;
+    throw err;
   }
 }
 
@@ -269,24 +272,29 @@ export async function dispatchBookingNotifications(
   const context = buildTemplateContext(booking);
   const jobs: Job[] = [];
 
-  if (workflows.length === 0) {
-    // With no workflow configured, booking creation and cancellation still send
-    // the built-in transactional email. Customers expect those; they are not
-    // optional marketing. Lifecycle events fire once each, so they are not
-    // claimed.
-    if (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_CANCELLED') {
-      jobs.push({
-        workflowId: null,
-        channel: 'EMAIL',
-        recipient: booking.customer.email,
-        message: defaultMessage(trigger, context),
-        claim: false,
-      });
-    }
-  } else {
-    for (const workflow of workflows) {
-      jobs.push(...planForWorkflow(workflow, booking, trigger, context, false));
-    }
+  for (const workflow of workflows) {
+    jobs.push(...planForWorkflow(workflow, booking, trigger, context, false));
+  }
+
+  // Booking creation and cancellation always send the built-in transactional
+  // email to the customer. Customers expect those; they are not optional
+  // marketing. It is suppressed only when a workflow already emails them, so
+  // adding a webhook or SMS workflow does not silently stop confirmations.
+  const customerAlreadyEmailed = jobs.some(
+    (job) => job.channel === 'EMAIL' && job.recipient === booking.customer.email
+  );
+
+  if (
+    !customerAlreadyEmailed &&
+    (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_CANCELLED')
+  ) {
+    jobs.push({
+      workflowId: null,
+      channel: 'EMAIL',
+      recipient: booking.customer.email,
+      message: defaultMessage(trigger, context),
+      claim: false,
+    });
   }
 
   const summary = await runJobs(jobs, booking);
@@ -362,7 +370,11 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
 
   const stalled = await prisma.notificationLog.findMany({
     where: {
-      status: 'PENDING',
+      // PENDING is a claim whose worker died. FAILED is a send that did not
+      // land, usually a mail server refusing a connection. Both need another
+      // go: without FAILED here, a single transient failure lost the reminder
+      // permanently, because the claim row blocks every later sweep.
+      status: { in: ['PENDING', 'FAILED'] },
       createdAt: { lte: cutoff },
       attempts: { lt: MAX_ATTEMPTS },
       bookingId: { not: null },
@@ -380,8 +392,8 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
     // Atomic re-claim: only one worker can move this row off its current
     // attempt count.
     const claimed = await prisma.notificationLog.updateMany({
-      where: { id: row.id, status: 'PENDING', attempts: row.attempts },
-      data: { attempts: { increment: 1 } },
+      where: { id: row.id, status: row.status, attempts: row.attempts },
+      data: { status: 'PENDING', attempts: { increment: 1 } },
     });
 
     if (claimed.count === 0) {
@@ -398,7 +410,25 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
       await prisma.notificationLog
         .update({
           where: { id: row.id },
-          data: { status: 'FAILED', error: 'Booking no longer exists' },
+          // Exhausted so the sweep stops reconsidering it.
+          data: { status: 'FAILED', attempts: MAX_ATTEMPTS, error: 'Booking no longer exists' },
+        })
+        .catch(() => undefined);
+      continue;
+    }
+
+    // The sweep excludes cancelled appointments, but a booking can be cancelled
+    // between the original claim and this retry. Reminding someone about an
+    // appointment that is no longer happening is worse than sending nothing.
+    if (booking.status === 'CANCELLED') {
+      await prisma.notificationLog
+        .update({
+          where: { id: row.id },
+          data: {
+            status: 'FAILED',
+            attempts: MAX_ATTEMPTS,
+            error: 'Appointment was cancelled before the notification was sent',
+          },
         })
         .catch(() => undefined);
       continue;
@@ -409,7 +439,11 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
       await prisma.notificationLog
         .update({
           where: { id: row.id },
-          data: { status: 'FAILED', error: 'Workflow was removed or disabled' },
+          data: {
+            status: 'FAILED',
+            attempts: MAX_ATTEMPTS,
+            error: 'Workflow was removed or disabled',
+          },
         })
         .catch(() => undefined);
       continue;
@@ -429,7 +463,18 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
     };
 
     attempted += 1;
-    const result = await deliver(job, booking);
+
+    // A single unrenderable booking must not abort the whole retry pass.
+    let result: DeliveryResult;
+    try {
+      result = await deliver(job, booking);
+    } catch (err) {
+      result = {
+        delivered: false,
+        error: err instanceof Error ? err.message : 'Delivery threw an unexpected error',
+      };
+    }
+
     if (result.delivered) delivered += 1;
 
     await prisma.notificationLog
@@ -445,4 +490,25 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
   }
 
   return { attempted, delivered, skipped };
+}
+
+/**
+ * Forget the time-based notifications already recorded for a booking.
+ *
+ * The delivery claim is keyed on (workflow, booking, recipient) with no time
+ * component, so a reminder sent for the old slot would block one ever being
+ * sent for the new one. Clearing those rows lets the sweep reconsider the
+ * booking against its new start time.
+ *
+ * Only reminders and follow-ups are cleared. Lifecycle records, such as the
+ * confirmation actually sent to the customer, are history and stay put.
+ */
+export async function clearScheduledNotifications(bookingId: string): Promise<number> {
+  const result = await prisma.notificationLog.deleteMany({
+    where: {
+      bookingId,
+      workflow: { trigger: { in: ['BEFORE_APPOINTMENT', 'AFTER_APPOINTMENT'] } },
+    },
+  });
+  return result.count;
 }

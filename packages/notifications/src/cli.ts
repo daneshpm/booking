@@ -13,7 +13,20 @@ import { countExpiredReminders, runScheduledWorkflows } from './scheduler';
 
 loadEnvFile();
 
-const INTERVAL_SECONDS = Number(process.env.WORKFLOW_INTERVAL_SECONDS || 60);
+/**
+ * Seconds between sweeps.
+ *
+ * Clamped and validated: an unparseable value would otherwise reach setTimeout
+ * as NaN, which fires immediately and turns the worker into a hot loop against
+ * the database.
+ */
+function resolveInterval(): number {
+  const raw = Number(process.env.WORKFLOW_INTERVAL_SECONDS);
+  if (!Number.isFinite(raw) || raw <= 0) return 60;
+  return Math.min(Math.max(Math.round(raw), 5), 3600);
+}
+
+const INTERVAL_SECONDS = resolveInterval();
 
 function log(message: string, detail?: Record<string, unknown>): void {
   const stamp = new Date().toISOString();
@@ -45,11 +58,14 @@ async function runOnce(): Promise<void> {
 
 async function runForever(): Promise<void> {
   let stopping = false;
+  let wake: (() => void) | null = null;
 
   const stop = (signal: string) => {
     if (stopping) return;
     stopping = true;
     log(`received ${signal}, finishing the current sweep then exiting`);
+    // Cut the wait short so shutdown does not sit out the whole interval.
+    wake?.();
   };
 
   process.on('SIGINT', () => stop('SIGINT'));
@@ -66,7 +82,18 @@ async function runForever(): Promise<void> {
     }
 
     if (stopping) break;
-    await new Promise((resolve) => setTimeout(resolve, INTERVAL_SECONDS * 1000));
+
+    // Interruptible: a plain sleep would hold the process for the full
+    // interval after SIGTERM, long enough for a container runtime to escalate
+    // to SIGKILL mid-sweep.
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, INTERVAL_SECONDS * 1000);
+      wake = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+    wake = null;
   }
 
   log('workflow worker stopped');

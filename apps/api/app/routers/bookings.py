@@ -81,6 +81,23 @@ class CreateBookingRequest(BaseModel):
     idempotencyKey: Optional[str] = Field(None, max_length=200)
 
     @model_validator(mode="after")
+    def _validate_customer_timezone(self) -> "CreateBookingRequest":
+        """
+        Reject a timezone the formatter cannot resolve.
+
+        The value is stored on the booking and later used to render every
+        notification for it. An unresolvable name throws at render time, which
+        would take down the whole reminder sweep rather than just this booking.
+        """
+        try:
+            ZoneInfo(self.customerTimezone)
+        except Exception:
+            raise ValueError(
+                "customerTimezone must be a valid IANA timezone, for example Asia/Kolkata"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _require_aware_start(self) -> "CreateBookingRequest":
         # asyncpg cannot compare a naive datetime against a timestamptz column,
         # so this is rejected as a 422 rather than failing deep in the query.

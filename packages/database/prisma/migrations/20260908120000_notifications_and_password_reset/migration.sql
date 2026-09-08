@@ -34,6 +34,19 @@ ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_i
 -- workflow_id is NULL for the built-in transactional mail sent on booking and
 -- cancellation. PostgreSQL treats NULLs as distinct in a unique index, so those
 -- rows stay unconstrained and can legitimately repeat.
+-- Existing rows may already duplicate this combination: before this change a
+-- log row was written every time a trigger fired, and a booking can be
+-- rescheduled more than once. Without this the index creation aborts and the
+-- deployment stops. The newest row per combination is kept.
+DELETE FROM "notification_logs" a
+USING "notification_logs" b
+WHERE a."workflow_id" IS NOT NULL
+  AND a."booking_id" IS NOT NULL
+  AND a."workflow_id" = b."workflow_id"
+  AND a."booking_id" = b."booking_id"
+  AND a."recipient" = b."recipient"
+  AND (a."createdAt", a."id") < (b."createdAt", b."id");
+
 CREATE UNIQUE INDEX "notification_logs_workflow_id_booking_id_recipient_key" ON "notification_logs"("workflow_id", "booking_id", "recipient");
 
 -- Supports the worker's sweep for pending and failed deliveries.

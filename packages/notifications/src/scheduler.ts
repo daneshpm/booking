@@ -39,6 +39,8 @@ export interface SweepSummary {
   skipped: number;
   /** Passed over because the due moment was older than the catch-up window. */
   expired: number;
+  /** Bookings that threw while being processed and were stepped over. */
+  failed: number;
 }
 
 /**
@@ -73,7 +75,10 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
   // A worker that died between claiming a delivery and sending it left the row
   // PENDING. Picking those up first means a crash delays a reminder rather
   // than losing it silently.
-  const retried = await retryStalledDeliveries(now);
+  const retried = await retryStalledDeliveries(now).catch((err) => {
+    console.error('Retrying stalled deliveries failed:', err instanceof Error ? err.message : err);
+    return { attempted: 0, delivered: 0, skipped: 0 };
+  });
 
   const workflows = await prisma.workflow.findMany({
     where: {
@@ -90,6 +95,7 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
     delivered: retried.delivered,
     skipped: retried.skipped,
     expired: 0,
+    failed: 0,
   };
 
   for (const workflow of workflows) {
@@ -111,10 +117,22 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
     summary.bookingsDue += bookings.length;
 
     for (const booking of bookings) {
-      const result = await dispatchScheduledWorkflow(workflow, booking.id);
-      summary.attempted += result.attempted;
-      summary.delivered += result.delivered;
-      summary.skipped += result.skipped;
+      // Isolated per booking. Rendering a template throws on an unresolvable
+      // customer timezone, and one such booking would otherwise abort the sweep
+      // for every workflow and every tenant, on every run, until it aged out of
+      // the window.
+      try {
+        const result = await dispatchScheduledWorkflow(workflow, booking.id);
+        summary.attempted += result.attempted;
+        summary.delivered += result.delivered;
+        summary.skipped += result.skipped;
+      } catch (err) {
+        summary.failed += 1;
+        console.error(
+          `Workflow ${workflow.id} could not be delivered for booking ${booking.id}:`,
+          err instanceof Error ? err.message : err
+        );
+      }
     }
 
     if (bookings.length > 0) {

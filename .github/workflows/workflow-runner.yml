@@ -23,17 +23,22 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
 
       - name: Check the database secret is present
         id: guard
+        # The secret arrives through the environment rather than being
+        # interpolated into the script, where its contents would be parsed as
+        # shell.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+          if [ -z "$DATABASE_URL" ]; then
             echo "DATABASE_URL is not set; nothing to send."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else

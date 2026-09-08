@@ -75,22 +75,21 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
     });
 
     if (!user || !user.isActive) {
+      // Spend a comparable amount of time to the registered path, so the
+      // response time does not reveal which addresses have accounts.
+      await new Promise((resolve) => setTimeout(resolve, 120 + Math.random() * 80));
       return { success: true };
     }
 
     const { token } = await createPasswordResetToken(user.id);
     const link = resetUrl(token);
 
+    // A distinct reply here would only ever be reached for a registered
+    // address, turning any mail outage into a membership oracle. The operator
+    // is told through the logs instead.
     if (!isMailConfigured()) {
-      // Nothing was sent, so say so rather than leaving someone waiting for a
-      // link that will never arrive.
-      console.error('Password reset requested but SMTP is not configured.');
-      return {
-        success: false,
-        error:
-          'Password reset email cannot be sent because email delivery is not configured. ' +
-          'Please contact your administrator.',
-      };
+      console.error('Password reset requested but SMTP is not configured; no link was sent.');
+      return { success: true };
     }
 
     const result = await sendMail({
@@ -105,11 +104,8 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
     });
 
     if (!result.delivered) {
+      // Same reasoning: the caller gets the neutral reply either way.
       console.error('Password reset email failed:', result.error);
-      return {
-        success: false,
-        error: 'We could not send the reset email. Please try again shortly.',
-      };
     }
 
     return { success: true };

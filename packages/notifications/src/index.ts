@@ -41,6 +41,7 @@ export {
   dispatchBookingNotifications,
   dispatchScheduledWorkflow,
   retryStalledDeliveries,
+  clearScheduledNotifications,
   type DispatchSummary,
 } from './dispatch';
 

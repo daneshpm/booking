@@ -94,4 +94,23 @@ describe('rate limiter', () => {
     for (let i = 0; i < 100; i += 1) await checkRateLimit(`noise-${i}`, OPTIONS);
     expect((await checkRateLimit('steady', OPTIONS)).allowed).toBe(false);
   });
+
+  it('cannot be made to forget a blocked account by flooding the map', async () => {
+    // The attack the eviction order exists to stop: rotating a client-supplied
+    // header to push the per-account login counter out of the map, which is
+    // the counter that stops distributed password guessing.
+    const victim = 'login-account:victim@example.com';
+    const longWindow = { limit: 3, windowMs: 15 * 60_000 };
+
+    for (let i = 0; i < 3; i += 1) await checkRateLimit(victim, longWindow);
+    expect((await checkRateLimit(victim, longWindow)).allowed).toBe(false);
+
+    // Flood past the ceiling with short-lived keys, as an attacker would.
+    for (let i = 0; i < 25_000; i += 1) {
+      await checkRateLimit(`login:rotating-${i}`, { limit: 100, windowMs: 60_000 });
+    }
+
+    // The victim's counter outlives the flood because it expires latest.
+    expect((await checkRateLimit(victim, longWindow)).allowed).toBe(false);
+  });
 });

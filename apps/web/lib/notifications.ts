@@ -10,6 +10,7 @@ import 'server-only';
 export {
   dispatchBookingNotifications,
   dispatchScheduledWorkflow,
+  clearScheduledNotifications,
   buildTemplateContext,
   renderTemplate,
   isMailConfigured,
