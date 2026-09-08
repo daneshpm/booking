@@ -1,5 +1,10 @@
 import uuid
 from datetime import datetime, timezone
+
+
+def _naive_utc_now() -> datetime:
+    """Current UTC time without a tzinfo, matching the naive timestamp columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from sqlalchemy import (
     Column,
     String,
@@ -30,11 +35,11 @@ class User(Base):
     name = Column(String, nullable=False)
     passwordHash = Column(String, nullable=False)
     avatarUrl = Column(String, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     is_active = Column(Boolean, default=True, nullable=False)
-    last_login_at = Column(DateTime, nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     memberships = relationship("WorkspaceMember", back_populates="user", cascade="all, delete-orphan")
     staff_profiles = relationship("Staff", back_populates="user")
@@ -58,7 +63,7 @@ class Session(Base):
     last_used_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     user_agent = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
 
     user = relationship("User", back_populates="sessions")
 
@@ -72,8 +77,8 @@ class Workspace(Base):
     logoUrl = Column(String, nullable=True)
     timezone = Column(String, default="UTC", nullable=False)
     currency = Column(String, default="USD", nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
     staff = relationship("Staff", back_populates="workspace", cascade="all, delete-orphan")
@@ -89,7 +94,7 @@ class WorkspaceMember(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(RoleEnum, default="STAFF", nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_members_workspace_user"),
@@ -111,8 +116,8 @@ class Staff(Base):
     avatarUrl = Column(String, nullable=True)
     timezone = Column(String, default="UTC", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "email", name="uq_staff_workspace_email"),
@@ -173,8 +178,8 @@ class Service(Base):
     location_type = Column(LocationTypeEnum, default="ONLINE_MEETING", nullable=False)
     location_details = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "slug", name="uq_services_workspace_slug"),
@@ -212,8 +217,8 @@ class Customer(Base):
     email = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     notes = Column(String, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "email", name="uq_customers_workspace_email"),
@@ -240,8 +245,8 @@ class Booking(Base):
     rescheduled_from_id = Column(String, nullable=True)
     meeting_link = Column(String, nullable=True)
     idempotency_key = Column(String, unique=True, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     workspace = relationship("Workspace", back_populates="bookings")
     service = relationship("Service", back_populates="bookings")
