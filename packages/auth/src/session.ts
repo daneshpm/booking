@@ -1,12 +1,9 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { prisma } from '@bookings/database';
 import type { Role } from '@bookings/database';
+import { SESSION_COOKIE, SESSION_TTL_DAYS, generateSessionToken, hashSessionToken } from './tokens';
 
-/** Name of the cookie carrying the opaque session token. */
-export const SESSION_COOKIE = 'rb_session';
-
-/** How long a new session stays valid. */
-export const SESSION_TTL_DAYS = 7;
+export { SESSION_COOKIE, SESSION_TTL_DAYS, generateSessionToken, hashSessionToken } from './tokens';
+export { safeCompareDigest } from './tokens';
 
 /**
  * Sessions are refreshed at most once per this interval. Without a floor, every
@@ -36,33 +33,6 @@ export interface AuthSession {
   /** Every workspace this user belongs to, ordered by name. */
   workspaces: SessionWorkspace[];
   expiresAt: Date;
-}
-
-/**
- * Generate an opaque session token.
- *
- * 32 bytes of CSPRNG output. The token is never stored; only its SHA-256 digest
- * goes to the database, so a dump of the sessions table cannot be replayed.
- */
-export function generateSessionToken(): string {
-  return randomBytes(32).toString('base64url');
-}
-
-/** SHA-256 digest used as the database lookup key for a session token. */
-export function hashSessionToken(token: string): string {
-  return createHash('sha256').update(token, 'utf8').digest('hex');
-}
-
-/**
- * Constant-time comparison of two hex digests.
- * Used where a candidate digest is compared against a stored one outside of a
- * primary-key lookup.
- */
-export function safeCompareDigest(a: string, b: string): boolean {
-  const bufA = Buffer.from(a, 'utf8');
-  const bufB = Buffer.from(b, 'utf8');
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
 }
 
 export interface CreateSessionOptions {

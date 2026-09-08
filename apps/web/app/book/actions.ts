@@ -8,6 +8,8 @@ import { timeStringToMinutes, minutesToTimeString } from '@bookings/core';
 import { isOverlapConstraintViolation } from '@/lib/booking-errors';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications } from '@/lib/notifications';
+import { checkRateLimit, PUBLIC_BOOKING_LIMIT, PUBLIC_AVAILABILITY_LIMIT } from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 
 export interface AvailableSlot {
   time: string; // "09:00"
@@ -39,6 +41,22 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Identify the caller for rate limiting.
+ *
+ * Behind a proxy the socket address is the proxy, so the forwarded header is
+ * preferred. That header is client-supplied and trivially spoofed, which is
+ * why the limiter is a speed bump rather than a security boundary.
+ */
+async function callerKey(scope: string): Promise<string> {
+  const headerList = await headers();
+  const address =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    headerList.get('x-real-ip') ||
+    'unknown';
+  return `${scope}:${address}`;
+}
+
 export interface BookingResult {
   success: boolean;
   bookingId?: string;
@@ -64,6 +82,15 @@ export async function getAvailableSlotsAction(
   try {
     if (!workspaceId || !serviceId || !date) {
       return { success: false, slots: [], error: 'Missing required parameters.' };
+    }
+
+    const throttle = checkRateLimit(await callerKey('availability'), PUBLIC_AVAILABILITY_LIMIT);
+    if (!throttle.allowed) {
+      return {
+        success: false,
+        slots: [],
+        error: 'Too many requests. Please wait a moment and try again.',
+      };
     }
 
     // 1. Fetch workspace to determine timezone
@@ -307,6 +334,16 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
     if (customerName.length > 200) {
       return { success: false, error: 'Please enter a shorter name.' };
+    }
+
+    // Unauthenticated and it writes rows and sends email, so it is capped.
+    const throttle = checkRateLimit(await callerKey('booking'), PUBLIC_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      const minutes = Math.ceil((throttle.retryAfterSeconds ?? 60) / 60);
+      return {
+        success: false,
+        error: `Too many booking attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      };
     }
 
     // An earlier submission carrying the same key already produced a booking.

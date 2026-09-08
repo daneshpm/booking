@@ -22,9 +22,11 @@
     "typecheck": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
-    "sessions:purge": "npm --workspace=@bookings/database run purge:sessions"
+    "sessions:purge": "npm --workspace=@bookings/database run purge:sessions",
+    "audit": "node scripts/audit.mjs"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.11",
     "prettier": "^3.5.3",
     "turbo": "^2.4.4",
     "typescript": "^5.7.3",

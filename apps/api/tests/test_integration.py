@@ -28,7 +28,7 @@ if DATABASE_URL:
 
 
 def unique_email(prefix: str) -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:10]}@example.test"
+    return f"{prefix}-{uuid.uuid4().hex[:10]}@example.com"
 
 
 STRONG_PASSWORD = "Str0ngPassphrase"

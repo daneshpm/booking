@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateSessionToken, hashSessionToken, safeCompareDigest } from '../src/session';
+import { generateSessionToken, hashSessionToken, safeCompareDigest } from '../src/tokens';
 
 describe('session tokens', () => {
   it('generates a URL-safe token with no padding', () => {

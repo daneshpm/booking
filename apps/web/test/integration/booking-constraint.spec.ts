@@ -50,7 +50,7 @@ describe('booking overlap exclusion constraint', () => {
   }
 
   it('accepts a first booking', async () => {
-    const customer = await makeCustomer('a@example.test');
+    const customer = await makeCustomer('a@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() + 30 * 60_000);
 
@@ -59,8 +59,8 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('rejects an exactly overlapping booking for the same staff member', async () => {
-    const first = await makeCustomer('a@example.test');
-    const second = await makeCustomer('b@example.test');
+    const first = await makeCustomer('a@example.com');
+    const second = await makeCustomer('b@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() + 30 * 60_000);
 
@@ -72,8 +72,8 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('rejects a partially overlapping booking', async () => {
-    const first = await makeCustomer('a@example.test');
-    const second = await makeCustomer('b@example.test');
+    const first = await makeCustomer('a@example.com');
+    const second = await makeCustomer('b@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() + 30 * 60_000);
 
@@ -89,8 +89,8 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('allows a booking that starts exactly when the previous one ends', async () => {
-    const first = await makeCustomer('a@example.test');
-    const second = await makeCustomer('b@example.test');
+    const first = await makeCustomer('a@example.com');
+    const second = await makeCustomer('b@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() + 30 * 60_000);
 
@@ -104,8 +104,8 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('allows the slot to be reused once the original booking is cancelled', async () => {
-    const first = await makeCustomer('a@example.test');
-    const second = await makeCustomer('b@example.test');
+    const first = await makeCustomer('a@example.com');
+    const second = await makeCustomer('b@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() + 30 * 60_000);
 
@@ -117,12 +117,12 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('allows the same time slot for a different staff member', async () => {
-    const customer = await makeCustomer('a@example.test');
+    const customer = await makeCustomer('a@example.com');
     const otherStaff = await prisma.staff.create({
       data: {
         workspaceId: tenant.workspaceId,
         name: 'Second Staff',
-        email: 'second@example.test',
+        email: 'second@example.com',
         timezone: 'Asia/Kolkata',
       },
     });
@@ -139,7 +139,7 @@ describe('booking overlap exclusion constraint', () => {
   });
 
   it('rejects an appointment that ends before it starts', async () => {
-    const customer = await makeCustomer('a@example.test');
+    const customer = await makeCustomer('a@example.com');
     const start = nextWeekdayAt(10);
     const end = new Date(start.getTime() - 30 * 60_000);
 
@@ -152,7 +152,7 @@ describe('booking overlap exclusion constraint', () => {
     // The real scenario the constraint exists for: several requests racing,
     // all having passed an application-level availability check.
     const customers = await Promise.all(
-      ['c1', 'c2', 'c3', 'c4', 'c5'].map((name) => makeCustomer(`${name}@example.test`))
+      ['c1', 'c2', 'c3', 'c4', 'c5'].map((name) => makeCustomer(`${name}@example.com`))
     );
 
     const start = nextWeekdayAt(11);

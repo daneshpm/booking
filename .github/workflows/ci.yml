@@ -110,8 +110,10 @@ jobs:
         run: npm run db:migrate:deploy
 
       - name: Verify the overlap constraint exists
+        # psql rejects Prisma's ?schema= query parameter, so it is stripped here.
         run: |
-          psql "$DATABASE_URL" -tAc \
+          PSQL_URL="${DATABASE_URL%%\?*}"
+          psql "$PSQL_URL" -tAc \
             "SELECT conname FROM pg_constraint WHERE conname = 'bookings_no_staff_overlap';" \
             | grep -q bookings_no_staff_overlap
         env:
@@ -280,9 +282,10 @@ jobs:
         run: npm ci
 
       - name: Audit production dependencies
-        # Only high and critical fail the build; lower severities are reported
-        # without blocking every pull request.
-        run: npm audit --audit-level=high --omit=dev
+        # Fails on any unreviewed high or critical advisory, and on an
+        # allowlist entry that is past its review date. See
+        # .github/audit-allowlist.json for what is accepted and why.
+        run: npm run audit
 
   # ---------------------------------------------------------------
   # Single required status check for branch protection.

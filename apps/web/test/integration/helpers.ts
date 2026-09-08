@@ -55,7 +55,7 @@ export async function createTenant(
 ): Promise<TestTenant> {
   counter += 1;
   const suffix = `${label}-${counter}`;
-  const email = `${suffix}@example.test`;
+  const email = `${suffix}@example.com`;
   const timezone = options.timezone ?? 'Asia/Kolkata';
 
   const user = await prisma.user.create({
