@@ -30,7 +30,7 @@ describe('public booking', () => {
     await resetDatabase();
     // The limiter is process-wide and the suite makes more booking attempts
     // than one caller is allowed in an hour, so each test starts fresh.
-    __resetRateLimits();
+    await __resetRateLimits();
     tenant = await createTenant('booking');
   });
 

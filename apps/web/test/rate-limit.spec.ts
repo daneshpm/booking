@@ -9,8 +9,8 @@ const OPTIONS = { limit: 3, windowMs: 60_000 };
  * integration suite.
  */
 describe('rate limiter', () => {
-  beforeEach(() => {
-    __resetRateLimits();
+  beforeEach(async () => {
+    await __resetRateLimits();
     delete process.env.REDIS_URL;
     vi.useFakeTimers();
   });

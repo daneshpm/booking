@@ -258,9 +258,23 @@ export function __trackedKeyCount(): number {
   return buckets.size;
 }
 
-/** Clear the in-memory counters. Used by tests. */
-export function __resetRateLimits(): void {
+/**
+ * Clear every counter. Used by tests.
+ *
+ * Clears Redis as well as the local map: clearing only one leaves a suite
+ * tripping limits it thought it had reset.
+ */
+export async function __resetRateLimits(): Promise<void> {
   buckets.clear();
+  retryConnectionAfter = 0;
+
+  if (!process.env.REDIS_URL) return;
+
+  const client = await getRedis();
+  if (!client) return;
+
+  const keys = await client.keys('ratelimit:*').catch(() => [] as string[]);
+  if (keys.length > 0) await client.del(keys).catch(() => undefined);
 }
 
 /**
