@@ -122,6 +122,12 @@ jobs:
       - name: Integration tests
         run: npx vitest run --config vitest.integration.config.mts --reporter=verbose
 
+      - name: Workflow runner completes a sweep against an empty database
+        # Proves the worker starts, connects and exits cleanly. Without a
+        # smoke test a broken entry point would only surface when reminders
+        # silently stopped arriving.
+        run: npm run workflows:run
+
       - name: Seed refuses to run without credentials
         # The seed must never invent an administrator password.
         run: |

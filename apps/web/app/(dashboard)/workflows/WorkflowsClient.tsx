@@ -51,6 +51,7 @@ interface WorkflowsClientProps {
   workspaceId: string;
   initialWorkflows: WorkflowItem[];
   mailConfigured: boolean;
+  smsConfigured: boolean;
   recentDeliveries: DeliveryItem[];
 }
 
@@ -111,6 +112,7 @@ export function WorkflowsClient({
   workspaceId,
   initialWorkflows,
   mailConfigured,
+  smsConfigured,
   recentDeliveries,
 }: WorkflowsClientProps) {
   const [workflows, setWorkflows] = React.useState(initialWorkflows);
@@ -520,9 +522,21 @@ export function WorkflowsClient({
                   <option value="WEBHOOK">Webhook</option>
                   <option value="SMS">SMS</option>
                 </select>
-                {form.channel === 'SMS' && (
+                {form.channel === 'SMS' && !smsConfigured && (
                   <span className="text-[10px] text-amber-600 mt-1 block">
-                    SMS has no provider configured yet, so these are recorded but not delivered.
+                    No SMS provider is configured, so these are recorded but not delivered. Set
+                    SMS_ACCOUNT_SID, SMS_AUTH_TOKEN and SMS_FROM_NUMBER to start sending.
+                  </span>
+                )}
+                {form.channel === 'SMS' && smsConfigured && (
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Sent to recipients who have an international phone number on file.
+                  </span>
+                )}
+                {form.channel === 'WEBHOOK' && (
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Signed with HMAC-SHA256 when WEBHOOK_SIGNING_SECRET is set. Private and reserved
+                    addresses are refused.
                   </span>
                 )}
               </div>

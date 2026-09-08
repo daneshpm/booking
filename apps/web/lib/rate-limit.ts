@@ -1,16 +1,18 @@
+import { createClient, type RedisClientType } from 'redis';
+
 /**
  * Fixed-window rate limiter.
  *
- * Scope: the counter lives in one server process. It protects a single-instance
- * deployment, which is what the shipped Dockerfile produces, and degrades to
- * per-instance limits behind a load balancer. A multi-instance deployment needs
- * a shared store such as Redis.
+ * Backed by Redis when REDIS_URL is set, so a limit holds across every instance
+ * behind a load balancer. Without Redis it falls back to a per-process counter,
+ * which protects a single-instance deployment and is what the shipped
+ * Dockerfile produces on its own.
  *
  * The key is derived from a client-supplied header, so an attacker can rotate
- * it and evade the count. The map is therefore hard-capped: without a ceiling,
- * key rotation would turn this into a memory-exhaustion vector rather than a
- * defence. Treat it as a speed bump against unsophisticated abuse, not as a
- * security boundary.
+ * it and evade the count. The in-memory map is therefore hard-capped: without a
+ * ceiling, key rotation would turn this into a memory-exhaustion vector rather
+ * than a defence. Treat it as a strong deterrent against ordinary abuse, not as
+ * an authentication boundary.
  */
 
 export interface RateLimitResult {
@@ -23,27 +25,29 @@ export interface RateLimitResult {
   retryAfterSeconds?: number;
 }
 
+export interface RateLimitOptions {
+  /** Requests permitted per window. */
+  limit: number;
+  /** Window length in milliseconds. */
+  windowMs: number;
+}
+
 interface Window {
   count: number;
   resetAt: number;
 }
 
 /**
- * Hard ceiling on tracked keys.
+ * Hard ceiling on tracked keys in the in-memory fallback.
  *
  * Reached only under key rotation, which already evades the count, so evicting
- * the oldest entries costs nothing an attacker was not already getting. The
- * alternative, letting the map grow, hands them unbounded memory use.
+ * the oldest entries costs nothing an attacker was not already getting.
  */
 const MAX_TRACKED_KEYS = 20_000;
 
-/**
- * Insertion order is iteration order for a Map, so the first keys yielded are
- * the least recently created. That is the eviction order used below.
- */
+/** Insertion order is iteration order for a Map, so the oldest keys come first. */
 const buckets = new Map<string, Window>();
 
-/** Drop expired windows; returns how many remain. */
 function evictExpired(now: number): number {
   for (const [key, window] of buckets) {
     if (window.resetAt <= now) buckets.delete(key);
@@ -51,15 +55,8 @@ function evictExpired(now: number): number {
   return buckets.size;
 }
 
-/**
- * Keep the map under its ceiling.
- *
- * Expired entries go first. If that is not enough, the oldest live entries are
- * dropped too, which is what bounds memory when keys are being rotated.
- */
 function enforceCeiling(now: number): void {
   if (buckets.size < MAX_TRACKED_KEYS) return;
-
   if (evictExpired(now) < MAX_TRACKED_KEYS) return;
 
   const excess = buckets.size - MAX_TRACKED_KEYS + 1;
@@ -71,27 +68,13 @@ function enforceCeiling(now: number): void {
   }
 }
 
-export interface RateLimitOptions {
-  /** Requests permitted per window. */
-  limit: number;
-  /** Window length in milliseconds. */
-  windowMs: number;
-}
-
-/**
- * Record one request against `key` and report whether it is allowed.
- *
- * The window is fixed rather than sliding: simpler, and adequate for abuse
- * control where exact boundary behaviour does not matter.
- */
-export function checkRateLimit(key: string, options: RateLimitOptions): RateLimitResult {
+/** In-process counter. Also the fallback when Redis is unreachable. */
+function checkInMemory(key: string, options: RateLimitOptions): RateLimitResult {
   const now = Date.now();
   const existing = buckets.get(key);
 
   if (!existing || existing.resetAt <= now) {
-    // Only a new key can grow the map, so the ceiling is checked here.
     if (!existing) enforceCeiling(now);
-
     const resetAt = now + options.windowMs;
     buckets.set(key, { count: 1, resetAt });
     return { allowed: true, remaining: options.limit - 1, resetAt: new Date(resetAt) };
@@ -114,12 +97,120 @@ export function checkRateLimit(key: string, options: RateLimitOptions): RateLimi
   };
 }
 
-/** Number of keys currently tracked. Used by tests. */
+let redis: RedisClientType | null = null;
+let redisUnavailable = false;
+
+/**
+ * Connect to Redis once, lazily.
+ *
+ * A failure here is not fatal: the limiter degrades to the in-process counter
+ * rather than rejecting traffic or crashing a request.
+ */
+async function getRedis(): Promise<RedisClientType | null> {
+  if (redis?.isOpen) return redis;
+  if (redisUnavailable) return null;
+
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    redisUnavailable = true;
+    return null;
+  }
+
+  try {
+    const client = createClient({
+      url,
+      socket: {
+        connectTimeout: 3000,
+        reconnectStrategy: (retries) => Math.min(retries * 200, 5000),
+      },
+    }) as RedisClientType;
+
+    // Without a listener an emitted error would take the process down.
+    client.on('error', (err) => {
+      console.error('Rate limiter Redis error:', err instanceof Error ? err.message : err);
+    });
+
+    await client.connect();
+    redis = client;
+    return redis;
+  } catch (err) {
+    console.error(
+      'Rate limiter could not reach Redis, falling back to per-instance limits:',
+      err instanceof Error ? err.message : err
+    );
+    redisUnavailable = true;
+    return null;
+  }
+}
+
+/**
+ * Count a request in Redis.
+ *
+ * INCR then EXPIRE on first use gives a fixed window shared by every instance.
+ * The two commands run in one pipeline so a crash between them cannot leave a
+ * key without a expiry.
+ */
+async function checkRedis(
+  client: RedisClientType,
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult> {
+  const namespaced = `ratelimit:${key}`;
+  const ttlSeconds = Math.ceil(options.windowMs / 1000);
+
+  const [count, ttl] = (await client
+    .multi()
+    .incr(namespaced)
+    .expire(namespaced, ttlSeconds, 'NX')
+    .ttl(namespaced)
+    .exec()) as unknown as [number, unknown, number];
+
+  const remainingTtl = typeof ttl === 'number' && ttl > 0 ? ttl : ttlSeconds;
+  const resetAt = new Date(Date.now() + remainingTtl * 1000);
+
+  if (count > options.limit) {
+    return { allowed: false, remaining: 0, resetAt, retryAfterSeconds: remainingTtl };
+  }
+
+  return { allowed: true, remaining: Math.max(0, options.limit - count), resetAt };
+}
+
+/**
+ * Record one request against `key` and report whether it is allowed.
+ *
+ * The window is fixed rather than sliding: simpler, and adequate for abuse
+ * control where exact boundary behaviour does not matter.
+ */
+export async function checkRateLimit(
+  key: string,
+  options: RateLimitOptions
+): Promise<RateLimitResult> {
+  const client = await getRedis();
+  if (!client) return checkInMemory(key, options);
+
+  try {
+    return await checkRedis(client, key, options);
+  } catch (err) {
+    // A Redis hiccup must not fail the request; the local counter still applies.
+    console.error(
+      'Rate limiter Redis command failed, using per-instance limits:',
+      err instanceof Error ? err.message : err
+    );
+    return checkInMemory(key, options);
+  }
+}
+
+/** True when limits are shared across instances rather than per-process. */
+export function isDistributedRateLimiting(): boolean {
+  return Boolean(redis?.isOpen);
+}
+
+/** Number of keys currently tracked in memory. Used by tests. */
 export function __trackedKeyCount(): number {
   return buckets.size;
 }
 
-/** Clear all counters. Used by tests. */
+/** Clear the in-memory counters. Used by tests. */
 export function __resetRateLimits(): void {
   buckets.clear();
 }
@@ -128,7 +219,7 @@ export function __resetRateLimits(): void {
  * Limits for the public, unauthenticated booking endpoints.
  *
  * Booking creation is tighter than availability lookups: it writes rows and
- * sends email, whereas a lookup only reads.
+ * sends messages, whereas a lookup only reads.
  */
 export const PUBLIC_BOOKING_LIMIT: RateLimitOptions = { limit: 10, windowMs: 60 * 60 * 1000 };
 export const PUBLIC_AVAILABILITY_LIMIT: RateLimitOptions = { limit: 120, windowMs: 60 * 1000 };
@@ -139,10 +230,22 @@ export const PUBLIC_AVAILABILITY_LIMIT: RateLimitOptions = { limit: 120, windowM
  * Verifying a password costs roughly 250 ms of CPU at bcrypt cost 12, and the
  * unknown-account path deliberately spends the same to avoid leaking which
  * addresses are registered. Without a cap, a handful of concurrent clients
- * could saturate the server, so the anti-enumeration design makes throttling
- * mandatory rather than optional.
+ * could saturate the server, so throttling here is mandatory rather than
+ * optional.
  */
 export const LOGIN_LIMIT: RateLimitOptions = { limit: 10, windowMs: 15 * 60 * 1000 };
 export const LOGIN_PER_ACCOUNT_LIMIT: RateLimitOptions = { limit: 10, windowMs: 15 * 60 * 1000 };
 export const SIGNUP_LIMIT: RateLimitOptions = { limit: 5, windowMs: 60 * 60 * 1000 };
 export const PASSWORD_CHANGE_LIMIT: RateLimitOptions = { limit: 5, windowMs: 15 * 60 * 1000 };
+
+/**
+ * Password reset requests.
+ *
+ * Each one sends an email, so the cap is low and applies per address as well as
+ * per caller.
+ */
+export const PASSWORD_RESET_LIMIT: RateLimitOptions = { limit: 5, windowMs: 60 * 60 * 1000 };
+export const PASSWORD_RESET_PER_ACCOUNT_LIMIT: RateLimitOptions = {
+  limit: 3,
+  windowMs: 60 * 60 * 1000,
+};

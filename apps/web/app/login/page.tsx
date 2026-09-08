@@ -113,6 +113,12 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full text-sm bg-white"
               />
+              <Link
+                href="/reset-password"
+                className="text-[11px] font-semibold text-purple-700 hover:text-purple-900 mt-1.5 inline-block"
+              >
+                Forgot your password?
+              </Link>
             </div>
 
             <div className="pt-2">

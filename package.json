@@ -23,7 +23,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\"",
     "sessions:purge": "npm --workspace=@bookings/database run purge:sessions",
-    "audit": "node scripts/audit.mjs"
+    "audit": "node scripts/audit.mjs",
+    "workflows:run": "npm --workspace=@bookings/notifications run workflows:run",
+    "workflows:worker": "npm --workspace=@bookings/notifications run workflows:worker"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.11",

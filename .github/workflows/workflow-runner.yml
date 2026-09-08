@@ -1,0 +1,65 @@
+name: Workflow runner
+
+# Sends reminders and follow-ups configured as time-based workflows.
+#
+# GitHub's scheduler is best-effort and no finer than five minutes, so this is a
+# reasonable fallback rather than the recommended setup. For production, run
+# `npm run workflows:worker` as a long-lived process; it sweeps every minute and
+# both are safe to run at once, since deliveries are claimed through a unique
+# index.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: workflow-runner
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Send due reminders
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Check the database secret is present
+        id: guard
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "DATABASE_URL is not set; nothing to send."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Generate Prisma client
+        if: steps.guard.outputs.configured == 'true'
+        run: npm run db:generate
+
+      - name: Sweep
+        if: steps.guard.outputs.configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SMS_ACCOUNT_SID: ${{ secrets.SMS_ACCOUNT_SID }}
+          SMS_AUTH_TOKEN: ${{ secrets.SMS_AUTH_TOKEN }}
+          SMS_FROM_NUMBER: ${{ secrets.SMS_FROM_NUMBER }}
+          WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+        run: npm run workflows:run

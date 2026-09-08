@@ -93,7 +93,7 @@ export async function signupUserAction(data: SignupInput): Promise<AuthResult> {
     const workspaceName = data.workspaceName?.trim() ?? '';
     const password = data.password ?? '';
 
-    if (!checkRateLimit(`signup:${await callerAddress()}`, SIGNUP_LIMIT).allowed) {
+    if (!(await checkRateLimit(`signup:${await callerAddress()}`, SIGNUP_LIMIT)).allowed) {
       return { success: false, error: THROTTLED };
     }
 
@@ -207,12 +207,12 @@ export async function loginUserAction(email: string, password: string): Promise<
     // Without a cap that design becomes a denial-of-service lever, and an
     // unlimited guessing oracle.
     const address = await callerAddress();
-    if (!checkRateLimit(`login:${address}`, LOGIN_LIMIT).allowed) {
+    if (!(await checkRateLimit(`login:${address}`, LOGIN_LIMIT)).allowed) {
       return { success: false, error: THROTTLED };
     }
     // Also per account, so a distributed attempt cannot escape the cap by
     // rotating the forwarded address against one target.
-    if (!checkRateLimit(`login-account:${cleanEmail}`, LOGIN_PER_ACCOUNT_LIMIT).allowed) {
+    if (!(await checkRateLimit(`login-account:${cleanEmail}`, LOGIN_PER_ACCOUNT_LIMIT)).allowed) {
       return { success: false, error: THROTTLED };
     }
 
@@ -272,7 +272,9 @@ export async function changePasswordAction(
       return { success: false, error: 'You must be signed in to change your password.' };
     }
 
-    if (!checkRateLimit(`password-change:${session.user.id}`, PASSWORD_CHANGE_LIMIT).allowed) {
+    if (
+      !(await checkRateLimit(`password-change:${session.user.id}`, PASSWORD_CHANGE_LIMIT)).allowed
+    ) {
       return { success: false, error: THROTTLED };
     }
 

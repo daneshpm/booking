@@ -223,7 +223,10 @@ export async function getAvailableSlotsAction(
       return { success: false, slots: [], error: 'Please choose a valid date.' };
     }
 
-    const throttle = checkRateLimit(await callerKey('availability'), PUBLIC_AVAILABILITY_LIMIT);
+    const throttle = await checkRateLimit(
+      await callerKey('availability'),
+      PUBLIC_AVAILABILITY_LIMIT
+    );
     if (!throttle.allowed) {
       return {
         success: false,
@@ -319,7 +322,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
 
     // Unauthenticated, and it writes rows and sends email, so it is capped.
-    const throttle = checkRateLimit(await callerKey('booking'), PUBLIC_BOOKING_LIMIT);
+    const throttle = await checkRateLimit(await callerKey('booking'), PUBLIC_BOOKING_LIMIT);
     if (!throttle.allowed) {
       const minutes = Math.ceil((throttle.retryAfterSeconds ?? 60) / 60);
       return {
