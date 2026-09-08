@@ -1,5 +1,5 @@
 import { prisma } from '@bookings/database';
-import { dispatchScheduledWorkflow } from './dispatch';
+import { dispatchScheduledWorkflow, retryStalledDeliveries } from './dispatch';
 
 /**
  * Time-based workflow runner.
@@ -70,6 +70,11 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
   const now = options.now ?? new Date();
   const catchUpMinutes = options.catchUpMinutes ?? DEFAULT_CATCH_UP_MINUTES;
 
+  // A worker that died between claiming a delivery and sending it left the row
+  // PENDING. Picking those up first means a crash delays a reminder rather
+  // than losing it silently.
+  const retried = await retryStalledDeliveries(now);
+
   const workflows = await prisma.workflow.findMany({
     where: {
       isActive: true,
@@ -81,9 +86,9 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
   const summary: SweepSummary = {
     workflowsConsidered: workflows.length,
     bookingsDue: 0,
-    attempted: 0,
-    delivered: 0,
-    skipped: 0,
+    attempted: retried.attempted,
+    delivered: retried.delivered,
+    skipped: retried.skipped,
     expired: 0,
   };
 

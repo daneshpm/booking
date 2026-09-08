@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { prisma } from '@bookings/database';
-import { runScheduledWorkflows } from '@bookings/notifications';
+import { runScheduledWorkflows, retryStalledDeliveries } from '@bookings/notifications';
 import { resetDatabase, createTenant, type TestTenant } from './helpers';
 
 /**
@@ -219,6 +219,83 @@ describe('scheduled workflows', () => {
     expect(log.status).toBe('FAILED');
     expect(log.error).toBeTruthy();
     expect(log.attempts).toBe(1);
+  });
+
+  it('retries a delivery a crashed worker left claimed', async () => {
+    // A worker claims by inserting a PENDING row, then sends. Dying in between
+    // would otherwise lose the reminder silently and forever.
+    const workflow = await makeWorkflow();
+    const booking = await makeBooking(dueIn24Hours());
+
+    await prisma.notificationLog.create({
+      data: {
+        workspaceId: tenant.workspaceId,
+        bookingId: booking.id,
+        workflowId: workflow.id,
+        channel: 'EMAIL',
+        recipient: 'stranded@example.com',
+        status: 'PENDING',
+        attempts: 0,
+        // Older than the stale-claim threshold.
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      },
+    });
+
+    const result = await retryStalledDeliveries();
+    expect(result.attempted).toBe(1);
+
+    const row = await prisma.notificationLog.findFirstOrThrow({
+      where: { recipient: 'stranded@example.com' },
+    });
+    expect(row.status).not.toBe('PENDING');
+    expect(row.attempts).toBeGreaterThan(0);
+  });
+
+  it('leaves a freshly claimed delivery alone', async () => {
+    // A worker that is genuinely mid-send must not have its work taken.
+    const workflow = await makeWorkflow();
+    const booking = await makeBooking(dueIn24Hours());
+
+    await prisma.notificationLog.create({
+      data: {
+        workspaceId: tenant.workspaceId,
+        bookingId: booking.id,
+        workflowId: workflow.id,
+        channel: 'EMAIL',
+        recipient: 'inflight@example.com',
+        status: 'PENDING',
+        attempts: 0,
+      },
+    });
+
+    const result = await retryStalledDeliveries();
+    expect(result.attempted).toBe(0);
+
+    const row = await prisma.notificationLog.findFirstOrThrow({
+      where: { recipient: 'inflight@example.com' },
+    });
+    expect(row.status).toBe('PENDING');
+  });
+
+  it('gives up on a delivery that keeps failing', async () => {
+    const workflow = await makeWorkflow();
+    const booking = await makeBooking(dueIn24Hours());
+
+    await prisma.notificationLog.create({
+      data: {
+        workspaceId: tenant.workspaceId,
+        bookingId: booking.id,
+        workflowId: workflow.id,
+        channel: 'EMAIL',
+        recipient: 'exhausted@example.com',
+        status: 'PENDING',
+        attempts: 3,
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      },
+    });
+
+    const result = await retryStalledDeliveries();
+    expect(result.attempted).toBe(0);
   });
 
   it('stamps the workflow with its last run', async () => {

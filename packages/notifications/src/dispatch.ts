@@ -332,3 +332,117 @@ export async function dispatchScheduledWorkflow(
   const jobs = planForWorkflow(workflow, booking, workflow.trigger, context, true);
   return runJobs(jobs, booking);
 }
+
+/**
+ * Longest a delivery may sit claimed before it is considered abandoned.
+ *
+ * Comfortably beyond the slowest send: the SMS provider times out at 15
+ * seconds and webhooks at 10, so anything still PENDING after this belongs to
+ * a process that died rather than one still working.
+ */
+const STALE_CLAIM_MINUTES = 15;
+
+/** Give up after this many attempts rather than retrying a broken address forever. */
+const MAX_ATTEMPTS = 3;
+
+/**
+ * Retry deliveries that were claimed but never completed.
+ *
+ * A worker claims a send by inserting a PENDING row, then sends, then records
+ * the outcome. A crash in between leaves the row PENDING and, without this,
+ * the reminder would never be sent and never be retried: lost silently, which
+ * is the worst way for a notification system to fail.
+ *
+ * The retry re-claims atomically by incrementing attempts only while the row is
+ * still PENDING, so a worker that is genuinely mid-send does not get its work
+ * taken.
+ */
+export async function retryStalledDeliveries(now: Date = new Date()): Promise<DispatchSummary> {
+  const cutoff = new Date(now.getTime() - STALE_CLAIM_MINUTES * 60_000);
+
+  const stalled = await prisma.notificationLog.findMany({
+    where: {
+      status: 'PENDING',
+      createdAt: { lte: cutoff },
+      attempts: { lt: MAX_ATTEMPTS },
+      bookingId: { not: null },
+      workflowId: { not: null },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 200,
+  });
+
+  let attempted = 0;
+  let delivered = 0;
+  let skipped = 0;
+
+  for (const row of stalled) {
+    // Atomic re-claim: only one worker can move this row off its current
+    // attempt count.
+    const claimed = await prisma.notificationLog.updateMany({
+      where: { id: row.id, status: 'PENDING', attempts: row.attempts },
+      data: { attempts: { increment: 1 } },
+    });
+
+    if (claimed.count === 0) {
+      skipped += 1;
+      continue;
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: row.bookingId! },
+      include: { workspace: true, service: true, staff: true, customer: true },
+    });
+
+    if (!booking) {
+      await prisma.notificationLog
+        .update({
+          where: { id: row.id },
+          data: { status: 'FAILED', error: 'Booking no longer exists' },
+        })
+        .catch(() => undefined);
+      continue;
+    }
+
+    const workflow = await prisma.workflow.findUnique({ where: { id: row.workflowId! } });
+    if (!workflow || !workflow.isActive) {
+      await prisma.notificationLog
+        .update({
+          where: { id: row.id },
+          data: { status: 'FAILED', error: 'Workflow was removed or disabled' },
+        })
+        .catch(() => undefined);
+      continue;
+    }
+
+    const context = buildTemplateContext(booking);
+    const fallback = defaultMessage(workflow.trigger, context);
+    const job: Job = {
+      workflowId: workflow.id,
+      channel: row.channel,
+      recipient: row.recipient,
+      message: {
+        subject: workflow.subject ? renderTemplate(workflow.subject, context) : fallback.subject,
+        text: workflow.body ? renderTemplate(workflow.body, context) : fallback.text,
+      },
+      claim: true,
+    };
+
+    attempted += 1;
+    const result = await deliver(job, booking);
+    if (result.delivered) delivered += 1;
+
+    await prisma.notificationLog
+      .update({
+        where: { id: row.id },
+        data: {
+          status: result.delivered ? 'SENT' : 'FAILED',
+          error: result.error ?? null,
+          sentAt: result.delivered ? new Date() : null,
+        },
+      })
+      .catch((err) => console.error('Could not update notification log:', err));
+  }
+
+  return { attempted, delivered, skipped };
+}
