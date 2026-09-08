@@ -536,13 +536,14 @@ export function WorkflowsClient({
                 </select>
                 {form.channel === 'SMS' && !smsConfigured && (
                   <span className="text-[10px] text-amber-600 mt-1 block">
-                    No SMS provider is configured, so these are recorded but not delivered. Set
-                    SMS_ACCOUNT_SID, SMS_AUTH_TOKEN and SMS_FROM_NUMBER to start sending.
+                    No SMS gateway is configured, so these are recorded but not delivered. Set
+                    SMS_GATEWAY_DOMAIN, alongside your SMTP settings, to start sending.
                   </span>
                 )}
                 {form.channel === 'SMS' && smsConfigured && (
                   <span className="text-[10px] text-slate-400 mt-1 block">
-                    Sent to recipients who have an international phone number on file.
+                    Sent over SMTP through your email-to-SMS gateway, to recipients who have an
+                    international phone number on file.
                   </span>
                 )}
                 {form.channel === 'WEBHOOK' && (

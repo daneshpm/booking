@@ -62,9 +62,8 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          SMS_ACCOUNT_SID: ${{ secrets.SMS_ACCOUNT_SID }}
-          SMS_AUTH_TOKEN: ${{ secrets.SMS_AUTH_TOKEN }}
-          SMS_FROM_NUMBER: ${{ secrets.SMS_FROM_NUMBER }}
+          SMS_GATEWAY_DOMAIN: ${{ secrets.SMS_GATEWAY_DOMAIN }}
+          SMS_GATEWAY_STRIP_COUNTRY_CODE: ${{ secrets.SMS_GATEWAY_STRIP_COUNTRY_CODE }}
           WEBHOOK_SIGNING_SECRET: ${{ secrets.WEBHOOK_SIGNING_SECRET }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
         run: npm run workflows:run

@@ -2,12 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   isSmsConfigured,
   isValidPhoneNumber,
+  gatewayAddressFor,
   truncateForSms,
   sendSms,
   MAX_SMS_LENGTH,
 } from '../src/channels/sms';
 
-const ENV_KEYS = ['SMS_ACCOUNT_SID', 'SMS_AUTH_TOKEN', 'SMS_FROM_NUMBER', 'SMS_API_BASE_URL'];
+const ENV_KEYS = [
+  'SMS_GATEWAY_DOMAIN',
+  'SMS_GATEWAY_STRIP_COUNTRY_CODE',
+  'SMS_GATEWAY_SUBJECT',
+  'SMTP_HOST',
+];
 
 describe('SMS configuration', () => {
   const saved: Record<string, string | undefined> = {};
@@ -26,29 +32,94 @@ describe('SMS configuration', () => {
     }
   });
 
-  it('reports itself unconfigured with no credentials', () => {
+  it('reports itself unconfigured with no gateway', () => {
+    process.env.SMTP_HOST = 'localhost';
     expect(isSmsConfigured()).toBe(false);
   });
 
-  it('reports itself unconfigured when only some credentials are present', () => {
-    process.env.SMS_ACCOUNT_SID = 'sid';
-    expect(isSmsConfigured()).toBe(false);
-    process.env.SMS_AUTH_TOKEN = 'token';
+  it('reports itself unconfigured when SMTP is missing', () => {
+    // The gateway is reached over SMTP, so a mail transport is required too.
+    process.env.SMS_GATEWAY_DOMAIN = 'sms.example.net';
     expect(isSmsConfigured()).toBe(false);
   });
 
-  it('reports itself configured once every credential is set', () => {
-    process.env.SMS_ACCOUNT_SID = 'sid';
-    process.env.SMS_AUTH_TOKEN = 'token';
-    process.env.SMS_FROM_NUMBER = '+15550000000';
+  it('reports itself configured once both are set', () => {
+    process.env.SMS_GATEWAY_DOMAIN = 'sms.example.net';
+    process.env.SMTP_HOST = 'localhost';
     expect(isSmsConfigured()).toBe(true);
   });
 
-  it('reports rather than throws when asked to send while unconfigured', async () => {
-    // A missing provider must not break the booking that triggered the message.
+  it('reports rather than throws when asked to send with no gateway', async () => {
+    // A missing gateway must not break the booking that triggered the message.
+    process.env.SMTP_HOST = 'localhost';
     const result = await sendSms({ to: '+919876543210', body: 'hello' });
     expect(result.delivered).toBe(false);
     expect(result.error).toMatch(/not configured/);
+  });
+
+  it('explains when the gateway is set but SMTP is not', async () => {
+    process.env.SMS_GATEWAY_DOMAIN = 'sms.example.net';
+    const result = await sendSms({ to: '+919876543210', body: 'hello' });
+    expect(result.delivered).toBe(false);
+    expect(result.error).toMatch(/SMTP/);
+  });
+
+  it('refuses an unusable number before handing it to the gateway', async () => {
+    process.env.SMS_GATEWAY_DOMAIN = 'sms.example.net';
+    process.env.SMTP_HOST = 'localhost';
+    const result = await sendSms({ to: '9876543210', body: 'hello' });
+    expect(result.delivered).toBe(false);
+    expect(result.error).toMatch(/international phone number/);
+  });
+});
+
+describe('gateway address', () => {
+  const saved = process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE;
+
+  beforeEach(() => {
+    delete process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE;
+  });
+
+  afterEach(() => {
+    if (saved === undefined) delete process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE;
+    else process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE = saved;
+  });
+
+  it('uses the digits of the number at the gateway domain', () => {
+    expect(gatewayAddressFor('+919876543210', 'sms.example.net')).toBe(
+      '919876543210@sms.example.net'
+    );
+  });
+
+  it('drops formatting characters', () => {
+    expect(gatewayAddressFor('+91 98765 43210', 'sms.example.net')).toBe(
+      '919876543210@sms.example.net'
+    );
+    expect(gatewayAddressFor('+1 (415) 555-2671', 'txt.example.net')).toBe(
+      '14155552671@txt.example.net'
+    );
+  });
+
+  it('strips the country code for a gateway that wants a national number', () => {
+    process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE = '91';
+    expect(gatewayAddressFor('+919876543210', 'sms.example.net')).toBe(
+      '9876543210@sms.example.net'
+    );
+  });
+
+  it('leaves the number alone when it does not start with that country code', () => {
+    process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE = '91';
+    expect(gatewayAddressFor('+14155552671', 'sms.example.net')).toBe(
+      '14155552671@sms.example.net'
+    );
+  });
+
+  it('produces exactly one address, never a header injection', () => {
+    // The number is reduced to digits, so nothing a customer typed can add a
+    // recipient or a header to the outgoing message.
+    const address = gatewayAddressFor('+91987\r\nBcc: someone@evil.test', 'sms.example.net');
+    expect(address).toBe('91987@sms.example.net');
+    expect(address).not.toMatch(/[\r\n]/);
   });
 });
 
@@ -60,8 +131,8 @@ describe('phone number validation', () => {
   });
 
   it('rejects a number with no country code', () => {
-    // Providers bill per attempt, so a number that cannot route is refused
-    // before it costs anything.
+    // The gateway address is built from the digits, so a number without a
+    // country code cannot be turned into one reliably.
     expect(isValidPhoneNumber('9876543210')).toBe(false);
     expect(isValidPhoneNumber('020 7183 8750')).toBe(false);
   });
@@ -87,7 +158,7 @@ describe('message shortening', () => {
     expect(truncateForSms('Short message')).toBe('Short message');
   });
 
-  it('truncates an over-long message rather than sending several parts', () => {
+  it('truncates an over-long message rather than letting the gateway split it', () => {
     const result = truncateForSms('a'.repeat(MAX_SMS_LENGTH + 200));
     expect(result).toHaveLength(MAX_SMS_LENGTH);
     expect(result.endsWith('...')).toBe(true);

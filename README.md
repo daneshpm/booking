@@ -134,15 +134,23 @@ Booking confirmations, cancellations and reschedules are sent automatically.
 Workflows add reminders and follow-ups on three channels, and can target the
 customer, the staff member, or both, with `{{placeholder}}` templates.
 
-| Channel | Needs                                                  | Notes                                                                           |
-| ------- | ------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Email   | `SMTP_HOST` and friends                                | Always available once SMTP is set                                               |
-| SMS     | `SMS_ACCOUNT_SID`, `SMS_AUTH_TOKEN`, `SMS_FROM_NUMBER` | Any Twilio-compatible REST API. Recipients need an international number on file |
-| Webhook | `WEBHOOK_SIGNING_SECRET` to sign                       | Signed with HMAC-SHA256; private and reserved addresses are refused             |
+| Channel | Needs                            | Notes                                                                                           |
+| ------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Email   | `SMTP_HOST` and friends          | Always available once SMTP is set                                                               |
+| SMS     | `SMS_GATEWAY_DOMAIN`, plus SMTP  | Sent over SMTP through an email-to-SMS gateway. Recipients need an international number on file |
+| Webhook | `WEBHOOK_SIGNING_SECRET` to sign | Signed with HMAC-SHA256; private and reserved addresses are refused                             |
 
 Every attempt is written to `notification_logs` with its outcome, so a delivery
 failure is visible rather than silent. A channel with no provider configured
 records the attempt and says so in the dashboard rather than failing quietly.
+
+SMS is delivered over the same SMTP transport as email, through an
+email-to-SMS gateway: the recipient's number becomes an address at
+`SMS_GATEWAY_DOMAIN` and the mail server relays it to the handset. That means
+one transport to configure and no separate provider account. The tradeoff is
+that a gateway returns no delivery receipt, so a message the mail server
+accepted may still not arrive, and length limits are the gateway's rather than
+ours.
 
 Webhook URLs come from workspace administrators, which makes them a
 server-side request forgery surface. Every destination is resolved and checked
@@ -226,17 +234,17 @@ cd apps/api && pytest -q     # integration tests skip without DATABASE_URL
 
 `.env.example` documents every variable. The ones that matter most:
 
-| Variable                             | Purpose                                                |
-| ------------------------------------ | ------------------------------------------------------ |
-| `DATABASE_URL`                       | PostgreSQL connection, shared by both services         |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD`      | Seed credentials; the seed refuses to run without them |
-| `SMTP_HOST` and friends              | Email delivery; leave unset to disable sending         |
-| `SMS_ACCOUNT_SID` and friends        | SMS delivery through a Twilio-compatible API           |
-| `WEBHOOK_SIGNING_SECRET`             | Signs outgoing webhooks; unsigned without it           |
-| `REDIS_URL`                          | Shares rate-limit counters across instances            |
-| `VIDEO_MEETING_BASE_URL`             | Base for generated meeting rooms                       |
-| `NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG` | Workspace the landing page links to                    |
-| `CORS_ORIGINS`                       | Browser origins allowed to call the FastAPI service    |
+| Variable                             | Purpose                                                 |
+| ------------------------------------ | ------------------------------------------------------- |
+| `DATABASE_URL`                       | PostgreSQL connection, shared by both services          |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`      | Seed credentials; the seed refuses to run without them  |
+| `SMTP_HOST` and friends              | Email delivery; leave unset to disable sending          |
+| `SMS_GATEWAY_DOMAIN`                 | Email-to-SMS gateway; SMS rides the same SMTP transport |
+| `WEBHOOK_SIGNING_SECRET`             | Signs outgoing webhooks; unsigned without it            |
+| `REDIS_URL`                          | Shares rate-limit counters across instances             |
+| `VIDEO_MEETING_BASE_URL`             | Base for generated meeting rooms                        |
+| `NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG` | Workspace the landing page links to                     |
+| `CORS_ORIGINS`                       | Browser origins allowed to call the FastAPI service     |
 
 Generated video links point at a Jitsi room, which exists as soon as someone
 opens it, so the link works with no API credentials. Set

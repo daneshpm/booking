@@ -1,20 +1,32 @@
-import { describeError, notConfigured, type DeliveryResult } from './types';
+import { sendMail, isMailConfigured } from './email';
+import { notConfigured, type DeliveryResult } from './types';
 
 /**
- * SMS delivery through a Twilio-compatible HTTP API.
+ * SMS delivery through an email-to-SMS gateway.
  *
- * Uses fetch against the REST endpoint rather than the vendor SDK, so the
- * dependency footprint stays small and any provider exposing the same shape
- * works by pointing SMS_API_BASE_URL at it.
+ * Messages go out over the same SMTP transport as email: the number is turned
+ * into an address at the gateway domain and handed to the mail server, which
+ * relays it to the handset. That means no separate provider account, no HTTP
+ * credentials, and one transport to configure and monitor.
  *
- * With no credentials configured, delivery reports itself unconfigured rather
- * than throwing. The attempt is still recorded, so an operator can see that a
- * message was due and why it did not go out.
+ * The tradeoffs are real and worth knowing. A gateway gives no delivery
+ * receipt, so a message accepted by the mail server may still never arrive.
+ * Carrier-run gateways need the recipient's carrier domain, so they only suit a
+ * known audience; a bulk provider offering one domain for every network is the
+ * better fit for customers whose carrier you do not know. Length limits are the
+ * gateway's, not ours, and long messages may be split or truncated.
+ *
+ * With no gateway configured, delivery reports itself unconfigured rather than
+ * throwing. The attempt is still recorded, so an operator can see a message was
+ * due and why it did not go out.
  */
 
-const DEFAULT_BASE_URL = 'https://api.twilio.com';
-
-/** Longest single SMS body accepted, to avoid surprise multi-part billing. */
+/**
+ * Longest body sent to a gateway.
+ *
+ * A single GSM message is 160 characters; this allows a short multipart
+ * message while keeping a reminder from turning into a wall of text.
+ */
 export const MAX_SMS_LENGTH = 480;
 
 export interface SmsMessage {
@@ -22,23 +34,48 @@ export interface SmsMessage {
   body: string;
 }
 
+/** Domain that turns an address into a text message, for example a provider's gateway. */
+function gatewayDomain(): string | undefined {
+  return process.env.SMS_GATEWAY_DOMAIN?.trim().replace(/^@/, '') || undefined;
+}
+
+/**
+ * SMS needs both a mail transport and somewhere to send to, so it is only
+ * available when SMTP is configured as well.
+ */
 export function isSmsConfigured(): boolean {
-  return Boolean(
-    process.env.SMS_ACCOUNT_SID && process.env.SMS_AUTH_TOKEN && process.env.SMS_FROM_NUMBER
-  );
+  return Boolean(gatewayDomain()) && isMailConfigured();
 }
 
 /**
  * Accept only a plausible E.164 number.
  *
- * Providers bill per attempt, so a malformed number is rejected before it costs
- * anything and the reason is recorded.
+ * The gateway address is derived from the digits, so a number without a country
+ * code cannot be turned into one reliably.
  */
 export function isValidPhoneNumber(value: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(value.trim());
 }
 
-/** Shorten a message to one that will not be split into several parts. */
+/**
+ * Build the gateway address for a number.
+ *
+ * Most gateways expect the digits alone. Set SMS_GATEWAY_STRIP_COUNTRY_CODE to
+ * the country code, without the plus, for a carrier gateway that wants a
+ * national number instead.
+ */
+export function gatewayAddressFor(phoneNumber: string, domain: string): string {
+  let digits = phoneNumber.trim().replace(/[^\d]/g, '');
+
+  const strip = process.env.SMS_GATEWAY_STRIP_COUNTRY_CODE?.trim().replace(/[^\d]/g, '');
+  if (strip && digits.startsWith(strip)) {
+    digits = digits.slice(strip.length);
+  }
+
+  return `${digits}@${domain}`;
+}
+
+/** Shorten a message so a gateway does not split or truncate it unpredictably. */
 export function truncateForSms(body: string): string {
   const collapsed = body.replace(/\s*\n\s*/g, ' ').trim();
   return collapsed.length <= MAX_SMS_LENGTH
@@ -47,8 +84,16 @@ export function truncateForSms(body: string): string {
 }
 
 export async function sendSms(message: SmsMessage): Promise<DeliveryResult> {
-  if (!isSmsConfigured()) {
+  const domain = gatewayDomain();
+
+  if (!domain) {
     return notConfigured('SMS delivery');
+  }
+  if (!isMailConfigured()) {
+    return {
+      delivered: false,
+      error: 'SMS goes out over SMTP, which is not configured for this deployment',
+    };
   }
 
   const to = message.to.trim();
@@ -59,50 +104,20 @@ export async function sendSms(message: SmsMessage): Promise<DeliveryResult> {
     };
   }
 
-  const accountSid = process.env.SMS_ACCOUNT_SID!;
-  const authToken = process.env.SMS_AUTH_TOKEN!;
-  const from = process.env.SMS_FROM_NUMBER!;
-  const baseUrl = (process.env.SMS_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+  // Many gateways prepend the subject to the message body, so it is left empty
+  // unless a deployment's gateway needs something specific.
+  const subject = process.env.SMS_GATEWAY_SUBJECT ?? '';
 
-  const url = `${baseUrl}/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
-  const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const result = await sendMail({
+    to: gatewayAddressFor(to, domain),
+    subject,
+    text: truncateForSms(message.body),
+  });
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  if (result.delivered) return result;
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({ To: to, From: from, Body: truncateForSms(message.body) }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      // The provider echoes the request back on some errors, so only the status
-      // and its own message are kept out of the response body.
-      let providerMessage = `HTTP ${response.status}`;
-      try {
-        const parsed = JSON.parse(detail) as { message?: string };
-        if (parsed.message) providerMessage = `${providerMessage}: ${parsed.message}`;
-      } catch {
-        /* body was not JSON; the status alone is enough */
-      }
-      return { delivered: false, error: providerMessage };
-    }
-
-    const payload = (await response.json().catch(() => ({}))) as { sid?: string };
-    return { delivered: true, providerId: payload.sid };
-  } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      return { delivered: false, error: 'SMS provider timed out after 15 seconds' };
-    }
-    return { delivered: false, error: describeError(err, 'SMS provider unreachable') };
-  } finally {
-    clearTimeout(timeout);
-  }
+  return {
+    delivered: false,
+    error: result.error ? `SMS gateway: ${result.error}` : 'SMS gateway rejected the message',
+  };
 }

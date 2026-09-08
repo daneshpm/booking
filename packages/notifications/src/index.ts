@@ -11,6 +11,7 @@ export {
   sendSms,
   isSmsConfigured,
   isValidPhoneNumber,
+  gatewayAddressFor,
   truncateForSms,
   MAX_SMS_LENGTH,
   type SmsMessage,
