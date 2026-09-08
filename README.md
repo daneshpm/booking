@@ -1,211 +1,259 @@
-# Rooman Bookings Platform
+# Rooman Bookings
 
-> **Official Appointment Scheduling, Skilling Consultation & Center of Excellence (CoE) Platform for Rooman Technologies**  
-> *Pioneering IT Training, Vocations & Certifications in India Since 1999 • 1.5M+ Professionals Trained • 1,000+ Academic & Hiring Partners*
+Multi-tenant appointment scheduling. A public booking page takes appointments;
+an internal dashboard manages services, staff, schedules and automated
+notifications.
 
----
-
-## 📖 Overview
-
-**Rooman Bookings** is an enterprise-grade multi-tenant appointment scheduling platform built for **Rooman Technologies** (Bengaluru, Karnataka, India). The platform bridges the gap between aspiring students, colleges, universities, corporate enterprises, and certified IT mentors across India.
-
-It features:
-- **1-on-1 Career & Certification Roadmapping**: Free 30-minute guidance sessions with senior advisors covering AI/ML, Cloud Computing (AWS/Azure), Cybersecurity, Cisco Networking, and Red Hat certifications.
-- **Technical Mock Interviews**: Rigorous 45-minute live evaluations covering coding, system design, and communication with detailed scorecards.
-- **University Center of Excellence (CoE) Discovery**: Strategic partnership consultations for university deans, college trustees, and directors to establish on-campus IT & AI labs.
-- **Corporate Workforce Upskilling**: Tailored engineering cohort training discovery for enterprises.
-- **Airtight Scheduling Engine**: Pure timezone-aware availability algorithms, automatic prep/wrap buffer zones, and PostgreSQL transactional collision checks to guarantee zero double-bookings.
+Built as a Turborepo monorepo: a Next.js application, a FastAPI service sharing
+its database and session store, and shared TypeScript packages.
 
 ---
 
-## 🎨 Design System & Aesthetics
+## Quick start
 
-Rooman Bookings utilizes a **targeted hybrid design architecture**:
-
-1. **Client Conversion Surfaces** (*Landing Page, Workspace Public Catalog, Concierge Booking Flow*):
-   - **Modern Light SaaS Aesthetic** (inspired by Stripe, Linear, and Google Stitch).
-   - Base canvas: `#fafbfc` with pure white (`#ffffff`) cards, subtle borders (`#e2e8f0`), deep slate typography (`#0f172a`), and royal indigo accents (`#4f46e5` / `#2563eb`).
-   - High conversion date/time slot pickers, instant Google Meet link delivery, and guest intake forms.
-
-2. **Faculty & Staff Dashboard** (*Appointments, Calendar, Staff Management, Availability*):
-   - **Zoho Bookings Design System**:
-   - Deep royal purple branding (`#5c34ad` / `#4a288f`), intuitive top navigation bar, quick workspace switcher, and structured data tables.
-
----
-
-## 🏗️ Architecture & Core Principles
-
-The platform is organized as a clean **Turborepo monorepo** adhering to Domain-Driven Design (DDD):
-
-```
-├── apps/
-│   └── web/                               # Next.js 15 App Router (Frontend & Server Actions)
-│       ├── app/
-│       │   ├── (dashboard)/               # Faculty internal dashboard (Zoho Bookings theme)
-│       │   │   ├── appointments/          # Appointments list & status lifecycle
-│       │   │   ├── availability/          # Shifts, lunch breaks & buffer controls
-│       │   │   ├── booking-pages/         # Public link generator & embed widgets
-│       │   │   ├── calendar/              # Full schedule timeline view
-│       │   │   ├── customers/             # Client directory & history
-│       │   │   ├── services/              # Service catalog management
-│       │   │   ├── staff/                 # Staff directory & role permissions
-│       │   │   └── workflows/             # Automated email & reminder sequences
-│       │   ├── book/                      # Public booking routes & concierge client
-│       │   │   └── [slug]/                # Dynamic workspace catalog & direct booker
-│       │   ├── components/                # Reusable presentation components (ApexLandingPage)
-│       │   ├── login/ & signup/           # Multi-tenant onboarding & authentication
-│       │   └── layout.tsx & page.tsx      # Root application shell & landing page
-│
-├── packages/
-│   ├── core/                              # Pure domain entities, algorithms & value objects
-│   │   └── src/domain/                    # Availability calculator, buffer rules & collision models
-│   ├── database/                          # Prisma ORM schema, client & seed scripts
-│   │   ├── prisma/schema.prisma           # Multi-tenant PostgreSQL database models
-│   │   └── src/seed.ts                    # Rooman Technologies demo data seeder
-│   ├── feature-services/                  # Hexagonal use cases & repositories for services
-│   └── ui/                                # Reusable UI component library (Buttons, Badges, Inputs)
-│
-└── docker/
-    └── docker-compose.yml                 # PostgreSQL 16, Redis 7, Mailpit
-```
-
-### Core Engine Safeguards
-- **Zero Double-Bookings**: PostgreSQL interval collision queries (`startTime < existing.endTime AND endTime > existing.startTime`) run inside serializable transactions before booking creation.
-- **Timezone Awareness**: All shift calculations, availability generation, and appointments are computed with `date-fns-tz` and stored in UTC in PostgreSQL.
-- **Buffer Management**: Configurable preparation buffers (e.g., 10 mins before) and wrap-up buffers (e.g., 15 mins after) protect mentors from meeting fatigue.
-- **Automated Video Conferencing**: Google Meet and video links are provisioned and delivered automatically upon confirmation.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology |
-| :--- | :--- |
-| **Framework** | Next.js 15 (App Router, Server Components & Server Actions) |
-| **Language** | TypeScript 5.7 |
-| **Frontend UI** | React 19, TailwindCSS, Lucide Icons, Vanilla Design Tokens |
-| **Database** | PostgreSQL 16 with Prisma ORM 6 |
-| **Caching / Queues** | Redis 7 + BullMQ |
-| **Local Email Testing** | Mailpit (SMTP on `1025`, Web UI on `8025`) |
-| **Testing** | Vitest (with dot & compact reporters) |
-| **Monorepo Tooling** | Turborepo 2, npm workspaces |
-
----
-
-## 🚀 Getting Started
-
-### 1. Prerequisites
-- **Node.js**: v20.0.0 or higher
-- **npm**: v10.0.0 or higher
-- **Docker / Docker Desktop**: For running PostgreSQL, Redis, and Mailpit
-
-### 2. Environment Configuration
-Create a `.env` file in the root directory (or use `.env.local`):
+**Requirements:** Node 20+, npm 10+, PostgreSQL 16+, and optionally Docker for
+the local services.
 
 ```bash
-# Database connection (PostgreSQL)
-DATABASE_URL="postgresql://postgres:password123@localhost:5434/bookings_dev?schema=public"
-
-# Auth Secret & URLs
-NEXTAUTH_SECRET="rooman-bookings-super-secret-key-at-least-32-chars-long"
-NEXTAUTH_URL="http://localhost:3000"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-
-# Redis
-REDIS_URL="redis://localhost:6379"
-
-# Email (Mailpit)
-SMTP_HOST="localhost"
-SMTP_PORT="1025"
-SMTP_USER=""
-SMTP_PASSWORD=""
-EMAIL_FROM="Rooman Bookings <noreply@rooman.net>"
-```
-
-### 3. Start Supporting Services
-Run Docker Compose to spin up PostgreSQL (`5434`), Redis (`6379`), and Mailpit (`8025`):
-
-```bash
+# 1. Start PostgreSQL, Redis and a local mail sink
 docker compose -f docker/docker-compose.yml up -d
-```
 
-### 4. Setup Database & Seed Data
-Push the Prisma schema to PostgreSQL and seed Rooman Technologies data:
+# 2. Configure the environment
+cp .env.example .env
+#    Then edit .env and set ADMIN_EMAIL and ADMIN_PASSWORD.
 
-```bash
-npm run db:push
+# 3. Install and prepare the database
+npm install
+npm run db:generate
+npm run db:migrate:deploy
+
+# 4. Create the first account
 npm run db:seed
-```
 
-### 5. Start Development Server
-```bash
+# 5. Run
 npm run dev
 ```
-The application will be live at **[http://localhost:3000](http://localhost:3000)**.
 
-### 6. (Optional) Start the FastAPI Python Backend
-The `apps/api` service provides JWT authentication and a scheduling API that shares the same PostgreSQL database. The web app calls it when available and falls back to Prisma when it is not.
+Sign in at http://localhost:3000/login with the credentials you set in `.env`.
+Mail sent locally is captured at http://localhost:8025 and never leaves the
+machine.
+
+---
+
+## Getting to a usable workspace
+
+The seed creates one owner account, one workspace and one staff member. It does
+not create sample services, customers or appointments: fixture rows that reach
+production look exactly like real records and cannot be told apart from genuine
+customer data later.
+
+After signing in:
+
+1. **Settings** — confirm the workspace name, timezone and currency. Every
+   availability calculation happens in this timezone.
+2. **Schedules** — set working hours and breaks for each staff member.
+3. **Event Types** — create the services people can book, with durations and
+   the buffers you want before and after each appointment.
+4. **Booking Pages** — copy the public link, or the embed snippet, and share it.
+
+Onboarding progress in the sidebar reflects what actually exists in the
+workspace.
+
+---
+
+## Architecture
+
+```
+apps/
+  web/          Next.js 15 App Router. Pages, server actions, middleware.
+  api/          FastAPI service. Shares the database and session store.
+packages/
+  core/         Pure domain logic: time maths, password policy, Result type.
+  auth/         Sessions, password hashing, workspace authorization.
+  database/     Prisma schema, migrations, seed and maintenance scripts.
+  ui/           Shared presentational components.
+  features/
+    services/   Service catalogue: domain, use cases, repository, components.
+```
+
+### Authentication
+
+Sessions are server-side and revocable. A login issues a 32-byte random token;
+only its SHA-256 digest is stored, so a database dump cannot be replayed. The
+cookie is `httpOnly`, `sameSite=lax`, and `secure` in production.
+
+Both services read the same `sessions` table, so a session issued by either is
+honoured by both and revoking one takes effect everywhere immediately. A
+stateless token could not do that.
+
+Passwords are bcrypt at cost 12. The policy rejects anything longer than 72
+bytes, because bcrypt ignores the remainder and two different long passwords
+would otherwise open the same account.
+
+### Tenant isolation
+
+Every exported server action is a public HTTP endpoint once built. A workspace
+id in an action's arguments is therefore attacker-controlled until proven
+otherwise, so each action calls `requireWorkspace(workspaceId, role)`, which
+confirms the signed-in user holds a membership on that workspace with at least
+the required role.
+
+Middleware redirecting anonymous visitors is a convenience, not the boundary:
+it only checks that a cookie is present, because verification needs a database
+round trip the Edge runtime cannot make. Pages and actions verify independently.
+
+Roles are ordered `OWNER > ADMIN > STAFF > RECEPTIONIST`; a higher role
+satisfies a lower requirement.
+
+### Double-booking prevention
+
+A PostgreSQL exclusion constraint makes two overlapping appointments for one
+staff member impossible:
+
+```sql
+EXCLUDE USING gist (
+  staff_id WITH =,
+  tstzrange(start_time, end_time, '[)') WITH &&
+) WHERE (status <> 'CANCELLED')
+```
+
+Application code checks availability first so the customer gets a useful
+message, but that check cannot stop two concurrent requests from both passing
+and both inserting. The constraint can. The range is half-open, so an
+appointment may start exactly when the previous one ends.
+
+### Availability
+
+Slots are generated per staff member from their weekly working hours and
+breaks, in the workspace timezone, with the service's buffers applied before
+collision checks. Times are stored in UTC.
+
+### Notifications
+
+Booking confirmations and cancellations are sent automatically. Workflows add
+reminders and follow-ups, and can target the customer, the staff member, or
+both, with `{{placeholder}}` templates.
+
+Every attempt is written to `notification_logs` with its outcome, so a delivery
+failure is visible rather than silent. With `SMTP_HOST` unset, nothing is sent
+and the dashboard says so.
+
+---
+
+## Commands
+
+| Command                     | What it does                                      |
+| --------------------------- | ------------------------------------------------- |
+| `npm run dev`               | Start the development server                      |
+| `npm run build`             | Production build                                  |
+| `npm run typecheck`         | Typecheck every package                           |
+| `npx vitest run`            | Unit tests                                        |
+| `npm run format`            | Format with Prettier                              |
+| `npm run db:migrate`        | Create and apply a migration in development       |
+| `npm run db:migrate:deploy` | Apply pending migrations (use this in production) |
+| `npm run db:seed`           | Create the first owner account                    |
+| `npm run sessions:purge`    | Delete expired session rows                       |
+
+Integration tests need a live database and run separately:
+
+```bash
+DATABASE_URL="postgresql://postgres:password123@localhost:5434/bookings_dev" \
+  npx vitest run --config vitest.integration.config.mts
+```
+
+They truncate every table between tests, so point them at a disposable
+database, never a database with real data in it.
+
+### FastAPI service
 
 ```bash
 cd apps/api
 python -m venv .venv
-# Windows: .venv\Scripts\activate   |   macOS/Linux: source .venv/bin/activate
+# Windows: .venv\Scripts\activate   macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-The API reads `DATABASE_URL` and `JWT_SECRET` from the environment (or an `apps/api/.env` file). Interactive docs are served at **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**. Set `PYTHON_API_URL` for the web app if the API runs somewhere other than `http://127.0.0.1:8000`; requests to `/api/py/*` on the web app are proxied there.
-
-Run the API test-suite (the integration tests expect a seeded database):
+Docs are at http://127.0.0.1:8000/docs in development and disabled in
+production. The web app proxies `/api/py/*` to this service.
 
 ```bash
-cd apps/api && pytest -q
+cd apps/api && pytest -q     # integration tests skip without DATABASE_URL
 ```
 
 ---
 
-## 🔗 Key Local Routes
+## Configuration
 
-| Page | URL | Description |
-| :--- | :--- | :--- |
-| **Rooman Bookings Home** | `http://localhost:3000` | Light SaaS landing page with live interactive scheduler preview |
-| **Rooman Public Catalog** | `http://localhost:3000/book/rooman-technologies` | Client booking catalog with INR pricing & service cards |
-| **Career Guidance Booker** | `http://localhost:3000/book/rooman-technologies/career-guidance` | 3-step date/time slot picker for free 1-on-1 career mentoring |
-| **Mock Interview Booker** | `http://localhost:3000/book/rooman-technologies/mock-interview-assessment` | Technical mock interview scheduling with scorecard evaluation |
-| **University CoE Booker** | `http://localhost:3000/book/rooman-technologies/university-coe-consultation` | Executive briefing for on-campus Centers of Excellence |
-| **Appointments Dashboard** | `http://localhost:3000/appointments` | Internal appointment management (Zoho Bookings theme) |
-| **Calendar Schedule** | `http://localhost:3000/calendar` | Interactive schedule timeline |
-| **Mailpit Inbox** | `http://localhost:8025` | Local web client to inspect confirmation & reminder emails |
+`.env.example` documents every variable. The ones that matter most:
+
+| Variable                             | Purpose                                                |
+| ------------------------------------ | ------------------------------------------------------ |
+| `DATABASE_URL`                       | PostgreSQL connection, shared by both services         |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`      | Seed credentials; the seed refuses to run without them |
+| `SMTP_HOST` and friends              | Email delivery; leave unset to disable sending         |
+| `VIDEO_MEETING_BASE_URL`             | Base for generated meeting rooms                       |
+| `NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG` | Workspace the landing page links to                    |
+| `CORS_ORIGINS`                       | Browser origins allowed to call the FastAPI service    |
+
+Generated video links point at a Jitsi room, which exists as soon as someone
+opens it, so the link works with no API credentials. Set
+`VIDEO_MEETING_BASE_URL` to a self-hosted instance for production.
 
 ---
 
-## 🧪 Testing & Validation
+## Deployment
 
-Run unit tests covering availability slot calculations, buffer intersections, and collision prevention:
+Both services have multi-stage Dockerfiles that run as a non-root user with
+health checks.
 
 ```bash
-# Run domain unit tests
-npx vitest run --reporter=dot
-
-# Run TypeScript typecheck
-npm run lint --workspace=@bookings/web
+docker build -f apps/web/Dockerfile -t rooman-bookings-web .
+docker build -f apps/api/Dockerfile -t rooman-bookings-api apps/api
 ```
 
----
+Apply migrations before starting a new release:
 
-## 🌿 Git & Deployment Policy
+```bash
+npm run db:migrate:deploy
+```
 
-- **Target Branch**: Push ONLY to the **`danesh`** branch. Never push directly to `main`.
-- **Syncing Changes**: Use the Antigravity IDE Source Control panel (`Ctrl + Shift + G` -> *Sync Changes*) to push commits directly to GitHub.
+Set `NODE_ENV=production`, which enables secure cookies, HSTS, and disables the
+API docs endpoints. Serve over HTTPS: session cookies are marked `secure` in
+production and a browser will not send them over plain HTTP.
 
----
-
-## 🏢 About Rooman Technologies
-
-- **Founded**: 1999 in Bengaluru, Karnataka, India
-- **Headquarters**: Bengaluru, India
-- **Official Website**: [www.rooman.com](https://www.rooman.com) • [www.rooman.net](https://www.rooman.net)
-- **Specializations**: Artificial Intelligence, Cloud Computing (AWS/Azure), Cybersecurity, Cisco Networking, Centers of Excellence, PMKVY / NSDC Skill Development.
+`npm run sessions:purge` deletes expired session rows; a scheduled workflow runs
+it daily when a `DATABASE_URL` secret is configured.
 
 ---
-*© 2026 Rooman Technologies Pvt. Ltd. All rights reserved. Rooman Bookings Platform.*
+
+## Continuous integration
+
+Every pull request runs formatting, a typecheck of all packages, unit tests with
+coverage, a production build, integration tests against a real PostgreSQL, the
+Python lint and test suite, and a dependency audit.
+
+A migration drift job fails the build when `schema.prisma` has changes no
+migration covers, so a missing migration is caught before deployment rather than
+as a runtime error afterwards. CI also asserts the booking overlap constraint
+exists after migrations run, and that the seed rejects both missing and weak
+administrator credentials.
+
+Make **CI passed** the required status check in branch protection; it aggregates
+every other job.
+
+---
+
+## Contributing
+
+- Schema changes need a migration. Run `npm run db:migrate`.
+- New server actions must call `requireWorkspace`. Without it the action is an
+  unauthenticated endpoint that accepts any workspace id.
+- Do not write sample data to the database.
+- Document new environment variables in `.env.example`.
+
+---
+
+## About
+
+Built for [Rooman Technologies](https://www.rooman.com), Bengaluru.

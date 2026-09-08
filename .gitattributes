@@ -1,0 +1,13 @@
+# Normalise line endings so a checkout on Windows does not show every file as
+# modified, and so committed content stays LF regardless of who wrote it.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

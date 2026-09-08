@@ -1,11 +1,17 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _naive_utc_now() -> datetime:
+    """Current UTC time without a tzinfo, matching the naive timestamp columns."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 from sqlalchemy import (
     Column,
     String,
     Boolean,
     Integer,
     Numeric,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -30,11 +36,37 @@ class User(Base):
     name = Column(String, nullable=False)
     passwordHash = Column(String, nullable=False)
     avatarUrl = Column(String, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
 
     memberships = relationship("WorkspaceMember", back_populates="user", cascade="all, delete-orphan")
     staff_profiles = relationship("Staff", back_populates="user")
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+
+class Session(Base):
+    """
+    Server-side session shared with the Next.js application.
+
+    Only the SHA-256 digest of the token is stored, so a dump of this table
+    cannot be replayed against either service.
+    """
+
+    __tablename__ = "sessions"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Workspace(Base):
@@ -46,8 +78,8 @@ class Workspace(Base):
     logoUrl = Column(String, nullable=True)
     timezone = Column(String, default="UTC", nullable=False)
     currency = Column(String, default="USD", nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     members = relationship("WorkspaceMember", back_populates="workspace", cascade="all, delete-orphan")
     staff = relationship("Staff", back_populates="workspace", cascade="all, delete-orphan")
@@ -63,7 +95,7 @@ class WorkspaceMember(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(RoleEnum, default="STAFF", nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "user_id", name="uq_workspace_members_workspace_user"),
@@ -85,8 +117,8 @@ class Staff(Base):
     avatarUrl = Column(String, nullable=True)
     timezone = Column(String, default="UTC", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "email", name="uq_staff_workspace_email"),
@@ -96,6 +128,9 @@ class Staff(Base):
     workspace = relationship("Workspace", back_populates="staff")
     user = relationship("User", back_populates="staff_profiles")
     working_hours = relationship("StaffWorkingHours", back_populates="staff", cascade="all, delete-orphan")
+    availability_overrides = relationship(
+        "StaffOverride", back_populates="staff", cascade="all, delete-orphan"
+    )
     service_assignments = relationship("ServiceStaff", back_populates="staff", cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="staff")
 
@@ -115,6 +150,25 @@ class StaffWorkingHours(Base):
 
     staff = relationship("Staff", back_populates="working_hours")
     breaks = relationship("StaffBreak", back_populates="working_hours", cascade="all, delete-orphan")
+
+
+class StaffOverride(Base):
+    """A specific date that replaces the weekly schedule: leave, or a special shift."""
+
+    __tablename__ = "staff_overrides"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    staff_id = Column(String, ForeignKey("staff.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+    is_working = Column(Boolean, default=False, nullable=False)
+    start_time = Column(String, nullable=True)
+    end_time = Column(String, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("staff_id", "date", name="uq_staff_overrides_staff_date"),
+    )
+
+    staff = relationship("Staff", back_populates="availability_overrides")
 
 
 class StaffBreak(Base):
@@ -147,8 +201,8 @@ class Service(Base):
     location_type = Column(LocationTypeEnum, default="ONLINE_MEETING", nullable=False)
     location_details = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "slug", name="uq_services_workspace_slug"),
@@ -186,8 +240,8 @@ class Customer(Base):
     email = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     notes = Column(String, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "email", name="uq_customers_workspace_email"),
@@ -214,8 +268,8 @@ class Booking(Base):
     rescheduled_from_id = Column(String, nullable=True)
     meeting_link = Column(String, nullable=True)
     idempotency_key = Column(String, unique=True, nullable=True)
-    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt = Column(DateTime, default=_naive_utc_now, nullable=False)
+    updatedAt = Column(DateTime, default=_naive_utc_now, onupdate=_naive_utc_now, nullable=False)
 
     workspace = relationship("Workspace", back_populates="bookings")
     service = relationship("Service", back_populates="bookings")

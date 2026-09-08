@@ -172,9 +172,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                   {workspace.name}
                 </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Public Booking Portal
-                </span>
+                <span className="text-[10px] text-slate-500 block">Public Booking Portal</span>
               </div>
             </div>
 
@@ -215,7 +213,8 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
               <div className="mt-4 flex items-center gap-2 text-[11px] text-slate-600 font-medium">
                 <Shield className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
                 <span>
-                  Includes {service.bufferBeforeMinutes}m prep and {service.bufferAfterMinutes}m wrap-up buffer.
+                  Includes {service.bufferBeforeMinutes}m prep and {service.bufferAfterMinutes}m
+                  wrap-up buffer.
                 </span>
               </div>
             )}
@@ -228,10 +227,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
             >
               ← All Services
             </Link>
-            <Link
-              href="/services"
-              className="text-indigo-600 hover:underline font-semibold"
-            >
+            <Link href="/services" className="text-indigo-600 hover:underline font-semibold">
               Admin Dashboard →
             </Link>
           </div>
@@ -249,7 +245,8 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 </div>
                 <h2 className="text-xl font-bold text-slate-900 mt-2">Select Date & Time</h2>
                 <p className="text-xs text-slate-600 mt-1">
-                  Times are automatically displayed in <strong className="text-slate-800 font-semibold">{workspace.timezone}</strong>.
+                  Times are automatically displayed in{' '}
+                  <strong className="text-slate-800 font-semibold">{workspace.timezone}</strong>.
                 </p>
               </div>
 
@@ -275,9 +272,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                         <span className="text-[10px] uppercase font-bold tracking-wider opacity-80">
                           {item.labelDay}
                         </span>
-                        <span className="text-xs font-bold mt-0.5">
-                          {item.labelDate}
-                        </span>
+                        <span className="text-xs font-bold mt-0.5">{item.labelDate}</span>
                       </button>
                     );
                   })}
@@ -310,11 +305,10 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 ) : availableSlots.length === 0 ? (
                   <div className="p-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-center">
                     <Clock className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-                    <p className="text-xs font-semibold text-slate-900">
-                      No Available Slots
-                    </p>
+                    <p className="text-xs font-semibold text-slate-900">No Available Slots</p>
                     <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
-                      Staff are either fully booked or scheduled off on this date. Please choose another date above.
+                      Staff are either fully booked or scheduled off on this date. Please choose
+                      another date above.
                     </p>
                   </div>
                 ) : (
@@ -358,7 +352,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold uppercase tracking-wider block w-fit">
                   Step 2 of 2
                 </div>
-                <h2 className="text-xl font-bold text-slate-900 mt-2">Enter Your Contact Details</h2>
+                <h2 className="text-xl font-bold text-slate-900 mt-2">
+                  Enter Your Contact Details
+                </h2>
                 <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-indigo-600" />
@@ -519,7 +515,10 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                   Book Another Time
                 </Button>
                 <Link href={`/book/${workspace.slug}`} className="flex-1">
-                  <Button variant="primary" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20">
+                  <Button
+                    variant="primary"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                  >
                     Return to Services
                   </Button>
                 </Link>

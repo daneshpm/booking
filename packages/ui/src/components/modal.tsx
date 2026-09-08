@@ -62,7 +62,9 @@ export function Modal({
         </button>
 
         {title && <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h3>}
-        {description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+        {description && (
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        )}
 
         <div className="mt-4">{children}</div>
       </div>

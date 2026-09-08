@@ -80,7 +80,8 @@ export function BookingPagesClient({
             <Badge variant="success">Live & Published</Badge>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Shareable client booking portals, direct event links, and responsive website embed widgets.
+            Shareable client booking portals, direct event links, and responsive website embed
+            widgets.
           </p>
         </div>
 
@@ -110,7 +111,8 @@ export function BookingPagesClient({
                   Main Business Booking Portal
                 </CardTitle>
                 <span className="text-xs text-slate-500">
-                  Displays all active services for <strong className="text-slate-700 capitalize">{workspaceName}</strong>
+                  Displays all active services for{' '}
+                  <strong className="text-slate-700 capitalize">{workspaceName}</strong>
                 </span>
               </div>
             </div>
@@ -121,9 +123,7 @@ export function BookingPagesClient({
 
         <CardContent className="pt-4 space-y-4">
           <div className="p-3.5 rounded-xl bg-[#f8f5ff] border border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="font-mono text-purple-950 font-bold truncate">
-              {mainPortalUrl}
-            </div>
+            <div className="font-mono text-purple-950 font-bold truncate">{mainPortalUrl}</div>
 
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -145,7 +145,11 @@ export function BookingPagesClient({
               </button>
 
               <Link href={`/book/${workspaceSlug}`} target="_blank">
-                <Button size="sm" variant="primary" className="bg-[#5c34ad] hover:bg-[#4d2994] text-white gap-1.5 text-xs">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="bg-[#5c34ad] hover:bg-[#4d2994] text-white gap-1.5 text-xs"
+                >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Open Live
                 </Button>
@@ -300,8 +304,8 @@ export function BookingPagesClient({
                       embedTab === 'iframe'
                         ? iframeSnippet
                         : embedTab === 'button'
-                        ? buttonSnippet
-                        : signatureSnippet;
+                          ? buttonSnippet
+                          : signatureSnippet;
                     copyToClipboard(text, 'embed-code');
                   }}
                   className="absolute top-3 right-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 backdrop-blur-xs"
@@ -325,7 +329,10 @@ export function BookingPagesClient({
                 <span className="font-bold block">Quick Instructions:</span>
                 <p>1. Copy the code snippet above.</p>
                 <p>2. Paste it into your website builder HTML embed block or footer template.</p>
-                <p>3. Client appointments automatically synchronize directly into your dashboard calendar.</p>
+                <p>
+                  3. Client appointments automatically synchronize directly into your dashboard
+                  calendar.
+                </p>
               </div>
             </div>
 

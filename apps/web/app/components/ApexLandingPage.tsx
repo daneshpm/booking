@@ -26,6 +26,16 @@ import {
 } from 'lucide-react';
 import { Button } from '@bookings/ui';
 
+/**
+ * Workspace the marketing page links to.
+ *
+ * With no slug configured the links fall back to /book, the directory of
+ * published booking pages, so a fresh deployment never points at a workspace
+ * that does not exist.
+ */
+const DEFAULT_SLUG = process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG?.trim() || '';
+const BOOK_BASE = DEFAULT_SLUG ? `/book/${DEFAULT_SLUG}` : '/book';
+
 export function ApexLandingPage() {
   // Tabs for "Here's How It Works"
   const [activeTab, setActiveTab] = React.useState<'STUDENTS' | 'INSTITUTIONAL'>('STUDENTS');
@@ -97,7 +107,7 @@ export function ApexLandingPage() {
               Sign In
             </Link>
 
-            <Link href="/book/rooman-technologies">
+            <Link href={BOOK_BASE}>
               <Button
                 variant="primary"
                 size="sm"
@@ -124,17 +134,17 @@ export function ApexLandingPage() {
 
             <h1 className="text-4xl sm:text-6xl font-black text-slate-950 tracking-tight leading-[1.1]">
               Accelerate your tech career.{' '}
-              <span className="text-indigo-600">
-                Book expert Rooman mentoring.
-              </span>
+              <span className="text-indigo-600">Book expert Rooman mentoring.</span>
             </h1>
 
             <p className="text-base sm:text-lg text-slate-600 max-w-xl leading-relaxed">
-              Connect directly with senior instructors from Rooman Technologies. Schedule 1-on-1 certification guidance, technical mock interviews, and university Center of Excellence (CoE) consultations in seconds.
+              Connect directly with senior instructors from Rooman Technologies. Schedule 1-on-1
+              certification guidance, technical mock interviews, and university Center of Excellence
+              (CoE) consultations in seconds.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link href="/book/rooman-technologies/career-guidance">
+              <Link href={`${BOOK_BASE}/career-guidance`}>
                 <Button
                   size="lg"
                   variant="primary"
@@ -146,7 +156,7 @@ export function ApexLandingPage() {
               </Link>
 
               <Link
-                href="/book/rooman-technologies"
+                href={BOOK_BASE}
                 className="inline-flex items-center gap-2 px-5 py-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 font-semibold text-sm transition-all hover:bg-slate-50"
               >
                 <span>View All Services</span>
@@ -181,7 +191,9 @@ export function ApexLandingPage() {
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-slate-900">Priya Sharma</h2>
-                    <span className="text-xs text-slate-500">Principal AI & Cloud Architect • Rooman</span>
+                    <span className="text-xs text-slate-500">
+                      Principal AI & Cloud Architect • Rooman
+                    </span>
                   </div>
                 </div>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
@@ -193,8 +205,12 @@ export function ApexLandingPage() {
               {/* Service Offering Title */}
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-sm">1-on-1 Career & Certification Guidance</span>
-                  <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">FREE</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    1-on-1 Career & Certification Guidance
+                  </span>
+                  <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                    FREE
+                  </span>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-500 mt-1">
                   <span className="flex items-center gap-1">
@@ -262,7 +278,9 @@ export function ApexLandingPage() {
               {demoBooked && (
                 <div className="p-3 rounded-lg bg-emerald-50 text-emerald-800 text-xs flex items-center gap-2 border border-emerald-100 font-medium">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Selected {demoSelectedDay} at {demoSelectedTime}! Loading reservation...</span>
+                  <span>
+                    Selected {demoSelectedDay} at {demoSelectedTime}! Loading reservation...
+                  </span>
                 </div>
               )}
 
@@ -273,7 +291,7 @@ export function ApexLandingPage() {
                   Live Slot Verification
                 </span>
                 <Link
-                  href="/book/rooman-technologies"
+                  href={BOOK_BASE}
                   className="font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                 >
                   <span>Book Real Slot</span>
@@ -292,23 +310,35 @@ export function ApexLandingPage() {
         <div className="max-w-7xl mx-auto px-6 sm:px-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 items-center text-center md:text-left divide-y md:divide-y-0 md:divide-x divide-slate-100">
             <div className="pt-4 md:pt-0 md:px-4">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">1.5M+</span>
-              <p className="text-xs text-slate-500 font-medium mt-1">Students & Professionals Trained</p>
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">
+                1.5M+
+              </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                Students & Professionals Trained
+              </p>
             </div>
 
             <div className="pt-4 md:pt-0 md:px-6">
-              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block tracking-tight">1,000+</span>
+              <span className="text-3xl sm:text-4xl font-black text-indigo-600 block tracking-tight">
+                1,000+
+              </span>
               <p className="text-xs text-slate-500 font-medium mt-1">Hiring & Academic Partners</p>
             </div>
 
             <div className="pt-4 md:pt-0 md:px-6">
-              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block tracking-tight">98.4%</span>
+              <span className="text-3xl sm:text-4xl font-black text-emerald-600 block tracking-tight">
+                98.4%
+              </span>
               <p className="text-xs text-slate-500 font-medium mt-1">Placement Assistance Rate</p>
             </div>
 
             <div className="pt-4 md:pt-0 md:px-6">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">25+ Yrs</span>
-              <p className="text-xs text-slate-500 font-medium mt-1">IT Training Pioneer (Est. 1999)</p>
+              <span className="text-3xl sm:text-4xl font-black text-slate-900 block tracking-tight">
+                25+ Yrs
+              </span>
+              <p className="text-xs text-slate-500 font-medium mt-1">
+                IT Training Pioneer (Est. 1999)
+              </p>
             </div>
           </div>
         </div>
@@ -326,7 +356,8 @@ export function ApexLandingPage() {
             Tailored consultations for students, colleges, and enterprise teams
           </h2>
           <p className="text-base text-slate-600 mt-3">
-            Select the consultation track that matches your goals. Each session is led directly by certified Rooman domain experts.
+            Select the consultation track that matches your goals. Each session is led directly by
+            certified Rooman domain experts.
           </p>
         </div>
 
@@ -341,16 +372,20 @@ export function ApexLandingPage() {
                 </span>
                 <span className="text-xs text-slate-400">1-on-1 Video</span>
               </div>
-              <h3 className="text-xl font-bold text-slate-950">IT Career & Certification Guidance</h3>
+              <h3 className="text-xl font-bold text-slate-950">
+                IT Career & Certification Guidance
+              </h3>
               <p className="text-xs text-slate-500">For fresh graduates & IT job aspirants</p>
             </div>
 
             <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
-              Personalized career roadmapping with senior advisors. Learn which certifications (Cisco CCNA, AWS Cloud, AI/ML, Red Hat) match industry hiring demand and placement drives.
+              Personalized career roadmapping with senior advisors. Learn which certifications
+              (Cisco CCNA, AWS Cloud, AI/ML, Red Hat) match industry hiring demand and placement
+              drives.
             </div>
 
             <div className="md:col-span-3 flex justify-start md:justify-end">
-              <Link href="/book/rooman-technologies/career-guidance">
+              <Link href={`${BOOK_BASE}/career-guidance`}>
                 <Button
                   size="sm"
                   variant="primary"
@@ -372,16 +407,19 @@ export function ApexLandingPage() {
                 </span>
                 <span className="text-xs text-slate-400">Includes Scorecard</span>
               </div>
-              <h3 className="text-xl font-bold text-slate-950">Technical Mock Interview & Assessment</h3>
+              <h3 className="text-xl font-bold text-slate-950">
+                Technical Mock Interview & Assessment
+              </h3>
               <p className="text-xs text-slate-500">For students preparing for placement drives</p>
             </div>
 
             <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
-              Comprehensive live technical interview with a principal architect. Assesses coding, system design, or networking fundamentals with an actionable evaluation scorecard.
+              Comprehensive live technical interview with a principal architect. Assesses coding,
+              system design, or networking fundamentals with an actionable evaluation scorecard.
             </div>
 
             <div className="md:col-span-3 flex justify-start md:justify-end">
-              <Link href="/book/rooman-technologies/mock-interview-assessment">
+              <Link href={`${BOOK_BASE}/mock-interview-assessment`}>
                 <Button
                   size="sm"
                   variant="primary"
@@ -403,16 +441,19 @@ export function ApexLandingPage() {
                 </span>
                 <span className="text-xs text-slate-400">60 mins</span>
               </div>
-              <h3 className="text-xl font-bold text-slate-950">University Center of Excellence (CoE)</h3>
+              <h3 className="text-xl font-bold text-slate-950">
+                University Center of Excellence (CoE)
+              </h3>
               <p className="text-xs text-slate-500">For college principals, trustees & deans</p>
             </div>
 
             <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
-              Strategic consultation with Rooman Academic Directors to establish on-campus CoE labs, Cisco/AWS/Red Hat hardware infrastructure, and joint placement drives for students.
+              Strategic consultation with Rooman Academic Directors to establish on-campus CoE labs,
+              Cisco/AWS/Red Hat hardware infrastructure, and joint placement drives for students.
             </div>
 
             <div className="md:col-span-3 flex justify-start md:justify-end">
-              <Link href="/book/rooman-technologies/university-coe-consultation">
+              <Link href={`${BOOK_BASE}/university-coe-consultation`}>
                 <Button
                   size="sm"
                   variant="outline"
@@ -439,11 +480,12 @@ export function ApexLandingPage() {
             </div>
 
             <div className="md:col-span-5 text-sm text-slate-600 leading-relaxed">
-              Customized training programs to upskill software engineering and IT operations teams in Generative AI, Cloud Infrastructure, and Cyber Defense.
+              Customized training programs to upskill software engineering and IT operations teams
+              in Generative AI, Cloud Infrastructure, and Cyber Defense.
             </div>
 
             <div className="md:col-span-3 flex justify-start md:justify-end">
-              <Link href="/book/rooman-technologies/corporate-upskilling-discovery">
+              <Link href={`${BOOK_BASE}/corporate-upskilling-discovery`}>
                 <Button
                   size="sm"
                   variant="outline"
@@ -461,7 +503,10 @@ export function ApexLandingPage() {
       {/* ---------------------------------------------------- */}
       {/* 5. HOW IT WORKS (CONNECTED TIMELINE - NO BOXED CARDS)*/}
       {/* ---------------------------------------------------- */}
-      <section id="how-it-works" className="py-20 px-6 sm:px-12 bg-slate-50/70 border-y border-slate-100">
+      <section
+        id="how-it-works"
+        className="py-20 px-6 sm:px-12 bg-slate-50/70 border-y border-slate-100"
+      >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-16 gap-6">
             <div>
@@ -478,7 +523,9 @@ export function ApexLandingPage() {
                 type="button"
                 onClick={() => setActiveTab('STUDENTS')}
                 className={`px-4 py-2 rounded-md transition-all ${
-                  activeTab === 'STUDENTS' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'STUDENTS'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 For Students & Aspirants
@@ -487,7 +534,9 @@ export function ApexLandingPage() {
                 type="button"
                 onClick={() => setActiveTab('INSTITUTIONAL')}
                 className={`px-4 py-2 rounded-md transition-all ${
-                  activeTab === 'INSTITUTIONAL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  activeTab === 'INSTITUTIONAL'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 For Universities & Corporates
@@ -530,7 +579,9 @@ export function ApexLandingPage() {
                 3
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                {activeTab === 'STUDENTS' ? 'Instant Google Meet Video' : 'MOU & Lab Implementation'}
+                {activeTab === 'STUDENTS'
+                  ? 'Instant Google Meet Video'
+                  : 'MOU & Lab Implementation'}
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
                 {activeTab === 'STUDENTS'
@@ -583,7 +634,7 @@ export function ApexLandingPage() {
                 <span>Google Meet video call</span>
               </li>
             </ul>
-            <Link href="/book/rooman-technologies/career-guidance" className="block w-full">
+            <Link href={`${BOOK_BASE}/career-guidance`} className="block w-full">
               <Button
                 variant="outline"
                 className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
@@ -624,7 +675,7 @@ export function ApexLandingPage() {
                 <span>Resume & profile recommendations</span>
               </li>
             </ul>
-            <Link href="/book/rooman-technologies/mock-interview-assessment" className="block w-full">
+            <Link href={`${BOOK_BASE}/mock-interview-assessment`} className="block w-full">
               <Button
                 variant="primary"
                 className="w-full py-2.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -637,7 +688,9 @@ export function ApexLandingPage() {
           {/* Tier 3 */}
           <div className="p-8 rounded-2xl border border-slate-200 bg-white space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Center of Excellence & Enterprise</h3>
+              <h3 className="text-lg font-bold text-slate-900">
+                Center of Excellence & Enterprise
+              </h3>
               <p className="text-xs text-slate-500 mt-1">For universities & corporations</p>
             </div>
             <div className="flex items-baseline gap-1">
@@ -658,7 +711,7 @@ export function ApexLandingPage() {
                 <span>Custom corporate cohort syllabus</span>
               </li>
             </ul>
-            <Link href="/book/rooman-technologies/university-coe-consultation" className="block w-full">
+            <Link href={`${BOOK_BASE}/university-coe-consultation`} className="block w-full">
               <Button
                 variant="outline"
                 className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
@@ -718,9 +771,7 @@ export function ApexLandingPage() {
                   )}
                 </button>
                 {isOpen && (
-                  <p className="mt-3 text-xs leading-relaxed text-slate-600 max-w-2xl">
-                    {item.a}
-                  </p>
+                  <p className="mt-3 text-xs leading-relaxed text-slate-600 max-w-2xl">{item.a}</p>
                 )}
               </div>
             );
@@ -737,10 +788,11 @@ export function ApexLandingPage() {
             Ready to take the next step in your tech career?
           </h2>
           <p className="text-sm text-slate-400 max-w-xl mx-auto">
-            Join over 1.5 million professionals trained by Rooman Technologies across India. Reserve your slot in under a minute.
+            Join over 1.5 million professionals trained by Rooman Technologies across India. Reserve
+            your slot in under a minute.
           </p>
           <div className="pt-2 flex flex-wrap justify-center gap-4">
-            <Link href="/book/rooman-technologies/career-guidance">
+            <Link href={`${BOOK_BASE}/career-guidance`}>
               <Button
                 size="lg"
                 variant="primary"
@@ -749,7 +801,7 @@ export function ApexLandingPage() {
                 Book Free Guidance Session
               </Button>
             </Link>
-            <Link href="/book/rooman-technologies">
+            <Link href={BOOK_BASE}>
               <Button
                 size="lg"
                 variant="outline"
@@ -779,7 +831,7 @@ export function ApexLandingPage() {
           </div>
 
           <div className="flex items-center gap-6 text-slate-600 font-medium">
-            <Link href="/book/rooman-technologies" className="hover:text-slate-900 transition-colors">
+            <Link href={BOOK_BASE} className="hover:text-slate-900 transition-colors">
               Booking Portal
             </Link>
             <Link href="/login" className="hover:text-slate-900 transition-colors">

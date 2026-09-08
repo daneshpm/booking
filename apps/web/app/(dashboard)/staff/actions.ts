@@ -3,12 +3,38 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@bookings/database';
 import { z } from 'zod';
+import { requireWorkspace, toActionError } from '@/lib/session';
+
+/**
+ * Shared result shape for every staff action, so callers can narrow on
+ * `success` without the union collapsing to a variant that has no `error`.
+ */
+export interface StaffActionResult<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
+ * Keep only the service ids that actually belong to this workspace.
+ *
+ * The list arrives from the browser, so an id from another tenant would
+ * otherwise create a cross-workspace assignment row.
+ */
+async function scopeServiceIds(workspaceId: string, serviceIds: string[]): Promise<string[]> {
+  if (serviceIds.length === 0) return [];
+  const owned = await prisma.service.findMany({
+    where: { workspaceId, id: { in: serviceIds } },
+    select: { id: true },
+  });
+  return owned.map((s) => s.id);
+}
 
 const staffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional().nullable(),
-  timezone: z.string().default('America/New_York'),
+  timezone: z.string().default('UTC'),
   isActive: z.boolean().default(true),
   assignedServiceIds: z.array(z.string()).default([]),
 });
@@ -23,9 +49,11 @@ export async function createStaffAction(
     isActive?: boolean;
     assignedServiceIds?: string[];
   }
-) {
+): Promise<StaffActionResult> {
   try {
+    await requireWorkspace(workspaceId, 'ADMIN');
     const validated = staffSchema.parse(rawData);
+    const assignedServiceIds = await scopeServiceIds(workspaceId, validated.assignedServiceIds);
 
     // Check if email already exists in this workspace
     const existing = await prisma.staff.findUnique({
@@ -53,12 +81,10 @@ export async function createStaffAction(
         name: validated.name.trim(),
         email: validated.email.toLowerCase().trim(),
         phone: validated.phone?.trim() || null,
-        timezone: validated.timezone || 'America/New_York',
+        timezone: validated.timezone || 'UTC',
         isActive: validated.isActive,
         serviceAssignments: {
-          create: validated.assignedServiceIds.map((serviceId) => ({
-            serviceId,
-          })),
+          create: assignedServiceIds.map((serviceId) => ({ serviceId })),
         },
         workingHours: {
           create: defaultWorkingDays.map((day) => ({
@@ -95,12 +121,11 @@ export async function createStaffAction(
       success: true,
       data: staff,
     };
-  } catch (err: any) {
-    console.error('Error creating staff:', err);
-    return {
-      success: false,
-      error: err instanceof z.ZodError ? err.errors[0].message : err.message || 'Failed to create staff member',
-    };
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return { success: false, error: err.errors[0].message };
+    }
+    return toActionError(err);
   }
 }
 
@@ -115,9 +140,11 @@ export async function updateStaffAction(
     isActive?: boolean;
     assignedServiceIds?: string[];
   }
-) {
+): Promise<StaffActionResult> {
   try {
+    await requireWorkspace(workspaceId, 'ADMIN');
     const validated = staffSchema.parse(rawData);
+    const assignedServiceIds = await scopeServiceIds(workspaceId, validated.assignedServiceIds);
 
     // Verify staff belongs to workspace
     const existing = await prisma.staff.findFirst({
@@ -164,12 +191,12 @@ export async function updateStaffAction(
       await tx.serviceStaff.deleteMany({
         where: {
           staffId,
-          serviceId: { notIn: validated.assignedServiceIds },
+          serviceId: { notIn: assignedServiceIds },
         },
       });
 
       // 3. Upsert assigned services
-      for (const serviceId of validated.assignedServiceIds) {
+      for (const serviceId of assignedServiceIds) {
         await tx.serviceStaff.upsert({
           where: {
             serviceId_staffId: {
@@ -207,17 +234,21 @@ export async function updateStaffAction(
       success: true,
       data: updatedStaff,
     };
-  } catch (err: any) {
-    console.error('Error updating staff:', err);
-    return {
-      success: false,
-      error: err instanceof z.ZodError ? err.errors[0].message : err.message || 'Failed to update staff member',
-    };
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return { success: false, error: err.errors[0].message };
+    }
+    return toActionError(err);
   }
 }
 
-export async function toggleStaffStatusAction(workspaceId: string, staffId: string, isActive: boolean) {
+export async function toggleStaffStatusAction(
+  workspaceId: string,
+  staffId: string,
+  isActive: boolean
+): Promise<StaffActionResult> {
   try {
+    await requireWorkspace(workspaceId, 'ADMIN');
     const updated = await prisma.staff.update({
       where: { id: staffId, workspaceId },
       data: { isActive },
@@ -226,13 +257,18 @@ export async function toggleStaffStatusAction(workspaceId: string, staffId: stri
     revalidatePath('/staff');
     revalidatePath('/availability');
     return { success: true, data: updated };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update staff status' };
+  } catch (err) {
+    return toActionError(err);
   }
 }
 
-export async function deleteStaffAction(workspaceId: string, staffId: string) {
+export async function deleteStaffAction(
+  workspaceId: string,
+  staffId: string
+): Promise<StaffActionResult> {
   try {
+    await requireWorkspace(workspaceId, 'ADMIN');
+
     // Check if staff belongs to workspace
     const existing = await prisma.staff.findFirst({
       where: { id: staffId, workspaceId },
@@ -243,14 +279,21 @@ export async function deleteStaffAction(workspaceId: string, staffId: string) {
       return { success: false, error: 'Staff member not found' };
     }
 
-    const activeBookings = existing.bookings.filter(
-      (b) => b.status === 'CONFIRMED' || b.status === 'PENDING'
-    );
-
-    if (activeBookings.length > 0) {
+    // Booking.staff is onDelete: Restrict, so any remaining booking blocks the
+    // delete at the database. Counting only CONFIRMED and PENDING let a staff
+    // member with COMPLETED or RESCHEDULED history past this check and turned a
+    // clear message into a generic failure.
+    const blocking = existing.bookings.length;
+    if (blocking > 0) {
+      const upcoming = existing.bookings.filter(
+        (b) => b.status === 'CONFIRMED' || b.status === 'PENDING'
+      ).length;
       return {
         success: false,
-        error: `Cannot delete staff member with ${activeBookings.length} active scheduled appointments. Reassign or cancel those appointments first.`,
+        error:
+          upcoming > 0
+            ? `This staff member has ${upcoming} scheduled appointment${upcoming === 1 ? '' : 's'}. Reassign or cancel them first.`
+            : `This staff member has ${blocking} appointment${blocking === 1 ? '' : 's'} in their history and cannot be deleted. Deactivate them instead to remove them from booking.`,
       };
     }
 
@@ -265,9 +308,8 @@ export async function deleteStaffAction(workspaceId: string, staffId: string) {
     revalidatePath('/calendar');
 
     return { success: true };
-  } catch (err: any) {
-    console.error('Error deleting staff:', err);
-    return { success: false, error: err.message || 'Failed to delete staff member' };
+  } catch (err) {
+    return toActionError(err);
   }
 }
 
@@ -281,18 +323,76 @@ export interface DayScheduleInput {
   breakEndTime?: string; // "14:00"
 }
 
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Reject a schedule the availability engine could not interpret.
+ *
+ * A shift that ends before it starts, or a break outside its shift, would
+ * silently produce zero bookable slots rather than an error the operator can
+ * see and fix.
+ */
+function validateSchedule(schedule: DayScheduleInput[]): string | null {
+  for (const day of schedule) {
+    if (!day.enabled) continue;
+
+    if (day.dayOfWeek < 0 || day.dayOfWeek > 6) {
+      return 'Each shift must fall on a valid day of the week.';
+    }
+    if (!TIME_PATTERN.test(day.startTime) || !TIME_PATTERN.test(day.endTime)) {
+      return 'Shift times must be in HH:MM format.';
+    }
+
+    const start = toMinutes(day.startTime);
+    const end = toMinutes(day.endTime);
+    if (end <= start) {
+      return 'A shift must end after it starts.';
+    }
+
+    if (day.hasBreak) {
+      if (!day.breakStartTime || !day.breakEndTime) {
+        return 'A break needs both a start and an end time.';
+      }
+      if (!TIME_PATTERN.test(day.breakStartTime) || !TIME_PATTERN.test(day.breakEndTime)) {
+        return 'Break times must be in HH:MM format.';
+      }
+      const breakStart = toMinutes(day.breakStartTime);
+      const breakEnd = toMinutes(day.breakEndTime);
+      if (breakEnd <= breakStart) {
+        return 'A break must end after it starts.';
+      }
+      if (breakStart < start || breakEnd > end) {
+        return 'A break must fall inside its shift.';
+      }
+    }
+  }
+  return null;
+}
+
+function toMinutes(value: string): number {
+  const [hours, minutes] = value.split(':');
+  return Number(hours) * 60 + Number(minutes);
+}
+
 export async function updateStaffWorkingHoursAction(
   workspaceId: string,
   staffId: string,
   schedule: DayScheduleInput[]
-) {
+): Promise<StaffActionResult> {
   try {
+    await requireWorkspace(workspaceId, 'ADMIN');
+
     const existing = await prisma.staff.findFirst({
       where: { id: staffId, workspaceId },
     });
 
     if (!existing) {
       return { success: false, error: 'Staff member not found' };
+    }
+
+    const invalid = validateSchedule(schedule);
+    if (invalid) {
+      return { success: false, error: invalid };
     }
 
     await prisma.$transaction(async (tx) => {
@@ -330,8 +430,7 @@ export async function updateStaffWorkingHoursAction(
     revalidatePath('/availability');
 
     return { success: true };
-  } catch (err: any) {
-    console.error('Error updating staff working hours:', err);
-    return { success: false, error: err.message || 'Failed to update schedule' };
+  } catch (err) {
+    return toActionError(err);
   }
 }

@@ -28,12 +28,11 @@ export const serviceFormSchema = z.object({
     .min(0, 'Buffer after cannot be negative.')
     .max(180, 'Buffer after cannot exceed 180 minutes.')
     .default(0),
-  price: z.coerce
-    .number()
-    .min(0, 'Price cannot be negative.')
-    .default(0),
+  price: z.coerce.number().min(0, 'Price cannot be negative.').default(0),
   currency: z.string().length(3, 'Currency must be a 3-letter code.').default('USD'),
-  locationType: z.enum(['ONLINE_MEETING', 'IN_PERSON_BUSINESS', 'IN_PERSON_CUSTOMER', 'PHONE_CALL']).default('ONLINE_MEETING'),
+  locationType: z
+    .enum(['ONLINE_MEETING', 'IN_PERSON_BUSINESS', 'IN_PERSON_CUSTOMER', 'PHONE_CALL'])
+    .default('ONLINE_MEETING'),
   locationDetails: z.string().max(500, 'Location details cannot exceed 500 characters.').optional(),
   isActive: z.boolean().default(true),
 });

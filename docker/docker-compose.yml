@@ -1,40 +1,47 @@
-version: '3.8'
+name: rooman-bookings
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: apex_postgres
-    restart: always
+    container_name: bookings_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-      POSTGRES_DB: bookings_dev
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password123}
+      POSTGRES_DB: ${POSTGRES_DB:-bookings_dev}
     ports:
-      - "5434:5432"
+      - '5434:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d bookings_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bookings_dev}']
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: apex_redis
-    restart: always
+    container_name: bookings_redis
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
+  # Local SMTP sink. Nothing it receives leaves the machine, so development
+  # never sends mail to a real customer address.
   mailpit:
     image: axllent/mailpit:latest
-    container_name: apex_mailpit
-    restart: always
+    container_name: bookings_mailpit
+    restart: unless-stopped
     ports:
-      - "8025:8025" # Web UI
-      - "1025:1025" # SMTP server
+      - '8025:8025' # Web UI
+      - '1025:1025' # SMTP
 
 volumes:
   postgres_data:

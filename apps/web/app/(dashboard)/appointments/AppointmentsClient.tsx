@@ -22,10 +22,7 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
-import {
-  createDashboardAppointmentAction,
-  updateAppointmentStatusAction,
-} from './actions';
+import { createDashboardAppointmentAction, updateAppointmentStatusAction } from './actions';
 
 export interface AppointmentItem {
   id: string;
@@ -111,8 +108,16 @@ export function AppointmentsClient({
   }, [weekOffset]);
 
   const timeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '12:00',
-    '13:00', '14:00', '15:00', '16:00', '17:00'
+    '08:00',
+    '09:00',
+    '10:00',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
+    '15:00',
+    '16:00',
+    '17:00',
   ];
 
   // Modal form states
@@ -362,7 +367,11 @@ export function AppointmentsClient({
 
               <span className="text-xs font-bold text-slate-800 ml-2">
                 {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} –{' '}
-                {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {weekDays[6].toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </span>
             </div>
 
@@ -384,9 +393,16 @@ export function AppointmentsClient({
               {weekDays.map((day) => {
                 const isToday = day.toDateString() === new Date().toDateString();
                 return (
-                  <div key={day.toISOString()} className={`py-2 px-1 ${isToday ? 'bg-purple-50/60 text-[#5c34ad]' : 'text-slate-700'}`}>
-                    <div className="text-[11px] font-semibold uppercase">{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                    <div className={`text-sm font-bold inline-block px-2 py-0.5 rounded-full ${isToday ? 'bg-[#5c34ad] text-white' : ''}`}>
+                  <div
+                    key={day.toISOString()}
+                    className={`py-2 px-1 ${isToday ? 'bg-purple-50/60 text-[#5c34ad]' : 'text-slate-700'}`}
+                  >
+                    <div className="text-[11px] font-semibold uppercase">
+                      {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                    </div>
+                    <div
+                      className={`text-sm font-bold inline-block px-2 py-0.5 rounded-full ${isToday ? 'bg-[#5c34ad] text-white' : ''}`}
+                    >
                       {day.getDate()}
                     </div>
                   </div>
@@ -399,7 +415,10 @@ export function AppointmentsClient({
               {timeSlots.map((slot) => {
                 const [slotHour] = slot.split(':').map(Number);
                 return (
-                  <div key={slot} className="grid grid-cols-8 divide-x divide-slate-100 min-h-[56px]">
+                  <div
+                    key={slot}
+                    className="grid grid-cols-8 divide-x divide-slate-100 min-h-[56px]"
+                  >
                     <div className="p-2 text-[10px] font-bold text-slate-400 text-right pr-3 select-none">
                       {slot}
                     </div>
@@ -480,8 +499,8 @@ export function AppointmentsClient({
                 {activeTab === 'upcoming'
                   ? 'No Upcoming Appointments'
                   : activeTab === 'past'
-                  ? 'No Past Appointments'
-                  : 'No Appointments Found'}
+                    ? 'No Past Appointments'
+                    : 'No Appointments Found'}
               </h2>
               <p className="text-xs text-slate-500 mt-1.5 max-w-sm leading-relaxed">
                 {activeTab === 'upcoming'
@@ -502,145 +521,146 @@ export function AppointmentsClient({
               </div>
             </div>
           ) : (
-          /* APPOINTMENTS LIST TABLE (WHEN APPOINTMENTS EXIST) */
-          <div className="w-full max-w-5xl self-start space-y-4">
-            <div className="flex items-center justify-between pb-2">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {filteredAppointments.length} appointment{filteredAppointments.length > 1 ? 's' : ''} found
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-              >
-                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                <span>New Appointment</span>
-              </button>
-            </div>
+            /* APPOINTMENTS LIST TABLE (WHEN APPOINTMENTS EXIST) */
+            <div className="w-full max-w-5xl self-start space-y-4">
+              <div className="flex items-center justify-between pb-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {filteredAppointments.length} appointment
+                  {filteredAppointments.length > 1 ? 's' : ''} found
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                >
+                  <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                  <span>New Appointment</span>
+                </button>
+              </div>
 
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                  <tr>
-                    <th className="py-3 px-4">Date & Time</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Service</th>
-                    <th className="py-3 px-4">Staff Member</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Meeting</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredAppointments.map((app) => {
-                    const start = new Date(app.startTime);
-                    const end = new Date(app.endTime);
+              <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Date & Time</th>
+                      <th className="py-3 px-4">Customer</th>
+                      <th className="py-3 px-4">Service</th>
+                      <th className="py-3 px-4">Staff Member</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Meeting</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredAppointments.map((app) => {
+                      const start = new Date(app.startTime);
+                      const end = new Date(app.endTime);
 
-                    const dateStr = start.toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    });
-                    const timeStr = `${start.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })} - ${end.toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}`;
+                      const dateStr = start.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      });
+                      const timeStr = `${start.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })} - ${end.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`;
 
-                    return (
-                      <tr key={app.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-800">{dateStr}</div>
-                          <div className="text-[11px] text-slate-500">{timeStr}</div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-900">{app.customer.name}</div>
-                          <div className="text-[11px] text-slate-500">{app.customer.email}</div>
-                          {app.customer.phone && (
-                            <div className="text-[10px] text-slate-400">{app.customer.phone}</div>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-semibold text-slate-800">{app.service.name}</span>
-                          <span className="text-[10px] text-slate-400 block">
-                            {app.service.durationMinutes} mins
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <div className="h-5 w-5 rounded-full bg-purple-100 text-[#5c34ad] font-bold text-[10px] flex items-center justify-center">
-                              {app.staff.name.charAt(0)}
+                      return (
+                        <tr key={app.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-slate-800">{dateStr}</div>
+                            <div className="text-[11px] text-slate-500">{timeStr}</div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-slate-900">{app.customer.name}</div>
+                            <div className="text-[11px] text-slate-500">{app.customer.email}</div>
+                            {app.customer.phone && (
+                              <div className="text-[10px] text-slate-400">{app.customer.phone}</div>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-semibold text-slate-800">{app.service.name}</span>
+                            <span className="text-[10px] text-slate-400 block">
+                              {app.service.durationMinutes} mins
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-1.5">
+                              <div className="h-5 w-5 rounded-full bg-purple-100 text-[#5c34ad] font-bold text-[10px] flex items-center justify-center">
+                                {app.staff.name.charAt(0)}
+                              </div>
+                              <span className="text-slate-700 font-medium">{app.staff.name}</span>
                             </div>
-                            <span className="text-slate-700 font-medium">{app.staff.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              app.status === 'CONFIRMED'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : app.status === 'COMPLETED'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : app.status === 'RESCHEDULED'
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            {app.status}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {app.meetingLink && app.meetingLink.startsWith('http') ? (
-                            <a
-                              href={app.meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[#5c34ad] hover:underline font-semibold text-xs"
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                app.status === 'CONFIRMED'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : app.status === 'COMPLETED'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : app.status === 'RESCHEDULED'
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
                             >
-                              <Video className="h-3.5 w-3.5" />
-                              <span>Join Meet</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-400 text-[11px]">In Person</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {app.status !== 'COMPLETED' && (
-                              <button
-                                type="button"
-                                disabled={actionLoadingId === app.id}
-                                onClick={() => handleStatusChange(app.id, 'COMPLETED')}
-                                title="Mark Completed"
-                                className="p-1 rounded text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              {app.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {app.meetingLink && app.meetingLink.startsWith('http') ? (
+                              <a
+                                href={app.meetingLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[#5c34ad] hover:underline font-semibold text-xs"
                               >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
+                                <Video className="h-3.5 w-3.5" />
+                                <span>Join Meet</span>
+                              </a>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">In Person</span>
                             )}
-                            {app.status !== 'CANCELLED' && (
-                              <button
-                                type="button"
-                                disabled={actionLoadingId === app.id}
-                                onClick={() => handleStatusChange(app.id, 'CANCELLED')}
-                                title="Cancel Appointment"
-                                className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                              >
-                                <XCircle className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {app.status !== 'COMPLETED' && (
+                                <button
+                                  type="button"
+                                  disabled={actionLoadingId === app.id}
+                                  onClick={() => handleStatusChange(app.id, 'COMPLETED')}
+                                  title="Mark Completed"
+                                  className="p-1 rounded text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {app.status !== 'CANCELLED' && (
+                                <button
+                                  type="button"
+                                  disabled={actionLoadingId === app.id}
+                                  onClick={() => handleStatusChange(app.id, 'CANCELLED')}
+                                  title="Cancel Appointment"
+                                  className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       )}
 
       {/* ---------------------------------------------------- */}
@@ -729,9 +749,7 @@ export function AppointmentsClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Time Slot
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Time Slot</label>
                   <select
                     value={time}
                     onChange={(e) => setTime(e.target.value)}

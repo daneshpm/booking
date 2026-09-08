@@ -103,7 +103,9 @@ export function CustomersClient({ customers }: CustomersClientProps) {
           </div>
           <h3 className="text-base font-bold text-slate-900 tracking-tight">No Customers Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed">
-            {searchQuery ? 'No customer matches your search criteria.' : 'As clients book appointments through your public booking portal, their profiles and history will automatically appear here.'}
+            {searchQuery
+              ? 'No customer matches your search criteria.'
+              : 'As clients book appointments through your public booking portal, their profiles and history will automatically appear here.'}
           </p>
         </div>
       ) : (
@@ -142,7 +144,11 @@ export function CustomersClient({ customers }: CustomersClientProps) {
                         <div>
                           <div className="font-bold text-slate-900">{c.name}</div>
                           <span className="text-[10px] text-slate-400">
-                            Added {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            Added{' '}
+                            {new Date(c.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </span>
                         </div>
                       </div>
@@ -299,8 +305,8 @@ export function CustomersClient({ customers }: CustomersClientProps) {
                                 b.status === 'CONFIRMED'
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : b.status === 'COMPLETED'
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-rose-50 text-rose-700'
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'bg-rose-50 text-rose-700'
                               }`}
                             >
                               {b.status}

@@ -42,9 +42,13 @@ interface CalendarBookingsClientProps {
 }
 
 export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClientProps) {
-  const [filter, setFilter] = React.useState<'ALL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [filter, setFilter] = React.useState<'ALL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'>(
+    'ALL'
+  );
   const [loadingId, setLoadingId] = React.useState<string | null>(null);
-  const [reschedulingBooking, setReschedulingBooking] = React.useState<CalendarBookingItem | null>(null);
+  const [reschedulingBooking, setReschedulingBooking] = React.useState<CalendarBookingItem | null>(
+    null
+  );
   const [rescheduleDate, setRescheduleDate] = React.useState('');
   const [rescheduleTime, setRescheduleTime] = React.useState('10:00');
   const [rescheduleError, setRescheduleError] = React.useState<string | null>(null);
@@ -95,15 +99,35 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
   const getStatusBadge = (status: CalendarBookingItem['status']) => {
     switch (status) {
       case 'CONFIRMED':
-        return <Badge variant="success" className="text-[10px] uppercase">CONFIRMED</Badge>;
+        return (
+          <Badge variant="success" className="text-[10px] uppercase">
+            CONFIRMED
+          </Badge>
+        );
       case 'COMPLETED':
-        return <Badge variant="success" className="text-[10px] uppercase bg-emerald-600 text-white">COMPLETED</Badge>;
+        return (
+          <Badge variant="success" className="text-[10px] uppercase bg-emerald-600 text-white">
+            COMPLETED
+          </Badge>
+        );
       case 'CANCELLED':
-        return <Badge variant="danger" className="text-[10px] uppercase">CANCELLED</Badge>;
+        return (
+          <Badge variant="danger" className="text-[10px] uppercase">
+            CANCELLED
+          </Badge>
+        );
       case 'RESCHEDULED':
-        return <Badge variant="warning" className="text-[10px] uppercase">RESCHEDULED</Badge>;
+        return (
+          <Badge variant="warning" className="text-[10px] uppercase">
+            RESCHEDULED
+          </Badge>
+        );
       default:
-        return <Badge variant="default" className="text-[10px] uppercase">{status}</Badge>;
+        return (
+          <Badge variant="default" className="text-[10px] uppercase">
+            {status}
+          </Badge>
+        );
     }
   };
 
@@ -175,9 +199,7 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5 text-blue-500" />
-                          <span>
-                            {format(new Date(b.startTime), 'EEE, MMM d, yyyy • h:mm a')}
-                          </span>
+                          <span>{format(new Date(b.startTime), 'EEE, MMM d, yyyy • h:mm a')}</span>
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -270,9 +292,7 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
       {reschedulingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-2xl text-slate-100">
-            <h3 className="text-lg font-bold text-white mb-1">
-              Reschedule Appointment
-            </h3>
+            <h3 className="text-lg font-bold text-white mb-1">Reschedule Appointment</h3>
             <p className="text-xs text-slate-400 mb-4">
               {reschedulingBooking.service.name} with {reschedulingBooking.customer.name}
             </p>
@@ -285,9 +305,7 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
 
             <form onSubmit={handleRescheduleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  New Date
-                </label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">New Date</label>
                 <input
                   type="date"
                   required

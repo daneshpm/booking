@@ -145,7 +145,12 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
                 setFormData((prev) => ({
                   ...prev,
                   name,
-                  slug: isEditing ? prev.slug : name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+                  slug: isEditing
+                    ? prev.slug
+                    : name
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/(^-|-$)/g, ''),
                 }));
               }}
               error={fieldErrors.name?.[0]}
@@ -231,7 +236,9 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
               min={5}
               max={1440}
               value={formData.durationMinutes}
-              onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, durationMinutes: Number(e.target.value) })
+              }
               error={fieldErrors.durationMinutes?.[0]}
             />
           </div>
@@ -262,14 +269,18 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
                 min={0}
                 max={180}
                 value={formData.bufferBeforeMinutes}
-                onChange={(e) => setFormData({ ...formData, bufferBeforeMinutes: Number(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({ ...formData, bufferBeforeMinutes: Number(e.target.value) })
+                }
                 error={fieldErrors.bufferBeforeMinutes?.[0]}
               />
             </div>
 
             <div>
               <Label>Buffer After Appointment (Minutes)</Label>
-              <p className="text-xs text-slate-500 mb-2">Wrap-up/transition time blocked after end</p>
+              <p className="text-xs text-slate-500 mb-2">
+                Wrap-up/transition time blocked after end
+              </p>
               <div className="flex gap-2 mb-2">
                 {bufferPresets.map((b) => (
                   <button
@@ -291,7 +302,9 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
                 min={0}
                 max={180}
                 value={formData.bufferAfterMinutes}
-                onChange={(e) => setFormData({ ...formData, bufferAfterMinutes: Number(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({ ...formData, bufferAfterMinutes: Number(e.target.value) })
+                }
                 error={fieldErrors.bufferAfterMinutes?.[0]}
               />
             </div>
@@ -368,8 +381,8 @@ export function ServiceForm({ workspaceId, initialData, isEditing = false }: Ser
                   formData.locationType === 'ONLINE_MEETING'
                     ? 'e.g. Video link generated automatically'
                     : formData.locationType === 'IN_PERSON_BUSINESS'
-                    ? 'e.g. Suite 400, 100 Broadway, NY'
-                    : 'e.g. Customer will provide location during booking'
+                      ? 'e.g. Suite 400, 100 Broadway, NY'
+                      : 'e.g. Customer will provide location during booking'
                 }
                 value={formData.locationDetails ?? ''}
                 onChange={(e) => setFormData({ ...formData, locationDetails: e.target.value })}

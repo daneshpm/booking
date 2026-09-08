@@ -24,9 +24,11 @@ interface BookingPortalPageProps {
 export default async function BookingPortalPage({ params }: BookingPortalPageProps) {
   const { slug } = await params;
 
-  // 1. Try finding workspace by slug
-  let workspace = await prisma.workspace.findUnique({
-    where: { slug },
+  // 1. A workspace slug resolves only when that workspace has a published
+  //    booking page. Without this check, un-publishing a page changed nothing
+  //    and the whole service catalogue stayed publicly readable.
+  let workspace = await prisma.workspace.findFirst({
+    where: { slug, bookingPages: { some: { isPublished: true } } },
     include: {
       services: {
         where: { isActive: true },
@@ -36,10 +38,11 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     },
   });
 
-  // 2. If not found by workspace slug, check bookingPage slug
+  // 2. If not found by workspace slug, check for a published booking page.
+  //    Unpublished pages stay unreachable.
   if (!workspace) {
     const bookingPage = await prisma.bookingPage.findFirst({
-      where: { slug },
+      where: { slug, isPublished: true },
       include: {
         workspace: {
           include: {
@@ -58,43 +61,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     }
   }
 
-  // 3. If still not found, check if slug is actually a service under default workspace
+  // A slug that matches no workspace and no published booking page is a 404.
+  // Guessing at a "default" workspace here would silently serve one tenant's
+  // services under another tenant's URL.
   if (!workspace) {
-    const defaultWorkspace = await prisma.workspace.findFirst({
-      where: { slug: 'rooman-technologies' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'rooman' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'acme-consulting' },
-    }) || await prisma.workspace.findFirst();
-
-    if (defaultWorkspace) {
-      const service = await prisma.service.findUnique({
-        where: {
-          workspaceId_slug: {
-            workspaceId: defaultWorkspace.id,
-            slug,
-          },
-        },
-      });
-
-      if (service) {
-        // Redirect or render direct service booker
-        return (
-          <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-4">
-            <div className="text-center space-y-4">
-              <p className="text-sm text-slate-600">Loading service booking page...</p>
-              <Link href={`/book/${defaultWorkspace.slug}/${service.slug}`}>
-                <Button variant="primary" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  Proceed to Booking
-                </Button>
-              </Link>
-            </div>
-          </div>
-        );
-      }
-    }
-
     return notFound();
   }
 
@@ -144,7 +114,11 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
         </div>
 
         <Link href="/services">
-          <Button variant="outline" size="sm" className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs"
+          >
             Admin Portal
           </Button>
         </Link>
@@ -195,7 +169,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
                         </span>
                       )}
                     </div>
-                    <Badge variant="info" className="text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <Badge
+                      variant="info"
+                      className="text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200"
+                    >
                       {Number(service.price) > 0 ? `$${Number(service.price).toFixed(2)}` : 'Free'}
                     </Badge>
                   </div>
@@ -220,11 +197,12 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">
-                    Instant confirmation
-                  </span>
+                  <span className="text-xs text-slate-500 font-medium">Instant confirmation</span>
                   <Link href={`/book/${workspace.slug}/${service.slug}`}>
-                    <Button variant="primary" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all">
+                    <Button
+                      variant="primary"
+                      className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all"
+                    >
                       Book Now
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>

@@ -1,10 +1,21 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { prisma } from '@bookings/database';
-import { addMinutes, format, parseISO } from 'date-fns';
-import { toZonedTime, fromZonedTime, format as formatTz } from 'date-fns-tz';
-import { timeStringToMinutes, minutesToTimeString } from '@bookings/core';
+import { toZonedTime, format as formatTz } from 'date-fns-tz';
+import {
+  generateSlots,
+  resolveWorkingWindow,
+  localTimeToUtc,
+  type Slot,
+  type TimeRange,
+  type WorkingWindow,
+} from '@bookings/core';
+import { isOverlapConstraintViolation } from '@/lib/booking-errors';
+import { generateMeetingLink } from '@/lib/meeting-link';
+import { dispatchBookingNotifications } from '@/lib/notifications';
+import { checkRateLimit, PUBLIC_BOOKING_LIMIT, PUBLIC_AVAILABILITY_LIMIT } from '@/lib/rate-limit';
 
 export interface AvailableSlot {
   time: string; // "09:00"
@@ -18,12 +29,18 @@ export interface BookingFormData {
   serviceId: string;
   staffId?: string;
   date: string; // YYYY-MM-DD
-  time: string; // HH:mm (e.g. "10:00")
+  time: string; // HH:mm
   customerName: string;
   customerEmail: string;
   customerPhone?: string;
   customerNotes?: string;
   customerTimezone?: string;
+  /**
+   * Optional client-supplied key. Re-submitting the same key returns the
+   * original booking instead of creating a duplicate, which protects against a
+   * double-clicked confirm button or an automatically retried request.
+   */
+  idempotencyKey?: string;
 }
 
 export interface BookingResult {
@@ -37,376 +54,406 @@ export interface BookingResult {
   error?: string;
 }
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Reject a timezone the formatter cannot resolve, before it is persisted. */
+function isValidTimezone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Calculates dynamic available appointment slots for a service on a given date,
- * considering staff weekly hours, lunch breaks, specific date overrides/leaves,
- * existing confirmed bookings, and pre/post buffer intervals.
+ * Identify the caller for rate limiting.
+ *
+ * Behind a proxy the socket address is the proxy, so the forwarded header is
+ * preferred. That header is client-supplied and trivially spoofed, which is why
+ * the limiter is a speed bump rather than a security boundary.
+ */
+async function callerKey(scope: string): Promise<string> {
+  const headerList = await headers();
+  const address =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    headerList.get('x-real-ip') ||
+    'unknown';
+  return `${scope}:${address}`;
+}
+
+/** Day of week in the schema's convention: 0 = Sunday through 6 = Saturday. */
+function dayOfWeekFor(date: string): number {
+  // Anchored at noon so the value cannot slip a day through a timezone offset.
+  return new Date(`${date}T12:00:00`).getDay();
+}
+
+interface StaffSchedule {
+  staffId: string;
+  staffName: string;
+  window: WorkingWindow;
+  busy: TimeRange[];
+}
+
+/**
+ * Load the working window and existing appointments for each candidate staff
+ * member on one date.
+ *
+ * Shared by slot listing and booking creation so both apply the same rules; two
+ * implementations would drift and let a booking through that the page never
+ * offered.
+ */
+async function loadSchedules(
+  candidates: Array<{ id: string; name: string }>,
+  date: string,
+  timezone: string
+): Promise<StaffSchedule[]> {
+  const dayOfWeek = dayOfWeekFor(date);
+  const dayStart = localTimeToUtc(date, '00:00', timezone);
+  if (!dayStart) return [];
+
+  // A window wider than the day, so an appointment that began the previous
+  // evening and runs past midnight is still considered.
+  const windowStart = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000);
+  const windowEnd = new Date(dayStart.getTime() + 48 * 60 * 60 * 1000);
+
+  const targetDate = new Date(`${date}T00:00:00.000Z`);
+  const nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+
+  const schedules: StaffSchedule[] = [];
+
+  for (const staff of candidates) {
+    const [weekly, override, bookings] = await Promise.all([
+      prisma.staffWorkingHours.findUnique({
+        where: { staffId_dayOfWeek: { staffId: staff.id, dayOfWeek } },
+        include: { breaks: true },
+      }),
+      prisma.staffOverride.findFirst({
+        where: { staffId: staff.id, date: { gte: targetDate, lt: nextDate } },
+      }),
+      prisma.booking.findMany({
+        where: {
+          staffId: staff.id,
+          status: { notIn: ['CANCELLED'] },
+          startTime: { lt: windowEnd },
+          endTime: { gt: windowStart },
+        },
+        select: { startTime: true, endTime: true },
+      }),
+    ]);
+
+    const window = resolveWorkingWindow(
+      weekly
+        ? {
+            startTime: weekly.startTime,
+            endTime: weekly.endTime,
+            breaks: weekly.breaks.map((b) => ({ startTime: b.startTime, endTime: b.endTime })),
+          }
+        : null,
+      override
+        ? {
+            isWorking: override.isWorking,
+            startTime: override.startTime,
+            endTime: override.endTime,
+          }
+        : null
+    );
+
+    if (!window) continue;
+
+    schedules.push({
+      staffId: staff.id,
+      staffName: staff.name,
+      window,
+      busy: bookings.map((b) => ({ start: b.startTime, end: b.endTime })),
+    });
+  }
+
+  return schedules;
+}
+
+/**
+ * Staff who may deliver a service.
+ *
+ * Falls back to every active staff member when the service has no explicit
+ * assignments, because a freshly created service has none and would otherwise
+ * be impossible to book.
+ */
+async function candidateStaff(
+  workspaceId: string,
+  service: { staffAssignments: Array<{ staff: { id: string; name: string; isActive: boolean } }> },
+  preferredStaffId?: string
+): Promise<Array<{ id: string; name: string }>> {
+  const assigned = service.staffAssignments.map((a) => a.staff).filter((s) => s.isActive);
+
+  const pool =
+    assigned.length > 0
+      ? assigned
+      : await prisma.staff.findMany({
+          where: { workspaceId, isActive: true },
+          select: { id: true, name: true, isActive: true },
+          orderBy: { name: 'asc' },
+        });
+
+  if (preferredStaffId) {
+    return pool.filter((s) => s.id === preferredStaffId).map((s) => ({ id: s.id, name: s.name }));
+  }
+  return pool.map((s) => ({ id: s.id, name: s.name }));
+}
+
+/**
+ * Calculate bookable slots for a service on a date.
+ *
+ * Honours each candidate's weekly hours, breaks and date overrides, applies the
+ * service's buffers, and excludes times already taken.
  */
 export async function getAvailableSlotsAction(
   workspaceId: string,
   serviceId: string,
-  date: string, // YYYY-MM-DD
+  date: string,
   preferredStaffId?: string
 ): Promise<{ success: boolean; slots: AvailableSlot[]; error?: string }> {
   try {
     if (!workspaceId || !serviceId || !date) {
       return { success: false, slots: [], error: 'Missing required parameters.' };
     }
+    if (!DATE_PATTERN.test(date)) {
+      return { success: false, slots: [], error: 'Please choose a valid date.' };
+    }
 
-    // 1. Fetch workspace to determine timezone
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    });
+    const throttle = checkRateLimit(await callerKey('availability'), PUBLIC_AVAILABILITY_LIMIT);
+    if (!throttle.allowed) {
+      return {
+        success: false,
+        slots: [],
+        error: 'Too many requests. Please wait a moment and try again.',
+      };
+    }
 
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) {
       return { success: false, slots: [], error: 'Workspace not found.' };
     }
 
-    const timezone = workspace.timezone || 'UTC';
-
-    // 2. Fetch service details
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: {
-        staffAssignments: {
-          include: { staff: true },
-        },
-      },
+    // Scoped to the workspace so an id from another tenant cannot resolve.
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, workspaceId, isActive: true },
+      include: { staffAssignments: { include: { staff: true } } },
     });
-
-    if (!service || !service.isActive) {
+    if (!service) {
       return { success: false, slots: [], error: 'Service not found or is currently inactive.' };
     }
 
-    const durationMinutes = service.durationMinutes || 30;
-    const bufferBefore = service.bufferBeforeMinutes || 0;
-    const bufferAfter = service.bufferAfterMinutes || 0;
-    // Step intervals: default to 30 mins or service duration if shorter
-    const slotStep = Math.min(30, durationMinutes);
-
-    // 3. Determine candidate staff members
-    let candidateStaff: Array<{ id: string; name: string; timezone: string }> = [];
-
-    if (preferredStaffId) {
-      const staff = await prisma.staff.findFirst({
-        where: { id: preferredStaffId, workspaceId, isActive: true },
-      });
-      if (staff) candidateStaff = [staff];
-    } else if (service.staffAssignments && service.staffAssignments.length > 0) {
-      candidateStaff = service.staffAssignments
-        .map((assignment) => assignment.staff)
-        .filter((staff) => staff.isActive);
-    } else {
-      candidateStaff = await prisma.staff.findMany({
-        where: { workspaceId, isActive: true },
-      });
-    }
-
-    if (candidateStaff.length === 0) {
+    const timezone = workspace.timezone || 'UTC';
+    const candidates = await candidateStaff(workspaceId, service, preferredStaffId);
+    if (candidates.length === 0) {
       return { success: true, slots: [] };
     }
 
-    // Determine day of the week (0 = Sunday, 1 = Monday ... 6 = Saturday)
-    const localDateSample = new Date(`${date}T12:00:00`);
-    const dayOfWeek = localDateSample.getDay();
+    const schedules = await loadSchedules(candidates, date, timezone);
 
-    const dayStartUtc = fromZonedTime(`${date}T00:00:00`, timezone);
-    const dayEndUtc = fromZonedTime(`${date}T23:59:59.999`, timezone);
+    // Keyed by local start time: when several staff are free at the same time,
+    // the customer is offered one slot and the first free member takes it.
+    const byTime = new Map<string, AvailableSlot>();
 
-    const targetDateObj = new Date(`${date}T00:00:00.000Z`);
-    const nextDayObj = new Date(targetDateObj.getTime() + 24 * 60 * 60 * 1000);
-
-    const slotMap = new Map<string, AvailableSlot>();
-
-    // 4. Evaluate availability for each candidate staff member
-    for (const staff of candidateStaff) {
-      // Check for date override / leave
-      const override = await prisma.staffOverride.findFirst({
-        where: {
-          staffId: staff.id,
-          date: {
-            gte: targetDateObj,
-            lt: nextDayObj,
-          },
-        },
+    for (const schedule of schedules) {
+      const slots = generateSlots({
+        date,
+        timezone,
+        window: schedule.window,
+        durationMinutes: service.durationMinutes || 30,
+        bufferBeforeMinutes: service.bufferBeforeMinutes || 0,
+        bufferAfterMinutes: service.bufferAfterMinutes || 0,
+        busy: schedule.busy,
       });
 
-      let workStartStr: string | null = null;
-      let workEndStr: string | null = null;
-      let breaks: Array<{ startTime: string; endTime: string }> = [];
-
-      if (override) {
-        if (!override.isWorking) {
-          // Staff is taking leave / holiday on this date
-          continue;
-        }
-        if (override.startTime && override.endTime) {
-          workStartStr = override.startTime;
-          workEndStr = override.endTime;
-        }
-      } else {
-        // Query weekly working schedule
-        const workingHours = await prisma.staffWorkingHours.findUnique({
-          where: {
-            staffId_dayOfWeek: {
-              staffId: staff.id,
-              dayOfWeek,
-            },
-          },
-          include: {
-            breaks: true,
-          },
+      for (const slot of slots) {
+        if (byTime.has(slot.localTime)) continue;
+        byTime.set(slot.localTime, {
+          time: slot.localTime,
+          label: slot.label,
+          staffId: schedule.staffId,
+          staffName: schedule.staffName,
         });
-
-        if (!workingHours) {
-          // Staff does not work on this day of week
-          continue;
-        }
-
-        workStartStr = workingHours.startTime;
-        workEndStr = workingHours.endTime;
-        breaks = workingHours.breaks;
-      }
-
-      if (!workStartStr || !workEndStr) {
-        continue;
-      }
-
-      const shiftStartMinutes = timeStringToMinutes(workStartStr);
-      const shiftEndMinutes = timeStringToMinutes(workEndStr);
-
-      const parsedBreaks = breaks.map((b) => ({
-        start: timeStringToMinutes(b.startTime),
-        end: timeStringToMinutes(b.endTime),
-      }));
-
-      // Fetch confirmed bookings for this staff on this date
-      const existingBookings = await prisma.booking.findMany({
-        where: {
-          staffId: staff.id,
-          status: { notIn: ['CANCELLED'] },
-          startTime: { lt: dayEndUtc },
-          endTime: { gt: dayStartUtc },
-        },
-        select: {
-          startTime: true,
-          endTime: true,
-        },
-      });
-
-      const busyIntervals = existingBookings.map((b) => {
-        const localStart = toZonedTime(b.startTime, timezone);
-        const localEnd = toZonedTime(b.endTime, timezone);
-        return {
-          start: localStart.getHours() * 60 + localStart.getMinutes(),
-          end: localEnd.getHours() * 60 + localEnd.getMinutes(),
-        };
-      });
-
-      // Slide across the shift to generate available slots
-      let currentMinutes = shiftStartMinutes;
-      const now = Date.now();
-
-      while (currentMinutes + durationMinutes <= shiftEndMinutes) {
-        const slotStart = currentMinutes;
-        const slotEnd = currentMinutes + durationMinutes;
-
-        // Apply service buffers
-        const bufferedStart = slotStart - bufferBefore;
-        const bufferedEnd = slotEnd + bufferAfter;
-
-        // Check if overlaps with any break
-        const collidesWithBreak = parsedBreaks.some(
-          (b) => bufferedStart < b.end && bufferedEnd > b.start
-        );
-
-        // Check if overlaps with any existing booking
-        const collidesWithBooking = busyIntervals.some(
-          (b) => bufferedStart < b.end && bufferedEnd > b.start
-        );
-
-        // Check if slot timestamp is in the past (must be at least 10 minutes in the future)
-        const slotTimeStr = minutesToTimeString(slotStart);
-        const slotUtc = fromZonedTime(`${date}T${slotTimeStr}:00`, timezone);
-        const isPast = slotUtc.getTime() <= now + 10 * 60 * 1000;
-
-        if (!collidesWithBreak && !collidesWithBooking && !isPast) {
-          if (!slotMap.has(slotTimeStr)) {
-            const hours = Math.floor(slotStart / 60);
-            const mins = slotStart % 60;
-            const period = hours >= 12 ? 'PM' : 'AM';
-            const displayHours = hours % 12 === 0 ? 12 : hours % 12;
-            const label = `${String(displayHours).padStart(2, '0')}:${String(mins).padStart(2, '0')} ${period}`;
-
-            slotMap.set(slotTimeStr, {
-              time: slotTimeStr,
-              label,
-              staffId: staff.id,
-              staffName: staff.name,
-            });
-          }
-        }
-
-        currentMinutes += slotStep;
       }
     }
 
-    // Sort slots chronologically
-    const slots = Array.from(slotMap.values()).sort((a, b) =>
-      a.time.localeCompare(b.time)
-    );
-
-    return {
-      success: true,
-      slots,
-    };
+    const slots = Array.from(byTime.values()).sort((a, b) => a.time.localeCompare(b.time));
+    return { success: true, slots };
   } catch (error) {
-    console.error('Error calculating available slots:', error);
-    return {
-      success: false,
-      slots: [],
-      error: error instanceof Error ? error.message : 'Failed to calculate available slots.',
-    };
+    // The raw message can carry query or schema detail, so it is logged rather
+    // than returned to the browser.
+    console.error('Error calculating availability:', error);
+    return { success: false, slots: [], error: 'Could not load available times.' };
   }
 }
 
 /**
- * Creates a public booking with double-booking collision checks and customer upsert.
+ * Create a booking from the public booking page.
+ *
+ * This endpoint is unauthenticated, so every value it receives is untrusted.
+ * The service and staff are resolved scoped to the workspace, and the requested
+ * time is re-checked against the same availability engine that produced the
+ * page. Trusting the submitted time would let a hand-built request book a rest
+ * day or the middle of a lunch break.
  */
-export async function createPublicBookingAction(
-  data: BookingFormData
-): Promise<BookingResult> {
+export async function createPublicBookingAction(data: BookingFormData): Promise<BookingResult> {
   try {
-    const {
-      workspaceId,
-      serviceId,
-      date,
-      time,
-      customerName,
-      customerEmail,
-      customerPhone,
-      customerNotes,
-      customerTimezone = 'UTC',
-    } = data;
+    const { workspaceId, serviceId, date, time } = data;
+    const customerName = data.customerName?.trim() ?? '';
+    const customerEmail = data.customerEmail?.toLowerCase().trim() ?? '';
 
     if (!workspaceId || !serviceId || !date || !time || !customerName || !customerEmail) {
       return { success: false, error: 'Missing required booking fields.' };
     }
+    if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
+      return { success: false, error: 'Please choose a valid date and time.' };
+    }
+    if (!EMAIL_PATTERN.test(customerEmail) || customerEmail.length > 320) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    if (customerName.length > 200) {
+      return { success: false, error: 'Please enter a shorter name.' };
+    }
 
-    // 1. Fetch Workspace and Service
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    });
+    // Unauthenticated, and it writes rows and sends email, so it is capped.
+    const throttle = checkRateLimit(await callerKey('booking'), PUBLIC_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      const minutes = Math.ceil((throttle.retryAfterSeconds ?? 60) / 60);
+      return {
+        success: false,
+        error: `Too many booking attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      };
+    }
 
+    const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) {
       return { success: false, error: 'Workspace not found.' };
     }
 
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-      include: {
-        staffAssignments: {
-          include: { staff: true },
-        },
-      },
-    });
+    const timezone = workspace.timezone || 'UTC';
 
+    // An unresolvable timezone would be stored and then break every
+    // notification for this booking, silently and permanently.
+    const customerTimezone =
+      data.customerTimezone && isValidTimezone(data.customerTimezone)
+        ? data.customerTimezone
+        : timezone;
+
+    // The key is scoped to the workspace, so one tenant cannot read another
+    // tenant's booking by guessing or reusing a key.
+    if (data.idempotencyKey) {
+      const existing = await prisma.booking.findFirst({
+        where: { workspaceId, idempotencyKey: data.idempotencyKey },
+        include: { service: true, staff: true },
+      });
+      if (existing) {
+        return {
+          success: true,
+          bookingId: existing.id,
+          meetingLink: existing.meetingLink ?? undefined,
+          startTime: formatTz(
+            toZonedTime(existing.startTime, timezone),
+            'EEEE, MMMM d, yyyy - h:mm a',
+            { timeZone: timezone }
+          ),
+          endTime: formatTz(toZonedTime(existing.endTime, timezone), 'h:mm a', {
+            timeZone: timezone,
+          }),
+          serviceName: existing.service.name,
+          staffName: existing.staff.name,
+        };
+      }
+    }
+
+    // Scoped lookup: a service id belonging to another workspace must not
+    // resolve, or one tenant's catalogue could be booked through another's page.
+    const service = await prisma.service.findFirst({
+      where: { id: serviceId, workspaceId, isActive: true },
+      include: { staffAssignments: { include: { staff: true } } },
+    });
     if (!service) {
       return { success: false, error: 'Service not found or is no longer available.' };
     }
 
-    // 2. Determine Staff Member
-    let targetStaffId = data.staffId;
-    if (!targetStaffId && service.staffAssignments.length > 0) {
-      targetStaffId = service.staffAssignments[0].staff.id;
-    }
-
-    if (!targetStaffId) {
-      const fallbackStaff = await prisma.staff.findFirst({
-        where: { workspaceId, isActive: true },
-      });
-      if (!fallbackStaff) {
-        return { success: false, error: 'No staff available for this service.' };
-      }
-      targetStaffId = fallbackStaff.id;
-    }
-
-    const staffMember = await prisma.staff.findUnique({
-      where: { id: targetStaffId },
-    });
-
-    // 3. Compute Start and End Timestamps in UTC
-    const localDateTimeStr = `${date}T${time}:00`;
-    const timezone = workspace.timezone || 'UTC';
-    const startUtc = fromZonedTime(localDateTimeStr, timezone);
-    const endUtc = addMinutes(startUtc, service.durationMinutes);
-
-    // Double-booking collision check
-    const hasConflict = await prisma.booking.findFirst({
-      where: {
-        staffId: targetStaffId,
-        status: { notIn: ['CANCELLED'] },
-        AND: [
-          { startTime: { lt: endUtc } },
-          { endTime: { gt: startUtc } },
-        ],
-      },
-    });
-
-    if (hasConflict) {
+    const candidates = await candidateStaff(workspaceId, service, data.staffId);
+    if (candidates.length === 0) {
       return {
         success: false,
-        error: 'This time slot was just booked by another customer. Please select another slot.',
+        error: data.staffId
+          ? 'The selected staff member is not available for this service.'
+          : 'No staff are available for this service.',
       };
     }
 
-    // 4. Upsert Customer Record
+    const requestedStart = localTimeToUtc(date, time, timezone);
+    if (!requestedStart) {
+      return { success: false, error: 'That time does not exist on the selected date.' };
+    }
+
+    const schedules = await loadSchedules(candidates, date, timezone);
+
+    // Re-run the same engine that produced the page and take the first staff
+    // member for whom this exact start time is genuinely bookable.
+    let chosen: { staffId: string; staffName: string; slot: Slot } | null = null;
+    for (const schedule of schedules) {
+      const match = generateSlots({
+        date,
+        timezone,
+        window: schedule.window,
+        durationMinutes: service.durationMinutes || 30,
+        bufferBeforeMinutes: service.bufferBeforeMinutes || 0,
+        bufferAfterMinutes: service.bufferAfterMinutes || 0,
+        busy: schedule.busy,
+      }).find((slot) => slot.startUtc.getTime() === requestedStart.getTime());
+
+      if (match) {
+        chosen = { staffId: schedule.staffId, staffName: schedule.staffName, slot: match };
+        break;
+      }
+    }
+
+    if (!chosen) {
+      return {
+        success: false,
+        error: 'That time is no longer available. Please choose another slot.',
+      };
+    }
+
     const customer = await prisma.customer.upsert({
-      where: {
-        workspaceId_email: {
-          workspaceId,
-          email: customerEmail.toLowerCase().trim(),
-        },
-      },
+      where: { workspaceId_email: { workspaceId, email: customerEmail } },
       update: {
-        name: customerName.trim(),
-        phone: customerPhone ? customerPhone.trim() : undefined,
-        notes: customerNotes ? customerNotes.trim() : undefined,
+        name: customerName,
+        phone: data.customerPhone?.trim().slice(0, 50) || undefined,
+        notes: data.customerNotes?.trim().slice(0, 2000) || undefined,
       },
       create: {
         workspaceId,
-        name: customerName.trim(),
-        email: customerEmail.toLowerCase().trim(),
-        phone: customerPhone ? customerPhone.trim() : undefined,
-        notes: customerNotes ? customerNotes.trim() : undefined,
+        name: customerName,
+        email: customerEmail,
+        phone: data.customerPhone?.trim().slice(0, 50) || undefined,
+        notes: data.customerNotes?.trim().slice(0, 2000) || undefined,
       },
     });
 
-    // 5. Generate Meeting Link if Online
-    const meetingCode =
-      Math.random().toString(36).substring(2, 6) +
-      '-' +
-      Math.random().toString(36).substring(2, 6) +
-      '-' +
-      Math.random().toString(36).substring(2, 6);
-    const meetingLink =
-      service.locationType === 'ONLINE_MEETING'
-        ? `https://meet.google.com/${meetingCode}`
-        : service.locationDetails || 'In-Person Appointment';
+    // meetingLink holds a URL, so a non-online service leaves it null and the
+    // service's own location details are shown to the customer instead.
+    const meetingLink = service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
 
-    // 6. Create the Booking Record in PostgreSQL
     const booking = await prisma.booking.create({
       data: {
         workspaceId,
         serviceId: service.id,
-        staffId: targetStaffId,
+        staffId: chosen.staffId,
         customerId: customer.id,
-        startTime: startUtc,
-        endTime: endUtc,
+        startTime: chosen.slot.startUtc,
+        endTime: chosen.slot.endUtc,
         customerTimezone,
         status: 'CONFIRMED',
         meetingLink,
-        idempotencyKey: `book_${workspaceId}_${serviceId}_${targetStaffId}_${startUtc.getTime()}`,
+        idempotencyKey: data.idempotencyKey || null,
         auditLogs: {
           create: {
             action: 'CREATED',
@@ -422,37 +469,38 @@ export async function createPublicBookingAction(
       },
     });
 
-    // Revalidate relevant pages
-    try {
-      revalidatePath('/calendar');
-      revalidatePath('/customers');
-    } catch {
-      // Safely ignore when called outside Next.js request context
-    }
+    // A failed email must not undo a booking the customer already completed.
+    await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
+      console.error('Booking notification dispatch failed:', err)
+    );
+
+    revalidatePath('/calendar');
+    revalidatePath('/appointments');
+    revalidatePath('/customers');
 
     return {
       success: true,
       bookingId: booking.id,
-      meetingLink,
+      meetingLink: meetingLink ?? undefined,
       startTime: formatTz(
-        toZonedTime(startUtc, timezone),
-        'EEEE, MMMM d, yyyy • h:mm a',
+        toZonedTime(chosen.slot.startUtc, timezone),
+        'EEEE, MMMM d, yyyy - h:mm a',
         { timeZone: timezone }
       ),
-      endTime: formatTz(toZonedTime(endUtc, timezone), 'h:mm a', {
+      endTime: formatTz(toZonedTime(chosen.slot.endUtc, timezone), 'h:mm a', {
         timeZone: timezone,
       }),
       serviceName: service.name,
-      staffName: staffMember?.name || 'Staff Advisor',
+      staffName: chosen.staffName,
     };
   } catch (error) {
+    if (isOverlapConstraintViolation(error)) {
+      return {
+        success: false,
+        error: 'This time slot was just booked. Please select another slot.',
+      };
+    }
     console.error('Error creating booking:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'An unexpected error occurred while booking.',
-    };
+    return { success: false, error: 'We could not complete your booking. Please try again.' };
   }
 }

@@ -1,0 +1,30 @@
+{
+  "name": "@bookings/auth",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./next": "./src/next.ts"
+  },
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bookings/core": "*",
+    "@bookings/database": "*",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.2"
+  },
+  "peerDependencies": {
+    "next": "^15.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "next": "^15.1.7",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.11"
+  }
+}

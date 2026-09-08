@@ -1,9 +1,6 @@
 import * as React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@bookings/database';
-import { PrismaServiceRepository } from '@bookings/feature-services';
-import { GetServiceByIdUseCase } from '@bookings/feature-services';
-import { BookingFlowClient } from '../../BookingFlowClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,42 +8,26 @@ interface BookerPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export default async function ServiceBookerPage({ params }: BookerPageProps) {
+/**
+ * Legacy route that names a service without naming its workspace.
+ *
+ * A service slug is only unique within a workspace, so this cannot identify a
+ * service on its own. It redirects to the canonical
+ * /book/[workspaceSlug]/[serviceSlug] URL when exactly one active service
+ * matches, and 404s when the answer would be a guess.
+ */
+export default async function LegacyServiceBookerPage({ params }: BookerPageProps) {
   const { slug } = await params;
 
-  try {
-    const workspace = await prisma.workspace.findFirst({
-      where: { slug: 'rooman-technologies' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'rooman' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'acme-consulting' },
-    }) || await prisma.workspace.findFirst();
+  const matches = await prisma.service.findMany({
+    where: { slug, isActive: true },
+    select: { slug: true, workspace: { select: { slug: true } } },
+    take: 2,
+  });
 
-    if (!workspace) return notFound();
-
-    const repo = new PrismaServiceRepository();
-    const getServiceByIdUseCase = new GetServiceByIdUseCase(repo);
-    const result = await getServiceByIdUseCase.execute({
-      workspaceId: workspace.id,
-      slug,
-    });
-
-    if (result.isFailure) return notFound();
-    const service = result.getValue();
-
-    return (
-      <BookingFlowClient
-        workspace={{
-          id: workspace.id,
-          name: workspace.name,
-          slug: workspace.slug,
-          timezone: workspace.timezone,
-        }}
-        service={service}
-      />
-    );
-  } catch (err) {
+  if (matches.length !== 1) {
     return notFound();
   }
+
+  redirect(`/book/${matches[0].workspace.slug}/${matches[0].slug}`);
 }

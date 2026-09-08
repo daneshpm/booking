@@ -9,8 +9,9 @@
     "push": "prisma db push",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "seed": "tsx --env-file=../../.env src/seed.ts",
-    "studio": "prisma studio"
+    "seed": "tsx src/seed.ts",
+    "studio": "prisma studio",
+    "purge:sessions": "tsx src/purge-sessions.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

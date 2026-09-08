@@ -22,7 +22,9 @@ export class Money {
       throw new DomainError('Price amount must be a non-negative number.', { amount });
     }
     if (!currency || currency.trim().length !== 3) {
-      throw new DomainError('Currency must be a 3-letter ISO code (e.g. USD, EUR, GBP).', { currency });
+      throw new DomainError('Currency must be a 3-letter ISO code (e.g. USD, EUR, GBP).', {
+        currency,
+      });
     }
     return new Money(Number(amount.toFixed(2)), currency);
   }

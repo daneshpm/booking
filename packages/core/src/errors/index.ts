@@ -41,7 +41,9 @@ export class ValidationError extends AppError {
 export class NotFoundError extends AppError {
   public readonly statusCode = 404;
   constructor(resource: string, id?: string) {
-    const msg = id ? `${resource} with identifier '${id}' was not found.` : `${resource} was not found.`;
+    const msg = id
+      ? `${resource} with identifier '${id}' was not found.`
+      : `${resource} was not found.`;
     super(msg, 'RESOURCE_NOT_FOUND', { resource, id });
   }
 }

@@ -2,21 +2,25 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button, Input } from '@bookings/ui';
 import { loginUserAction } from '../signup/actions';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = React.useState('danesh@rooman.com');
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get('next');
+
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setErrorMsg('Please enter your email address.');
+    if (!email || !password) {
+      setErrorMsg('Please enter your email address and password.');
       return;
     }
 
@@ -24,13 +28,20 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      const res = await loginUserAction(email);
+      const res = await loginUserAction(email, password);
       if (res.success) {
-        router.push('/appointments');
+        // Only follow an in-app path, so a crafted ?next= cannot bounce the
+        // user to another site straight after authenticating.
+        const target =
+          nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+            ? nextPath
+            : '/appointments';
+        router.push(target);
+        router.refresh();
       } else {
         setErrorMsg(res.error || 'Failed to sign in.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -54,29 +65,52 @@ export default function LoginPage() {
           Sign In to Your Workspace
         </h2>
         <p className="mt-1 text-xs text-slate-500">
-          Enter your registered email to access your dashboard
+          Enter your email and password to access your dashboard
         </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl shadow-slate-200/50 sm:rounded-2xl border border-slate-200/80 sm:px-10">
           {errorMsg && (
-            <div className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+            <div
+              role="alert"
+              className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"
+            >
               {errorMsg}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor="email" className="block text-xs font-bold text-slate-700 mb-1">
                 Email Address *
               </label>
               <Input
+                id="email"
+                name="email"
                 type="email"
                 required
+                autoComplete="email"
                 placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="w-full text-sm bg-white"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-bold text-slate-700 mb-1">
+                Password *
+              </label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full text-sm bg-white"
               />
             </div>
@@ -105,11 +139,19 @@ export default function LoginPage() {
           <div className="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-500">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-bold text-purple-700 hover:text-purple-900">
-              Sign Up for Free Trial
+              Create your workspace
             </Link>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <LoginForm />
+    </React.Suspense>
   );
 }
