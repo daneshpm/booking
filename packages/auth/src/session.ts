@@ -105,7 +105,9 @@ export async function createSession(options: CreateSessionOptions): Promise<Crea
  * Returns null for an unknown, expired, or deactivated-user token. Expired rows
  * are deleted on sight so the table does not grow without bound.
  */
-export async function resolveSession(token: string | undefined | null): Promise<AuthSession | null> {
+export async function resolveSession(
+  token: string | undefined | null
+): Promise<AuthSession | null> {
   if (!token) return null;
 
   const tokenHash = hashSessionToken(token);

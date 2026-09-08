@@ -112,7 +112,11 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
         </div>
 
         <Link href="/services">
-          <Button variant="outline" size="sm" className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs"
+          >
             Admin Portal
           </Button>
         </Link>
@@ -163,7 +167,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
                         </span>
                       )}
                     </div>
-                    <Badge variant="info" className="text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <Badge
+                      variant="info"
+                      className="text-xs font-bold bg-emerald-50 text-emerald-700 border-emerald-200"
+                    >
                       {Number(service.price) > 0 ? `$${Number(service.price).toFixed(2)}` : 'Free'}
                     </Badge>
                   </div>
@@ -188,11 +195,12 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
                 </div>
 
                 <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">
-                    Instant confirmation
-                  </span>
+                  <span className="text-xs text-slate-500 font-medium">Instant confirmation</span>
                   <Link href={`/book/${workspace.slug}/${service.slug}`}>
-                    <Button variant="primary" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all">
+                    <Button
+                      variant="primary"
+                      className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all"
+                    >
                       Book Now
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>

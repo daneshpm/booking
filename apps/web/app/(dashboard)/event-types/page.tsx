@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { requireWorkspace } from '@/lib/session';
-import { PrismaServiceRepository, GetServicesUseCase, ServiceList } from '@bookings/feature-services';
+import {
+  PrismaServiceRepository,
+  GetServicesUseCase,
+  ServiceList,
+} from '@bookings/feature-services';
 
 export const dynamic = 'force-dynamic';
 

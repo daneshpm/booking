@@ -17,14 +17,18 @@ export class Result<T, E = Error> {
 
   public getValue(): T {
     if (!this.isSuccess) {
-      throw new Error("Cannot retrieve value from a failed result. Check isSuccess before calling getValue().");
+      throw new Error(
+        'Cannot retrieve value from a failed result. Check isSuccess before calling getValue().'
+      );
     }
     return this._value as T;
   }
 
   public getError(): E {
     if (this.isSuccess) {
-      throw new Error("Cannot retrieve error from a successful result. Check isFailure before calling getError().");
+      throw new Error(
+        'Cannot retrieve error from a successful result. Check isFailure before calling getError().'
+      );
     }
     return this._error as E;
   }

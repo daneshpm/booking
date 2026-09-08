@@ -87,7 +87,10 @@ export async function hashPassword(password: string): Promise<string> {
  * different failure mode to the caller, which would leak whether an account row
  * exists.
  */
-export async function verifyPassword(password: string, hash: string | null | undefined): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hash: string | null | undefined
+): Promise<boolean> {
   if (!password || !hash) return false;
   try {
     return await bcrypt.compare(password, hash);

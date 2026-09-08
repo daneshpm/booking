@@ -42,7 +42,10 @@ export function resolveWorkspaceAccess(
   requiredRole: Role = 'RECEPTIONIST'
 ): SessionWorkspace {
   if (!session) {
-    throw new AuthorizationError('UNAUTHENTICATED', 'You must be signed in to perform this action.');
+    throw new AuthorizationError(
+      'UNAUTHENTICATED',
+      'You must be signed in to perform this action.'
+    );
   }
 
   if (session.workspaces.length === 0) {
@@ -76,7 +79,10 @@ export function resolveWorkspaceAccessBySlug(
   requiredRole: Role = 'RECEPTIONIST'
 ): SessionWorkspace {
   if (!session) {
-    throw new AuthorizationError('UNAUTHENTICATED', 'You must be signed in to perform this action.');
+    throw new AuthorizationError(
+      'UNAUTHENTICATED',
+      'You must be signed in to perform this action.'
+    );
   }
   const workspace = session.workspaces.find((w) => w.slug === slug);
   if (!workspace) {

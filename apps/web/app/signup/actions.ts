@@ -188,7 +188,10 @@ export async function loginUserAction(email: string, password: string): Promise<
     }
 
     if (!user.isActive) {
-      return { success: false, error: 'This account has been deactivated. Contact your administrator.' };
+      return {
+        success: false,
+        error: 'This account has been deactivated. Contact your administrator.',
+      };
     }
 
     if (user.memberships.length === 0) {

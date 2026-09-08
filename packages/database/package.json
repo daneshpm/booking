@@ -9,7 +9,7 @@
     "push": "prisma db push",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
-    "seed": "tsx --env-file=../../.env src/seed.ts",
+    "seed": "tsx src/seed.ts",
     "studio": "prisma studio"
   },
   "dependencies": {

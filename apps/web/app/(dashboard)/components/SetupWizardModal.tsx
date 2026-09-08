@@ -61,7 +61,8 @@ export function SetupWizardModal({
     {
       id: 2,
       title: '2. Working Hours & Shift Rules',
-      description: 'Define your team availability (e.g. Mon–Fri 09:00–17:00) and lunch break intervals.',
+      description:
+        'Define your team availability (e.g. Mon–Fri 09:00–17:00) and lunch break intervals.',
       icon: Clock,
       href: '/schedules',
       isCompleted: activeCompletedSteps.includes(2),
@@ -77,7 +78,8 @@ export function SetupWizardModal({
     {
       id: 4,
       title: '4. Share & Embed Booking Page',
-      description: 'Share your public booking link with clients or embed the widget on your website.',
+      description:
+        'Share your public booking link with clients or embed the widget on your website.',
       icon: Share2,
       href: '/booking-pages',
       isCompleted: activeCompletedSteps.includes(4),
@@ -87,9 +89,10 @@ export function SetupWizardModal({
   const completedCount = activeCompletedSteps.length;
   const progressPercent = Math.round((completedCount / 4) * 100);
 
-  const bookingUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/book/${workspaceSlug}`
-    : `http://localhost:3000/book/${workspaceSlug}`;
+  const bookingUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/book/${workspaceSlug}`
+      : `http://localhost:3000/book/${workspaceSlug}`;
 
   const copyShareLink = () => {
     navigator.clipboard.writeText(bookingUrl);
@@ -117,9 +120,12 @@ export function SetupWizardModal({
             </span>
           </div>
 
-          <h2 className="text-lg font-bold text-white tracking-tight">Complete Organization Setup</h2>
+          <h2 className="text-lg font-bold text-white tracking-tight">
+            Complete Organization Setup
+          </h2>
           <p className="text-xs text-slate-400 mt-1 max-w-md leading-relaxed">
-            Follow these essential configuration steps to prepare your organization to accept client appointments.
+            Follow these essential configuration steps to prepare your organization to accept client
+            appointments.
           </p>
 
           {/* Progress Bar */}
@@ -164,7 +170,9 @@ export function SetupWizardModal({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-[#5c34ad]" />
-                        <h3 className={`text-xs font-bold ${step.isCompleted ? 'text-slate-800' : 'text-slate-900'}`}>
+                        <h3
+                          className={`text-xs font-bold ${step.isCompleted ? 'text-slate-800' : 'text-slate-900'}`}
+                        >
                           {step.title}
                         </h3>
                       </div>

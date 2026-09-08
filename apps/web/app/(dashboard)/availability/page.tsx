@@ -23,10 +23,5 @@ export default async function AvailabilityPage() {
     },
   });
 
-  return (
-    <AvailabilityClient
-      workspaceId={workspace.id}
-      initialStaff={workspace.staff as any}
-    />
-  );
+  return <AvailabilityClient workspaceId={workspace.id} initialStaff={workspace.staff as any} />;
 }

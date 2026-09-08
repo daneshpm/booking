@@ -31,10 +31,7 @@ This skill documents the core domain architecture, availability computation form
     where: {
       staffId,
       status: { notIn: ['CANCELLED'] },
-      AND: [
-        { startTime: { lt: requestedEndUtc } },
-        { endTime: { gt: requestedStartUtc } },
-      ],
+      AND: [{ startTime: { lt: requestedEndUtc } }, { endTime: { gt: requestedStartUtc } }],
     },
   });
   ```

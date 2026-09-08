@@ -23,13 +23,20 @@ export class ServiceBuffer {
 
   public static create(beforeMinutes = 0, afterMinutes = 0): ServiceBuffer {
     if (!Number.isInteger(beforeMinutes) || beforeMinutes < 0) {
-      throw new DomainError('Buffer before must be a non-negative integer in minutes.', { beforeMinutes });
+      throw new DomainError('Buffer before must be a non-negative integer in minutes.', {
+        beforeMinutes,
+      });
     }
     if (!Number.isInteger(afterMinutes) || afterMinutes < 0) {
-      throw new DomainError('Buffer after must be a non-negative integer in minutes.', { afterMinutes });
+      throw new DomainError('Buffer after must be a non-negative integer in minutes.', {
+        afterMinutes,
+      });
     }
     if (beforeMinutes > 180 || afterMinutes > 180) {
-      throw new DomainError('Individual buffer time cannot exceed 180 minutes (3 hours).', { beforeMinutes, afterMinutes });
+      throw new DomainError('Individual buffer time cannot exceed 180 minutes (3 hours).', {
+        beforeMinutes,
+        afterMinutes,
+      });
     }
     return new ServiceBuffer(beforeMinutes, afterMinutes);
   }

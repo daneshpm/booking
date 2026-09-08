@@ -37,19 +37,18 @@ export function createUtcDateFromLocal(
 /**
  * Formats a UTC date into the desired timezone and pattern
  */
-export function formatInTimezone(date: Date, timezone: string, pattern = 'yyyy-MM-dd HH:mm'): string {
+export function formatInTimezone(
+  date: Date,
+  timezone: string,
+  pattern = 'yyyy-MM-dd HH:mm'
+): string {
   return formatTz(toZonedTime(date, timezone), pattern, { timeZone: timezone });
 }
 
 /**
  * Checks if two time intervals [startA, endA] and [startB, endB] overlap
  */
-export function doIntervalsOverlap(
-  startA: Date,
-  endA: Date,
-  startB: Date,
-  endB: Date
-): boolean {
+export function doIntervalsOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
   // Interval overlap condition: startA < endB and endA > startB
   return isBefore(startA, endB) && isAfter(endA, startB);
 }
@@ -73,7 +72,7 @@ export function sliceTimeWindowIntoSlots(
     }
     slots.push({
       start: currentStart,
-      end: currentEnd
+      end: currentEnd,
     });
     currentStart = addMinutes(currentStart, stepMinutes);
   }

@@ -174,9 +174,7 @@ export function WorkflowsClient({
   const handleToggle = (workflow: WorkflowItem) => {
     // Reflect the change immediately, then roll it back if the server refuses.
     const next = !workflow.isActive;
-    setWorkflows((prev) =>
-      prev.map((w) => (w.id === workflow.id ? { ...w, isActive: next } : w))
-    );
+    setWorkflows((prev) => prev.map((w) => (w.id === workflow.id ? { ...w, isActive: next } : w)));
 
     startTransition(async () => {
       const res = await toggleWorkflowAction(workspaceId, workflow.id, next);
@@ -200,8 +198,7 @@ export function WorkflowsClient({
     });
   };
 
-  const isTimeBased =
-    form.trigger === 'BEFORE_APPOINTMENT' || form.trigger === 'AFTER_APPOINTMENT';
+  const isTimeBased = form.trigger === 'BEFORE_APPOINTMENT' || form.trigger === 'AFTER_APPOINTMENT';
 
   return (
     <div className="p-6 space-y-6">
@@ -232,8 +229,8 @@ export function WorkflowsClient({
         >
           <AlertTriangle className="h-4 w-4 shrink-0 mt-px" />
           <span>
-            Email delivery is not configured. Set SMTP_HOST and the related environment variables
-            to start sending. Workflows still record every attempt until then.
+            Email delivery is not configured. Set SMTP_HOST and the related environment variables to
+            start sending. Workflows still record every attempt until then.
           </span>
         </div>
       )}
@@ -252,8 +249,8 @@ export function WorkflowsClient({
           <Zap className="h-6 w-6 text-slate-300 mx-auto" />
           <h2 className="mt-3 text-sm font-bold text-slate-800">No workflows yet</h2>
           <p className="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
-            Booking confirmations and cancellation notices are sent automatically. Add a workflow
-            to send reminders or follow-ups as well.
+            Booking confirmations and cancellation notices are sent automatically. Add a workflow to
+            send reminders or follow-ups as well.
           </p>
         </div>
       ) : (
@@ -430,7 +427,10 @@ export function WorkflowsClient({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="wf-trigger" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label
+                    htmlFor="wf-trigger"
+                    className="block text-xs font-bold text-slate-700 mb-1"
+                  >
                     Trigger *
                   </label>
                   <select
@@ -450,7 +450,10 @@ export function WorkflowsClient({
                 </div>
 
                 <div>
-                  <label htmlFor="wf-recipient" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label
+                    htmlFor="wf-recipient"
+                    className="block text-xs font-bold text-slate-700 mb-1"
+                  >
                     Send to *
                   </label>
                   <select
@@ -472,7 +475,10 @@ export function WorkflowsClient({
 
               {isTimeBased && (
                 <div>
-                  <label htmlFor="wf-offset" className="block text-xs font-bold text-slate-700 mb-1">
+                  <label
+                    htmlFor="wf-offset"
+                    className="block text-xs font-bold text-slate-700 mb-1"
+                  >
                     Minutes {form.trigger === 'BEFORE_APPOINTMENT' ? 'before' : 'after'} the
                     appointment *
                   </label>
@@ -540,7 +546,10 @@ export function WorkflowsClient({
               {form.channel === 'EMAIL' && (
                 <>
                   <div>
-                    <label htmlFor="wf-subject" className="block text-xs font-bold text-slate-700 mb-1">
+                    <label
+                      htmlFor="wf-subject"
+                      className="block text-xs font-bold text-slate-700 mb-1"
+                    >
                       Subject
                     </label>
                     <input
@@ -552,7 +561,10 @@ export function WorkflowsClient({
                     />
                   </div>
                   <div>
-                    <label htmlFor="wf-body" className="block text-xs font-bold text-slate-700 mb-1">
+                    <label
+                      htmlFor="wf-body"
+                      className="block text-xs font-bold text-slate-700 mb-1"
+                    >
                       Message
                     </label>
                     <textarea

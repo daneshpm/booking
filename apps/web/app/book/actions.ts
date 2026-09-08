@@ -266,9 +266,7 @@ export async function getAvailableSlotsAction(
     }
 
     // Sort slots chronologically
-    const slots = Array.from(slotMap.values()).sort((a, b) =>
-      a.time.localeCompare(b.time)
-    );
+    const slots = Array.from(slotMap.values()).sort((a, b) => a.time.localeCompare(b.time));
 
     return {
       success: true,
@@ -323,11 +321,9 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
           success: true,
           bookingId: existing.id,
           meetingLink: existing.meetingLink ?? undefined,
-          startTime: formatTz(
-            toZonedTime(existing.startTime, tz),
-            'EEEE, MMMM d, yyyy - h:mm a',
-            { timeZone: tz }
-          ),
+          startTime: formatTz(toZonedTime(existing.startTime, tz), 'EEEE, MMMM d, yyyy - h:mm a', {
+            timeZone: tz,
+          }),
           endTime: formatTz(toZonedTime(existing.endTime, tz), 'h:mm a', { timeZone: tz }),
           serviceName: existing.service.name,
           staffName: existing.staff.name,

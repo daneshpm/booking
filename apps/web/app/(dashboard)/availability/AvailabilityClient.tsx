@@ -1,28 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import {
-  Clock,
-  Calendar,
-  Coffee,
-  Check,
-  Edit2,
-  AlertCircle,
-  Users,
-} from 'lucide-react';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Badge,
-  Button,
-  Modal,
-} from '@bookings/ui';
-import {
-  updateStaffWorkingHoursAction,
-  type DayScheduleInput,
-} from '../staff/actions';
+import { Clock, Calendar, Coffee, Check, Edit2, AlertCircle, Users } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Modal } from '@bookings/ui';
+import { updateStaffWorkingHoursAction, type DayScheduleInput } from '../staff/actions';
 
 export interface AvailabilityStaff {
   id: string;
@@ -48,20 +29,9 @@ interface AvailabilityClientProps {
   initialStaff: AvailabilityStaff[];
 }
 
-const DAYS_OF_WEEK = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-export function AvailabilityClient({
-  workspaceId,
-  initialStaff,
-}: AvailabilityClientProps) {
+export function AvailabilityClient({ workspaceId, initialStaff }: AvailabilityClientProps) {
   const [staffList, setStaffList] = React.useState<AvailabilityStaff[]>(initialStaff);
   const [editingStaff, setEditingStaff] = React.useState<AvailabilityStaff | null>(null);
   const [workingSchedule, setWorkingSchedule] = React.useState<DayScheduleInput[]>([]);
@@ -100,11 +70,7 @@ export function AvailabilityClient({
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const res = await updateStaffWorkingHoursAction(
-      workspaceId,
-      editingStaff.id,
-      workingSchedule
-    );
+    const res = await updateStaffWorkingHoursAction(workspaceId, editingStaff.id, workingSchedule);
     setIsSubmitting(false);
 
     if (res.success) {
@@ -147,7 +113,8 @@ export function AvailabilityClient({
             Availability & Working Shifts
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Configure weekly operating shifts, break intervals, and buffer rules for schedule generation.
+            Configure weekly operating shifts, break intervals, and buffer rules for schedule
+            generation.
           </p>
         </div>
       </div>
@@ -162,7 +129,9 @@ export function AvailabilityClient({
       {staffList.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30">
           <Users className="h-10 w-10 text-slate-400 mb-3" />
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">No staff members found</h3>
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+            No staff members found
+          </h3>
           <p className="text-xs text-slate-500 max-w-sm mt-1">
             Add team members from the Staff section to configure their working availability.
           </p>
@@ -181,9 +150,7 @@ export function AvailabilityClient({
                       <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100">
                         {staff.name} — Weekly Schedule
                       </CardTitle>
-                      <span className="text-xs text-slate-500">
-                        Operating in {staff.timezone}
-                      </span>
+                      <span className="text-xs text-slate-500">Operating in {staff.timezone}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -336,9 +303,7 @@ export function AvailabilityClient({
                           type="button"
                           onClick={() => {
                             setWorkingSchedule((prev) =>
-                              prev.map((d, i) =>
-                                i === idx ? { ...d, hasBreak: !d.hasBreak } : d
-                              )
+                              prev.map((d, i) => (i === idx ? { ...d, hasBreak: !d.hasBreak } : d))
                             );
                           }}
                           className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all ${
@@ -373,9 +338,7 @@ export function AvailabilityClient({
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setWorkingSchedule((prev) =>
-                                  prev.map((d, i) =>
-                                    i === idx ? { ...d, breakEndTime: val } : d
-                                  )
+                                  prev.map((d, i) => (i === idx ? { ...d, breakEndTime: val } : d))
                                 );
                               }}
                               className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"

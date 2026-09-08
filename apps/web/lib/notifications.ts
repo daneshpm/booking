@@ -1,101 +1,16 @@
 import 'server-only';
 
-import { prisma, type WorkflowTrigger, type Prisma } from '@bookings/database';
-import { formatInTimeZone } from 'date-fns-tz';
+import { prisma, type WorkflowTrigger } from '@bookings/database';
 import { sendMail, isMailConfigured } from '@/lib/mailer';
+import {
+  buildTemplateContext,
+  defaultMessage,
+  recipientsFor,
+  renderTemplate,
+  type RenderedMessage,
+} from '@/lib/notification-templates';
 
-type BookingWithRelations = Prisma.BookingGetPayload<{
-  include: { workspace: true; service: true; staff: true; customer: true };
-}>;
-
-export interface RenderedMessage {
-  subject: string;
-  text: string;
-}
-
-/** Values available to workflow templates as {{placeholders}}. */
-export function buildTemplateContext(booking: BookingWithRelations): Record<string, string> {
-  const tz = booking.customerTimezone || booking.workspace.timezone || 'UTC';
-  return {
-    customerName: booking.customer.name,
-    customerEmail: booking.customer.email,
-    staffName: booking.staff.name,
-    staffEmail: booking.staff.email,
-    serviceName: booking.service.name,
-    workspaceName: booking.workspace.name,
-    date: formatInTimeZone(booking.startTime, tz, 'EEEE, d MMMM yyyy'),
-    time: formatInTimeZone(booking.startTime, tz, 'h:mm a'),
-    endTime: formatInTimeZone(booking.endTime, tz, 'h:mm a'),
-    timezone: tz,
-    durationMinutes: String(booking.service.durationMinutes),
-    meetingLink: booking.meetingLink ?? '',
-    location: booking.service.locationDetails ?? '',
-  };
-}
-
-/**
- * Substitute {{placeholders}} in a template.
- * An unknown placeholder resolves to an empty string rather than being left in
- * the message, so customers never see raw template syntax.
- */
-export function renderTemplate(template: string, context: Record<string, string>): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_match, key: string) => context[key] ?? '');
-}
-
-/** Default wording used when a workflow does not define its own template. */
-function defaultMessage(
-  trigger: WorkflowTrigger,
-  context: Record<string, string>
-): RenderedMessage {
-  const when = `${context.date} at ${context.time} (${context.timezone})`;
-  const joinLine = context.meetingLink ? `\n\nJoin here: ${context.meetingLink}` : '';
-  const locationLine = context.location ? `\n\nLocation: ${context.location}` : '';
-
-  switch (trigger) {
-    case 'BOOKING_CANCELLED':
-      return {
-        subject: `Cancelled: ${context.serviceName} on ${context.date}`,
-        text: `Hello ${context.customerName},\n\nYour ${context.serviceName} appointment with ${context.workspaceName} on ${when} has been cancelled.\n\nIf this was not expected, please contact us to rebook.\n\n— ${context.workspaceName}`,
-      };
-    case 'BOOKING_RESCHEDULED':
-      return {
-        subject: `Rescheduled: ${context.serviceName} is now ${context.date}`,
-        text: `Hello ${context.customerName},\n\nYour ${context.serviceName} appointment with ${context.workspaceName} has moved to ${when}.${joinLine}${locationLine}\n\n— ${context.workspaceName}`,
-      };
-    case 'BEFORE_APPOINTMENT':
-      return {
-        subject: `Reminder: ${context.serviceName} on ${context.date}`,
-        text: `Hello ${context.customerName},\n\nThis is a reminder for your ${context.serviceName} appointment with ${context.staffName} on ${when}.${joinLine}${locationLine}\n\n— ${context.workspaceName}`,
-      };
-    case 'AFTER_APPOINTMENT':
-      return {
-        subject: `Thank you for meeting with ${context.workspaceName}`,
-        text: `Hello ${context.customerName},\n\nThank you for attending your ${context.serviceName} session with ${context.staffName}.\n\nWe would welcome any feedback.\n\n— ${context.workspaceName}`,
-      };
-    case 'BOOKING_CREATED':
-    default:
-      return {
-        subject: `Confirmed: ${context.serviceName} on ${context.date}`,
-        text: `Hello ${context.customerName},\n\nYour ${context.serviceName} appointment with ${context.staffName} at ${context.workspaceName} is confirmed for ${when}.\n\nDuration: ${context.durationMinutes} minutes.${joinLine}${locationLine}\n\n— ${context.workspaceName}`,
-      };
-  }
-}
-
-/** Resolve the address list for a workflow's recipient setting. */
-function recipientsFor(
-  recipient: 'CUSTOMER' | 'STAFF' | 'BOTH',
-  booking: BookingWithRelations
-): string[] {
-  switch (recipient) {
-    case 'STAFF':
-      return [booking.staff.email];
-    case 'BOTH':
-      return [booking.customer.email, booking.staff.email];
-    case 'CUSTOMER':
-    default:
-      return [booking.customer.email];
-  }
-}
+export { buildTemplateContext, renderTemplate } from '@/lib/notification-templates';
 
 /**
  * Run every active workflow bound to a booking lifecycle event.
@@ -122,9 +37,6 @@ export async function dispatchBookingNotifications(
 
   const context = buildTemplateContext(booking);
 
-  // With no workflow configured, booking creation and cancellation still send
-  // the built-in transactional email. Those are expected by the customer, not
-  // optional marketing.
   const jobs: Array<{
     workflowId: string | null;
     recipients: string[];
@@ -132,6 +44,9 @@ export async function dispatchBookingNotifications(
   }> = [];
 
   if (workflows.length === 0) {
+    // With no workflow configured, booking creation and cancellation still send
+    // the built-in transactional email. Customers expect those; they are not
+    // optional marketing.
     if (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_CANCELLED') {
       jobs.push({
         workflowId: null,
@@ -146,9 +61,7 @@ export async function dispatchBookingNotifications(
         workflowId: workflow.id,
         recipients: recipientsFor(workflow.recipient, booking),
         message: {
-          subject: workflow.subject
-            ? renderTemplate(workflow.subject, context)
-            : fallback.subject,
+          subject: workflow.subject ? renderTemplate(workflow.subject, context) : fallback.subject,
           text: workflow.body ? renderTemplate(workflow.body, context) : fallback.text,
         },
       });

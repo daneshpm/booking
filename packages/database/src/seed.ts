@@ -12,8 +12,13 @@
  *
  * Running it twice is safe: an existing owner keeps their current password.
  */
+import { loadEnvFile } from './load-env';
 import { prisma } from './client';
 import { hashPassword, validatePasswordPolicy } from '@bookings/core';
+
+// Pick up a repository-root .env when one exists. In CI and containers the
+// values come from the real environment instead.
+loadEnvFile();
 
 function slugify(input: string): string {
   return input

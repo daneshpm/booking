@@ -63,5 +63,7 @@ export const config = {
    * Run on everything except Next internals, the public booking flow, and
    * static assets. Public booking pages stay reachable without a session.
    */
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|book|api|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|book|api|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
+  ],
 };

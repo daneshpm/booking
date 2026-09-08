@@ -32,9 +32,10 @@ function LoginForm() {
       if (res.success) {
         // Only follow an in-app path, so a crafted ?next= cannot bounce the
         // user to another site straight after authenticating.
-        const target = nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
-          ? nextPath
-          : '/appointments';
+        const target =
+          nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+            ? nextPath
+            : '/appointments';
         router.push(target);
         router.refresh();
       } else {

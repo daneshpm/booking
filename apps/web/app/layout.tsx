@@ -7,11 +7,7 @@ export const metadata: Metadata = {
     'Official consultation and skilling scheduling platform for Rooman Technologies. Book 1-on-1 IT career counseling, enterprise workforce upskilling, and University Center of Excellence sessions.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>

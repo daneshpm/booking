@@ -20,6 +20,8 @@ const ROOM_PREFIX = process.env.VIDEO_MEETING_ROOM_PREFIX || 'rooman';
  * meeting by guessing.
  */
 export function generateMeetingLink(): string {
-  const room = randomBytes(12).toString('base64url').replace(/[^a-zA-Z0-9]/g, '');
+  const room = randomBytes(12)
+    .toString('base64url')
+    .replace(/[^a-zA-Z0-9]/g, '');
   return `${BASE_URL}/${ROOM_PREFIX}-${room}`;
 }

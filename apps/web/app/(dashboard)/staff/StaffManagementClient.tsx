@@ -82,15 +82,7 @@ interface StaffManagementClientProps {
   defaultTimezone: string;
 }
 
-const DAYS_OF_WEEK = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const TIMEZONES = [
   'America/New_York',
@@ -205,11 +197,7 @@ export function StaffManagementClient({
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
-      statusFilter === 'ALL'
-        ? true
-        : statusFilter === 'ACTIVE'
-        ? s.isActive
-        : !s.isActive;
+      statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? s.isActive : !s.isActive;
     return matchesSearch && matchesStatus;
   });
 
@@ -276,9 +264,7 @@ export function StaffManagementClient({
     setIsSubmitting(false);
 
     if (res.success && res.data) {
-      setStaffList((prev) =>
-        prev.map((s) => (s.id === editingStaff.id ? (res.data as any) : s))
-      );
+      setStaffList((prev) => prev.map((s) => (s.id === editingStaff.id ? (res.data as any) : s)));
       setEditingStaff(null);
       setActionSuccessMessage(`Successfully updated details for "${formData.name}".`);
     } else {
@@ -328,11 +314,7 @@ export function StaffManagementClient({
   const handleSaveSchedule = async () => {
     if (!scheduleStaff) return;
     setIsSubmitting(true);
-    const res = await updateStaffWorkingHoursAction(
-      workspaceId,
-      scheduleStaff.id,
-      workingSchedule
-    );
+    const res = await updateStaffWorkingHoursAction(workspaceId, scheduleStaff.id, workingSchedule);
     setIsSubmitting(false);
 
     if (res.success) {
@@ -798,7 +780,10 @@ export function StaffManagementClient({
               onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
               className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
             />
-            <label htmlFor="isActiveToggle" className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+            <label
+              htmlFor="isActiveToggle"
+              className="text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
               Staff Member is Active (eligible for customer bookings and appointments)
             </label>
           </div>
@@ -938,9 +923,7 @@ export function StaffManagementClient({
                           type="button"
                           onClick={() => {
                             setWorkingSchedule((prev) =>
-                              prev.map((d, i) =>
-                                i === idx ? { ...d, hasBreak: !d.hasBreak } : d
-                              )
+                              prev.map((d, i) => (i === idx ? { ...d, hasBreak: !d.hasBreak } : d))
                             );
                           }}
                           className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all ${
@@ -975,9 +958,7 @@ export function StaffManagementClient({
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setWorkingSchedule((prev) =>
-                                  prev.map((d, i) =>
-                                    i === idx ? { ...d, breakEndTime: val } : d
-                                  )
+                                  prev.map((d, i) => (i === idx ? { ...d, breakEndTime: val } : d))
                                 );
                               }}
                               className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
@@ -1026,7 +1007,9 @@ export function StaffManagementClient({
       >
         <div className="space-y-4 mt-2 text-xs">
           <p className="text-slate-600 dark:text-slate-400">
-            This will remove their shift schedule and service assignments. Note that if this staff member has upcoming scheduled appointments, they cannot be deleted until those appointments are rescheduled or cancelled.
+            This will remove their shift schedule and service assignments. Note that if this staff
+            member has upcoming scheduled appointments, they cannot be deleted until those
+            appointments are rescheduled or cancelled.
           </p>
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

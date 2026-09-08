@@ -25,14 +25,14 @@ This skill defines the visual language, design tokens, and component patterns ma
 
 - **Top Bar (`h-12`)**:
   - Circular Bookings checkmark logo.
-  - Trial alert: *"Your trial ends in 1 days. Extend your Trial | Upgrade now"*.
+  - Trial alert: _"Your trial ends in 1 days. Extend your Trial | Upgrade now"_.
   - Purple `[+]` quick action button.
   - Icon cluster: Calendar, Bell (with unread dot), Settings gear, Avatar circle.
 - **Left Sidebar (`w-56`)**:
   - Workspace selector: Rounded card with coral square badge (`RO`), title, and chevron.
   - Active navigation pill: Rounded rectangle with deep purple background (`#5c34ad`) and white icon/text.
   - Inactive navigation links: `text-slate-700 hover:bg-slate-50`.
-  - Bottom card: Gradient coral/orange *"Complete Setup 0/4"* with setup link.
+  - Bottom card: Gradient coral/orange _"Complete Setup 0/4"_ with setup link.
 - **Bottom Utility Strip (`h-7`)**:
   - Left: "My Pins", "Chats", "Contacts" (`text-[11px] text-slate-500`).
   - Right: Purple "Help" pill and "User Guide".

@@ -1,71 +1,116 @@
 import re
-import uuid
 from typing import Optional, List
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.db.session import get_db
-from app.db.models import User, Workspace, WorkspaceMember
+from app.db.models import User, Workspace, WorkspaceMember, Staff
 from app.auth.security import (
     hash_password,
     verify_password,
-    create_access_token,
+    fake_verify_password,
+    validate_password_policy,
+    create_session,
+    destroy_session,
     get_current_user,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+# Deliberately identical for a wrong password and an unknown account, so the
+# response cannot be used to work out which email addresses are registered.
+INVALID_CREDENTIALS = "Invalid email or password."
+
+
 def slugify(text: str) -> str:
     text = text.lower().strip()
-    text = re.sub(r'[^\w\s-]', '', text)
-    text = re.sub(r'[\s_-]+', '-', text)
-    return text.strip('-') or "workspace"
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    return text.strip("-") or "workspace"
 
-# Pydantic Schemas
+
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, description="Password (min 6 characters)")
-    name: str = Field(..., min_length=1)
-    workspaceName: Optional[str] = "Rooman Technologies"
+    password: str = Field(..., description="At least 10 characters with mixed case and a digit")
+    name: str = Field(..., min_length=1, max_length=200)
+    workspaceName: Optional[str] = None
     workspaceSlug: Optional[str] = None
+    workspaceTimezone: str = "Asia/Kolkata"
+    workspaceCurrency: str = "INR"
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
 
 class UserProfile(BaseModel):
     id: str
     email: str
     name: str
     avatarUrl: Optional[str] = None
-    role: Optional[str] = "OWNER"
+    role: Optional[str] = None
+
 
 class WorkspaceProfile(BaseModel):
     id: str
     name: str
     slug: str
-    timezone: str = "Asia/Kolkata"
-    currency: str = "INR"
+    timezone: str
+    currency: str
+    role: Optional[str] = None
+
 
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    expires_at: str
     user: UserProfile
     workspace: Optional[WorkspaceProfile] = None
+
 
 class MeResponse(BaseModel):
     user: UserProfile
     workspaces: List[WorkspaceProfile] = []
 
+
+def _set_session_cookie(response: Response, token: str, expires_at) -> None:
+    """
+    Attach the session cookie.
+
+    httpOnly keeps the token away from page scripts, and secure is required
+    once the app is served over HTTPS.
+    """
+    response.set_cookie(
+        key=settings.SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=settings.IS_PRODUCTION,
+        samesite="lax",
+        path="/",
+        expires=expires_at,
+    )
+
+
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Register a new user, initialize their default workspace, and issue a JWT token."""
+async def register(
+    req: RegisterRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an account with its own workspace and sign the new user in."""
     email_clean = req.email.strip().lower()
 
-    # Check if user already exists
+    policy_errors = validate_password_policy(req.password)
+    if policy_errors:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=policy_errors[0])
+
     existing = await db.execute(select(User).where(User.email == email_clean))
     if existing.scalar_one_or_none():
         raise HTTPException(
@@ -73,64 +118,72 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
             detail="A user with this email address already exists.",
         )
 
-    # Hash password
-    hashed_pwd = hash_password(req.password)
+    name = req.name.strip()
+    ws_name = (req.workspaceName or name).strip()
+    raw_slug = slugify(req.workspaceSlug or ws_name)
 
-    # Create User
-    new_user = User(
-        id=str(uuid.uuid4()),
-        email=email_clean,
-        name=req.name.strip(),
-        passwordHash=hashed_pwd,
-    )
+    # The column carries a unique constraint, so a concurrent registration that
+    # wins the race fails on insert rather than creating a duplicate slug.
+    slug_taken = await db.execute(select(Workspace).where(Workspace.slug == raw_slug))
+    ws_slug = raw_slug
+    if slug_taken.scalar_one_or_none():
+        suffix = 1
+        while True:
+            candidate = f"{raw_slug}-{suffix}"
+            check = await db.execute(select(Workspace).where(Workspace.slug == candidate))
+            if not check.scalar_one_or_none():
+                ws_slug = candidate
+                break
+            suffix += 1
+            if suffix > 50:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Could not allocate a workspace address. Try a different name.",
+                )
+
+    new_user = User(email=email_clean, name=name, passwordHash=hash_password(req.password))
     db.add(new_user)
     await db.flush()
 
-    # Create Workspace
-    ws_name = req.workspaceName.strip() if req.workspaceName else "Rooman Technologies"
-    raw_slug = req.workspaceSlug if req.workspaceSlug else slugify(ws_name)
-    
-    # Ensure slug uniqueness
-    slug_check = await db.execute(select(Workspace).where(Workspace.slug == raw_slug))
-    if slug_check.scalar_one_or_none():
-        ws_slug = f"{raw_slug}-{uuid.uuid4().hex[:4]}"
-    else:
-        ws_slug = raw_slug
-
     new_ws = Workspace(
-        id=str(uuid.uuid4()),
         name=ws_name,
         slug=ws_slug,
-        timezone="Asia/Kolkata",
-        currency="INR",
+        timezone=req.workspaceTimezone,
+        currency=req.workspaceCurrency.upper(),
     )
     db.add(new_ws)
     await db.flush()
 
-    # Create Workspace Membership (Role = OWNER)
-    membership = WorkspaceMember(
-        id=str(uuid.uuid4()),
-        workspace_id=new_ws.id,
-        user_id=new_user.id,
-        role="OWNER",
-    )
-    db.add(membership)
-    await db.commit()
-    await db.refresh(new_user)
-    await db.refresh(new_ws)
+    db.add(WorkspaceMember(workspace_id=new_ws.id, user_id=new_user.id, role="OWNER"))
 
-    # Issue JWT token
-    token = create_access_token({"sub": new_user.id, "email": new_user.email})
+    # The owner doubles as a bookable staff member so the workspace is usable
+    # as soon as services are added.
+    db.add(
+        Staff(
+            workspace_id=new_ws.id,
+            user_id=new_user.id,
+            name=name,
+            email=email_clean,
+            timezone=req.workspaceTimezone,
+            is_active=True,
+        )
+    )
+
+    token, expires_at = await create_session(
+        db,
+        new_user.id,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None,
+    )
+
+    await db.commit()
+    _set_session_cookie(response, token, expires_at)
 
     return AuthResponse(
         access_token=token,
-        token_type="bearer",
+        expires_at=expires_at.isoformat(),
         user=UserProfile(
-            id=new_user.id,
-            email=new_user.email,
-            name=new_user.name,
-            avatarUrl=new_user.avatarUrl,
-            role="OWNER",
+            id=new_user.id, email=new_user.email, name=new_user.name, role="OWNER"
         ),
         workspace=WorkspaceProfile(
             id=new_ws.id,
@@ -138,12 +191,19 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
             slug=new_ws.slug,
             timezone=new_ws.timezone,
             currency=new_ws.currency,
+            role="OWNER",
         ),
     )
 
+
 @router.post("/login", response_model=AuthResponse)
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Authenticate with email and password, returning a JWT token and user profile."""
+async def login(
+    req: LoginRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Authenticate with email and password and issue a session."""
     email_clean = req.email.strip().lower()
 
     result = await db.execute(
@@ -153,33 +213,61 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(req.password, user.passwordHash):
+    if not user:
+        # Spend comparable time hashing so the timing does not differ from a
+        # real account with a wrong password.
+        fake_verify_password()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            detail=INVALID_CREDENTIALS,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Find primary workspace
+    if not verify_password(req.password, user.passwordHash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=INVALID_CREDENTIALS,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account has been deactivated.",
+        )
+
     primary_ws = None
-    role = "STAFF"
+    role = None
     if user.memberships:
-        primary_member = user.memberships[0]
-        role = primary_member.role
-        if primary_member.workspace:
+        primary = user.memberships[0]
+        role = primary.role
+        if primary.workspace:
             primary_ws = WorkspaceProfile(
-                id=primary_member.workspace.id,
-                name=primary_member.workspace.name,
-                slug=primary_member.workspace.slug,
-                timezone=primary_member.workspace.timezone,
-                currency=primary_member.workspace.currency,
+                id=primary.workspace.id,
+                name=primary.workspace.name,
+                slug=primary.workspace.slug,
+                timezone=primary.workspace.timezone,
+                currency=primary.workspace.currency,
+                role=primary.role,
             )
 
-    token = create_access_token({"sub": user.id, "email": user.email})
+    token, expires_at = await create_session(
+        db,
+        user.id,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None,
+    )
+
+    from datetime import datetime, timezone as _tz
+
+    user.last_login_at = datetime.now(_tz.utc)
+    await db.commit()
+
+    _set_session_cookie(response, token, expires_at)
 
     return AuthResponse(
         access_token=token,
-        token_type="bearer",
+        expires_at=expires_at.isoformat(),
         user=UserProfile(
             id=user.id,
             email=user.email,
@@ -190,12 +278,29 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         workspace=primary_ws,
     )
 
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    """Revoke the caller's session. Succeeds even when no session was present."""
+    token = request.cookies.get(settings.SESSION_COOKIE)
+    header = request.headers.get("authorization", "")
+    if not token and header.lower().startswith("bearer "):
+        token = header[7:].strip()
+
+    if token:
+        await destroy_session(db, token)
+        await db.commit()
+
+    response.delete_cookie(settings.SESSION_COOKIE, path="/")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/me", response_model=MeResponse)
 async def get_me(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Retrieve authenticated user profile and connected workspaces."""
+    """Profile and workspace memberships for the authenticated caller."""
     result = await db.execute(
         select(User)
         .options(selectinload(User.memberships).selectinload(WorkspaceMember.workspace))
@@ -203,21 +308,22 @@ async def get_me(
     )
     user = result.scalar_one()
 
-    workspaces = []
-    primary_role = "STAFF"
-    for m in user.memberships:
-        if m.role == "OWNER":
-            primary_role = "OWNER"
-        if m.workspace:
-            workspaces.append(
-                WorkspaceProfile(
-                    id=m.workspace.id,
-                    name=m.workspace.name,
-                    slug=m.workspace.slug,
-                    timezone=m.workspace.timezone,
-                    currency=m.workspace.currency,
-                )
-            )
+    workspaces = [
+        WorkspaceProfile(
+            id=m.workspace.id,
+            name=m.workspace.name,
+            slug=m.workspace.slug,
+            timezone=m.workspace.timezone,
+            currency=m.workspace.currency,
+            role=m.role,
+        )
+        for m in user.memberships
+        if m.workspace
+    ]
+
+    primary_role = next((m.role for m in user.memberships if m.role == "OWNER"), None)
+    if primary_role is None and user.memberships:
+        primary_role = user.memberships[0].role
 
     return MeResponse(
         user=UserProfile(

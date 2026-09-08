@@ -25,10 +25,7 @@ export default async function SchedulesPage() {
 
   return (
     <div className="p-6">
-      <AvailabilityClient
-        workspaceId={workspace.id}
-        initialStaff={workspace.staff as any}
-      />
+      <AvailabilityClient workspaceId={workspace.id} initialStaff={workspace.staff as any} />
     </div>
   );
 }

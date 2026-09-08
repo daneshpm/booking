@@ -9,8 +9,19 @@ export function Table({ className, ...props }: React.HTMLAttributes<HTMLTableEle
   );
 }
 
-export function TableHeader({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn('bg-slate-50/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800', className)} {...props} />;
+export function TableHeader({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <thead
+      className={cn(
+        'bg-slate-50/75 dark:bg-slate-900/75 border-b border-slate-200 dark:border-slate-800',
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
 export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
@@ -42,5 +53,10 @@ export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTa
 }
 
 export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('p-4 align-middle text-slate-700 dark:text-slate-300', className)} {...props} />;
+  return (
+    <td
+      className={cn('p-4 align-middle text-slate-700 dark:text-slate-300', className)}
+      {...props}
+    />
+  );
 }

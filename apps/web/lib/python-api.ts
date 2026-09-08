@@ -116,10 +116,7 @@ export async function pythonRegister(payload: {
 /**
  * Log in a user via Python FastAPI backend
  */
-export async function pythonLogin(
-  email: string,
-  password = 'password123'
-): Promise<AuthResponse> {
+export async function pythonLogin(email: string, password = 'password123'): Promise<AuthResponse> {
   const res = await fetch(`${PYTHON_API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

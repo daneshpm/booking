@@ -2,18 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import {
-  Button,
-  Input,
-  Select,
-  Modal,
-} from '@bookings/ui';
-import {
-  Plus,
-  Search,
-  Briefcase,
-  Trash2,
-} from 'lucide-react';
+import { Button, Input, Select, Modal } from '@bookings/ui';
+import { Plus, Search, Briefcase, Trash2 } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
 import { deleteServiceAction } from '../api/service.actions';
 import type { ServiceOutputDTO } from '../application/create-service/CreateServiceDTO';
@@ -27,7 +17,7 @@ export function ServiceList({ workspaceId, initialServices }: ServiceListProps) 
   const [services, setServices] = React.useState<ServiceOutputDTO[]>(initialServices);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'DRAFT'>('ALL');
-  
+
   // Deletion modal state
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -38,11 +28,7 @@ export function ServiceList({ workspaceId, initialServices }: ServiceListProps) 
       (s.description && s.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesStatus =
-      statusFilter === 'ALL'
-        ? true
-        : statusFilter === 'ACTIVE'
-        ? s.isActive
-        : !s.isActive;
+      statusFilter === 'ALL' ? true : statusFilter === 'ACTIVE' ? s.isActive : !s.isActive;
 
     return matchesSearch && matchesStatus;
   });
@@ -67,7 +53,8 @@ export function ServiceList({ workspaceId, initialServices }: ServiceListProps) 
             Services
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Configure your commercial services, consultation lengths, buffers, and meeting locations.
+            Configure your commercial services, consultation lengths, buffers, and meeting
+            locations.
           </p>
         </div>
 
@@ -128,11 +115,7 @@ export function ServiceList({ workspaceId, initialServices }: ServiceListProps) 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onDelete={(id) => setDeleteId(id)}
-            />
+            <ServiceCard key={service.id} service={service} onDelete={(id) => setDeleteId(id)} />
           ))}
         </div>
       )}

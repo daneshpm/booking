@@ -39,7 +39,15 @@ export async function createDashboardAppointmentAction(
     const customerName = data.customerName?.trim() ?? '';
     const customerEmail = data.customerEmail?.toLowerCase().trim() ?? '';
 
-    if (!workspaceId || !serviceId || !staffId || !date || !time || !customerName || !customerEmail) {
+    if (
+      !workspaceId ||
+      !serviceId ||
+      !staffId ||
+      !date ||
+      !time ||
+      !customerName ||
+      !customerEmail
+    ) {
       return { success: false, error: 'Please fill in all required fields.' };
     }
     if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
@@ -118,8 +126,7 @@ export async function createDashboardAppointmentAction(
         endTime: endUtc,
         customerTimezone: timezone,
         status: 'CONFIRMED',
-        meetingLink:
-          service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
+        meetingLink: service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
         auditLogs: {
           create: {
             action: 'CREATED',

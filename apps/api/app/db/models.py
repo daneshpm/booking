@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     String,
@@ -33,8 +33,34 @@ class User(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_login_at = Column(DateTime, nullable=True)
+
     memberships = relationship("WorkspaceMember", back_populates="user", cascade="all, delete-orphan")
     staff_profiles = relationship("Staff", back_populates="user")
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+
+class Session(Base):
+    """
+    Server-side session shared with the Next.js application.
+
+    Only the SHA-256 digest of the token is stored, so a dump of this table
+    cannot be replayed against either service.
+    """
+
+    __tablename__ = "sessions"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String, unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    user_agent = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="sessions")
 
 
 class Workspace(Base):
