@@ -47,6 +47,8 @@ export interface AvailabilitySlot {
   endTime: string;
   displayTime: string;
   available: boolean;
+  staffId?: string;
+  staffName?: string;
 }
 
 export interface AvailabilityResponse {

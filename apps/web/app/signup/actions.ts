@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { prisma } from '@bookings/database';
-import { pythonLogin, pythonRegister } from '@/lib/python-api';
+import { pythonLogin } from '@/lib/python-api';
 
 export interface SignupInput {
   name: string;

@@ -143,6 +143,25 @@ npm run dev
 ```
 The application will be live at **[http://localhost:3000](http://localhost:3000)**.
 
+### 6. (Optional) Start the FastAPI Python Backend
+The `apps/api` service provides JWT authentication and a scheduling API that shares the same PostgreSQL database. The web app calls it when available and falls back to Prisma when it is not.
+
+```bash
+cd apps/api
+python -m venv .venv
+# Windows: .venv\Scripts\activate   |   macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+The API reads `DATABASE_URL` and `JWT_SECRET` from the environment (or an `apps/api/.env` file). Interactive docs are served at **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**. Set `PYTHON_API_URL` for the web app if the API runs somewhere other than `http://127.0.0.1:8000`; requests to `/api/py/*` on the web app are proxied there.
+
+Run the API test-suite (the integration tests expect a seeded database):
+
+```bash
+cd apps/api && pytest -q
+```
+
 ---
 
 ## 🔗 Key Local Routes

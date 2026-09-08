@@ -1,7 +1,6 @@
-import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
-from app.config import settings
+
 from app.auth.security import (
     hash_password,
     verify_password,

@@ -10,7 +10,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     UniqueConstraint,
-    text
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ENUM
@@ -97,6 +96,7 @@ class Staff(Base):
     workspace = relationship("Workspace", back_populates="staff")
     user = relationship("User", back_populates="staff_profiles")
     working_hours = relationship("StaffWorkingHours", back_populates="staff", cascade="all, delete-orphan")
+    service_assignments = relationship("ServiceStaff", back_populates="staff", cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="staff")
 
 
@@ -114,6 +114,20 @@ class StaffWorkingHours(Base):
     )
 
     staff = relationship("Staff", back_populates="working_hours")
+    breaks = relationship("StaffBreak", back_populates="working_hours", cascade="all, delete-orphan")
+
+
+class StaffBreak(Base):
+    __tablename__ = "staff_breaks"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    staff_working_hours_id = Column(
+        String, ForeignKey("staff_working_hours.id", ondelete="CASCADE"), nullable=False
+    )
+    start_time = Column(String, nullable=False)  # "13:00"
+    end_time = Column(String, nullable=False)    # "14:00"
+
+    working_hours = relationship("StaffWorkingHours", back_populates="breaks")
 
 
 class Service(Base):
@@ -142,7 +156,25 @@ class Service(Base):
     )
 
     workspace = relationship("Workspace", back_populates="services")
+    staff_assignments = relationship("ServiceStaff", back_populates="service", cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="service")
+
+
+class ServiceStaff(Base):
+    __tablename__ = "service_staff"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    service_id = Column(String, ForeignKey("services.id", ondelete="CASCADE"), nullable=False)
+    staff_id = Column(String, ForeignKey("staff.id", ondelete="CASCADE"), nullable=False)
+    price_override = Column(Numeric(10, 2), nullable=True)
+    duration_override = Column(Integer, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("service_id", "staff_id", name="uq_service_staff_service_staff"),
+    )
+
+    service = relationship("Service", back_populates="staff_assignments")
+    staff = relationship("Staff", back_populates="service_assignments")
 
 
 class Customer(Base):
