@@ -158,14 +158,22 @@ async function checkRedis(
   const namespaced = `ratelimit:${key}`;
   const ttlSeconds = Math.ceil(options.windowMs / 1000);
 
-  const [count, ttl] = (await client
+  // exec() returns one reply per queued command, in order: INCR, EXPIRE, TTL.
+  // The middle reply is EXPIRE's own result, not the time to live, so the TTL
+  // must be read from the third position.
+  const replies = (await client
     .multi()
     .incr(namespaced)
     .expire(namespaced, ttlSeconds, 'NX')
     .ttl(namespaced)
-    .exec()) as unknown as [number, unknown, number];
+    .exec()) as unknown as unknown[];
 
-  const remainingTtl = typeof ttl === 'number' && ttl > 0 ? ttl : ttlSeconds;
+  const count = Number(replies[0]);
+  const reportedTtl = Number(replies[2]);
+
+  // TTL answers -1 for a key with no expiry and -2 when it is already gone;
+  // neither is a usable window length.
+  const remainingTtl = Number.isFinite(reportedTtl) && reportedTtl > 0 ? reportedTtl : ttlSeconds;
   const resetAt = new Date(Date.now() + remainingTtl * 1000);
 
   if (count > options.limit) {
