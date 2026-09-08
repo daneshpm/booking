@@ -1,6 +1,7 @@
 import os
 from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -13,10 +14,20 @@ class Settings(BaseSettings):
 
     # Database. Shared with the Next.js application, so sessions issued by
     # either service are recognised by both.
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev",
-    )
+    #
+    # An empty variable falls back to the local default rather than reaching
+    # SQLAlchemy as "", which fails at import with an unhelpful parse error.
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def _default_when_blank(cls, value: object) -> object:
+        # pydantic-settings prefers an environment variable even when it is an
+        # empty string, which would otherwise reach SQLAlchemy as "" and fail at
+        # import with an unhelpful parse error.
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev"
+        return value
 
     @property
     def IS_PRODUCTION(self) -> bool:

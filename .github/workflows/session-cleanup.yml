@@ -1,0 +1,49 @@
+name: Session cleanup
+
+# Expired sessions are already rejected on sight, but the rows stay behind and
+# the table grows without bound. This removes them on a schedule.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  purge:
+    name: Purge expired sessions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skipped unless the repository has a production database configured, so a
+    # fork never fails this workflow.
+    if: github.repository_owner != ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Check the database secret is present
+        id: guard
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "DATABASE_URL secret is not set; nothing to clean."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.configured == 'true'
+        run: npm ci
+
+      - name: Generate Prisma client
+        if: steps.guard.outputs.configured == 'true'
+        run: npm run db:generate
+
+      - name: Purge
+        if: steps.guard.outputs.configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run sessions:purge
