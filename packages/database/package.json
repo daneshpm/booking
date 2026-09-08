@@ -14,12 +14,15 @@
     "purge:sessions": "tsx src/purge-sessions.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1",
+    "@prisma/client": "^7.10.0",
     "@bookings/core": "*"
   },
   "devDependencies": {
     "prisma": "^6.4.1",
     "tsx": "^4.23.13",
     "typescript": "^5.7.3"
+    "prisma": "^7.10.0",
+    "tsx": "^4.19.3",
+    "typescript": "^7.0.2"
   }
 }
