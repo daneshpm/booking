@@ -9,13 +9,13 @@
     {
       "advisory": "GHSA-ggr8-5vv4-36mx",
       "package": "deepmerge-ts",
-      "reason": "Reaches us through the Prisma CLI, which is a development and migration tool. It is not installed in either production image, and the stack-exhaustion path needs a recursive object graph we never hand it.",
+      "reason": "Reaches us through the Prisma CLI, a development and migration tool. It is absent from the web image and present in the worker image only to generate the client; the stack-exhaustion path needs a recursive object graph we never hand it.",
       "reviewOn": "2027-03-31"
     },
     {
       "advisory": "GHSA-3f6p-5ww8-9rcr",
       "package": "mysql2",
-      "reason": "mysql2 is bundled inside the Prisma CLI, which supports several database engines. This project's datasource provider is postgresql and no MySQL connection is ever opened, so the auth-plugin downgrade cannot be reached: it requires connecting to a hostile MySQL server. The CLI is a build and migration tool and is excluded from both production images.",
+      "reason": "mysql2 is bundled inside the Prisma CLI, which supports several database engines. This project's datasource provider is postgresql and no MySQL connection is ever opened, so the auth-plugin downgrade cannot be reached: it requires connecting to a hostile MySQL server. The CLI is absent from the web image and present in the worker image, which needs it to generate the client, but is never pointed at MySQL there either.",
       "reviewOn": "2027-03-31"
     },
     {
