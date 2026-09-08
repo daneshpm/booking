@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderTemplate } from '../lib/notification-templates';
+import { renderTemplate } from '../src/templates';
 
 describe('workflow template rendering', () => {
   const context = {

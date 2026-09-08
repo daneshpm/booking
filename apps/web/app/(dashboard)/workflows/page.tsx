@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { prisma } from '@bookings/database';
 import { requireWorkspace } from '@/lib/session';
-import { isMailConfigured } from '@/lib/mailer';
+import { isMailConfigured, isSmsConfigured } from '@/lib/notifications';
 import { WorkflowsClient, type WorkflowItem } from './WorkflowsClient';
 
 export const dynamic = 'force-dynamic';
@@ -49,6 +49,7 @@ export default async function WorkflowsPage() {
       workspaceId={workspace.id}
       initialWorkflows={items}
       mailConfigured={isMailConfigured()}
+      smsConfigured={isSmsConfigured()}
       recentDeliveries={recentDeliveries.map((d) => ({
         id: d.id,
         recipient: d.recipient,

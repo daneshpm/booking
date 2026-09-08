@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -61,18 +60,19 @@ enum NotificationStatus {
 // ----------------------------------------------------
 
 model User {
-  id            String            @id @default(uuid())
-  email         String            @unique
+  id            String               @id @default(uuid())
+  email         String               @unique
   name          String
   passwordHash  String
   avatarUrl     String?
-  isActive      Boolean           @default(true) @map("is_active")
-  lastLoginAt   DateTime?         @map("last_login_at") @db.Timestamptz
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  isActive      Boolean              @default(true) @map("is_active")
+  lastLoginAt   DateTime?            @map("last_login_at") @db.Timestamptz
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   memberships   WorkspaceMember[]
   staffProfiles Staff[]
   sessions      Session[]
+  resetTokens   PasswordResetToken[]
 
   @@map("users")
 }
@@ -94,6 +94,23 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+/// Single-use password reset token. Only the SHA-256 digest is stored, so a
+/// database leak cannot be used to take over accounts.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model Workspace {
@@ -421,7 +438,9 @@ model NotificationLog {
   booking   Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   workflow  Workflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
 
+  @@unique([workflowId, bookingId, recipient])
   @@index([workspaceId, status])
   @@index([bookingId])
+  @@index([status, createdAt])
   @@map("notification_logs")
 }

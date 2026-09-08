@@ -21,13 +21,17 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '26'
           cache: npm
 
       - name: Check the database secret is present
         id: guard
+        # Passed through the environment rather than interpolated into the
+        # script, where its contents would be parsed as shell.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+          if [ -z "$DATABASE_URL" ]; then
             echo "DATABASE_URL secret is not set; nothing to clean."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else

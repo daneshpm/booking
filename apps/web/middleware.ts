@@ -66,6 +66,6 @@ export const config = {
   matcher: [
     // `book` is anchored so it matches the public booking routes only, and not
     // /booking-pages, which is a protected dashboard route.
-    '/((?!_next/static|_next/image|favicon.ico|book(?:/|$)|api/|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|book(?:/|$)|reset-password(?:/|$)|api/|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
   ],
 };

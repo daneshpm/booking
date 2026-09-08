@@ -6,7 +6,7 @@ import { addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { requireWorkspace, toActionError } from '@/lib/session';
 import { isOverlapConstraintViolation } from '@/lib/booking-errors';
-import { dispatchBookingNotifications } from '@/lib/notifications';
+import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
 
 /**
  * Statuses a dashboard user may set.
@@ -166,6 +166,13 @@ export async function rescheduleBookingAction(
         },
       },
     });
+
+    // Reminders already recorded refer to the old slot. The delivery claim has
+    // no time component, so leaving them would block any reminder for the new
+    // time from ever being sent.
+    await clearScheduledNotifications(bookingId).catch((err) =>
+      console.error('Could not clear reminders for the previous slot:', err)
+    );
 
     // The customer is holding a time that just moved, so they are told.
     await dispatchBookingNotifications(bookingId, 'BOOKING_RESCHEDULED').catch((err) =>

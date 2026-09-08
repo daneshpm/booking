@@ -130,13 +130,60 @@ collision checks. Times are stored in UTC.
 
 ### Notifications
 
-Booking confirmations and cancellations are sent automatically. Workflows add
-reminders and follow-ups, and can target the customer, the staff member, or
-both, with `{{placeholder}}` templates.
+Booking confirmations, cancellations and reschedules are sent automatically.
+Workflows add reminders and follow-ups on three channels, and can target the
+customer, the staff member, or both, with `{{placeholder}}` templates.
+
+| Channel | Needs                            | Notes                                                                                           |
+| ------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Email   | `SMTP_HOST` and friends          | Always available once SMTP is set                                                               |
+| SMS     | `SMS_GATEWAY_DOMAIN`, plus SMTP  | Sent over SMTP through an email-to-SMS gateway. Recipients need an international number on file |
+| Webhook | `WEBHOOK_SIGNING_SECRET` to sign | Signed with HMAC-SHA256; private and reserved addresses are refused                             |
 
 Every attempt is written to `notification_logs` with its outcome, so a delivery
-failure is visible rather than silent. With `SMTP_HOST` unset, nothing is sent
-and the dashboard says so.
+failure is visible rather than silent. A channel with no provider configured
+records the attempt and says so in the dashboard rather than failing quietly.
+
+SMS is delivered over the same SMTP transport as email, through an
+email-to-SMS gateway: the recipient's number becomes an address at
+`SMS_GATEWAY_DOMAIN` and the mail server relays it to the handset. That means
+one transport to configure and no separate provider account. The tradeoff is
+that a gateway returns no delivery receipt, so a message the mail server
+accepted may still not arrive, and length limits are the gateway's rather than
+ours.
+
+Webhook URLs come from workspace administrators, which makes them a
+server-side request forgery surface. Every destination is resolved and checked
+against private and reserved ranges before the request is made, credentials in
+the URL are refused, and redirects are not followed so a public URL cannot
+bounce to an internal one.
+
+### Reminders and follow-ups
+
+Time-based workflows are delivered by a worker, not by the web app.
+
+```bash
+npm run workflows:run      # one sweep, for cron
+npm run workflows:worker   # continuous, for a container
+```
+
+A reminder is due at `booking.startTime + offsetMinutes`. Each sweep claims a
+delivery by inserting its log row behind a unique index, so overlapping sweeps
+and multiple workers cannot double-send. Anything more than two hours past due
+is skipped and reported, so an outage does not release a flood of reminders for
+appointments that already happened.
+
+`apps/worker/Dockerfile` builds the long-running form. A scheduled GitHub
+Actions job is included as a fallback, but its ten-minute granularity makes it
+second best.
+
+### Password reset
+
+`/reset-password` emails a single-use link that expires in an hour. The token is
+stored only as a SHA-256 digest, requesting a new link invalidates the previous
+one, and completing a reset signs out every existing session for that account.
+The request always replies the same way whether or not the address is
+registered, so it cannot be used to discover which addresses have accounts.
 
 ---
 
@@ -187,14 +234,17 @@ cd apps/api && pytest -q     # integration tests skip without DATABASE_URL
 
 `.env.example` documents every variable. The ones that matter most:
 
-| Variable                             | Purpose                                                |
-| ------------------------------------ | ------------------------------------------------------ |
-| `DATABASE_URL`                       | PostgreSQL connection, shared by both services         |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD`      | Seed credentials; the seed refuses to run without them |
-| `SMTP_HOST` and friends              | Email delivery; leave unset to disable sending         |
-| `VIDEO_MEETING_BASE_URL`             | Base for generated meeting rooms                       |
-| `NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG` | Workspace the landing page links to                    |
-| `CORS_ORIGINS`                       | Browser origins allowed to call the FastAPI service    |
+| Variable                             | Purpose                                                 |
+| ------------------------------------ | ------------------------------------------------------- |
+| `DATABASE_URL`                       | PostgreSQL connection, shared by both services          |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD`      | Seed credentials; the seed refuses to run without them  |
+| `SMTP_HOST` and friends              | Email delivery; leave unset to disable sending          |
+| `SMS_GATEWAY_DOMAIN`                 | Email-to-SMS gateway; SMS rides the same SMTP transport |
+| `WEBHOOK_SIGNING_SECRET`             | Signs outgoing webhooks; unsigned without it            |
+| `REDIS_URL`                          | Shares rate-limit counters across instances             |
+| `VIDEO_MEETING_BASE_URL`             | Base for generated meeting rooms                        |
+| `NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG` | Workspace the landing page links to                     |
+| `CORS_ORIGINS`                       | Browser origins allowed to call the FastAPI service     |
 
 Generated video links point at a Jitsi room, which exists as soon as someone
 opens it, so the link works with no API credentials. Set
