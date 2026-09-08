@@ -279,14 +279,21 @@ export async function deleteStaffAction(
       return { success: false, error: 'Staff member not found' };
     }
 
-    const activeBookings = existing.bookings.filter(
-      (b) => b.status === 'CONFIRMED' || b.status === 'PENDING'
-    );
-
-    if (activeBookings.length > 0) {
+    // Booking.staff is onDelete: Restrict, so any remaining booking blocks the
+    // delete at the database. Counting only CONFIRMED and PENDING let a staff
+    // member with COMPLETED or RESCHEDULED history past this check and turned a
+    // clear message into a generic failure.
+    const blocking = existing.bookings.length;
+    if (blocking > 0) {
+      const upcoming = existing.bookings.filter(
+        (b) => b.status === 'CONFIRMED' || b.status === 'PENDING'
+      ).length;
       return {
         success: false,
-        error: `Cannot delete staff member with ${activeBookings.length} active scheduled appointments. Reassign or cancel those appointments first.`,
+        error:
+          upcoming > 0
+            ? `This staff member has ${upcoming} scheduled appointment${upcoming === 1 ? '' : 's'}. Reassign or cancel them first.`
+            : `This staff member has ${blocking} appointment${blocking === 1 ? '' : 's'} in their history and cannot be deleted. Deactivate them instead to remove them from booking.`,
       };
     }
 

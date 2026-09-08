@@ -297,7 +297,7 @@ model Booking {
   cancellationReason String?       @map("cancellation_reason")
   rescheduledFromId  String?       @unique @map("rescheduled_from_id")
   meetingLink        String?       @map("meeting_link")
-  idempotencyKey     String?       @unique @map("idempotency_key")
+  idempotencyKey     String?       @map("idempotency_key")
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -310,6 +310,7 @@ model Booking {
   auditLogs       BookingAuditLog[]
   notifications   NotificationLog[]
 
+  @@unique([workspaceId, idempotencyKey])
   @@index([workspaceId, status])
   @@index([staffId, startTime, endTime])
   @@index([customerId])

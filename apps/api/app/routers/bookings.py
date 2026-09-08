@@ -1,31 +1,44 @@
 import uuid
 from datetime import datetime, date, timedelta, timezone
-from typing import Optional, List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
-from pydantic import BaseModel, EmailStr, Field, model_validator
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from sqlalchemy import and_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.db.models import (
-    Workspace,
-    Service,
-    Staff,
-    StaffWorkingHours,
-    Customer,
     Booking,
+    Customer,
+    Service,
+    ServiceStaff,
+    Staff,
+    StaffOverride,
+    StaffWorkingHours,
+    Workspace,
 )
 
 router = APIRouter(prefix="", tags=["Services & Bookings"])
 
-# Slots must start at least this far in the future to be offered.
+# Slots must start at least this far in the future to be offered. Matches
+# DEFAULT_LEAD_MINUTES in packages/core/src/scheduling.
 MIN_LEAD_TIME = timedelta(minutes=10)
-# Slot step: 30 minutes, or the service duration if it is shorter.
 DEFAULT_SLOT_STEP_MINUTES = 30
 
-# Pydantic Schemas
+# SQLSTATE for exclusion_violation, raised by the bookings_no_staff_overlap
+# constraint when two appointments would overlap for one staff member.
+EXCLUSION_VIOLATION = "23P01"
+
+
+# ----------------------------------------------------
+# Schemas
+# ----------------------------------------------------
+
+
 class ServiceDTO(BaseModel):
     id: str
     name: str
@@ -39,40 +52,44 @@ class ServiceDTO(BaseModel):
     locationType: str
     locationDetails: Optional[str] = None
 
+
 class AvailabilitySlot(BaseModel):
-    startTime: str  # ISO 8601 in the requested client timezone
+    startTime: str  # ISO 8601 in the requested display timezone
     endTime: str
     displayTime: str
     available: bool = True
     staffId: Optional[str] = None
     staffName: Optional[str] = None
 
+
 class AvailabilityResponse(BaseModel):
     date: str
     timezone: str
     slots: List[AvailabilitySlot]
 
+
 class CreateBookingRequest(BaseModel):
-    workspaceSlug: str = Field(..., description="Workspace slug (e.g. rooman-technologies)")
-    serviceSlug: str = Field(..., description="Service slug (e.g. career-guidance)")
+    workspaceSlug: str = Field(..., description="Workspace slug")
+    serviceSlug: str = Field(..., description="Service slug")
     staffId: Optional[str] = None
-    startTime: datetime = Field(..., description="Booking start timestamp (ISO 8601 with timezone)")
-    endTime: datetime = Field(..., description="Booking end timestamp (ISO 8601 with timezone)")
-    customerName: str = Field(..., min_length=1)
+    startTime: datetime = Field(..., description="Booking start (ISO 8601 with timezone)")
+    customerName: str = Field(..., min_length=1, max_length=200)
     customerEmail: EmailStr
-    customerPhone: Optional[str] = None
+    customerPhone: Optional[str] = Field(None, max_length=50)
     customerTimezone: str = "Asia/Kolkata"
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(None, max_length=2000)
+    idempotencyKey: Optional[str] = Field(None, max_length=200)
 
     @model_validator(mode="after")
-    def _validate_interval(self) -> "CreateBookingRequest":
-        # asyncpg cannot compare naive datetimes against timestamptz columns, so
-        # reject them up front with a 422 instead of failing deep in the query.
-        if self.startTime.tzinfo is None or self.endTime.tzinfo is None:
-            raise ValueError("startTime and endTime must include a timezone offset (e.g. 2026-10-20T10:00:00Z)")
-        if self.endTime <= self.startTime:
-            raise ValueError("endTime must be after startTime")
+    def _require_aware_start(self) -> "CreateBookingRequest":
+        # asyncpg cannot compare a naive datetime against a timestamptz column,
+        # so this is rejected as a 422 rather than failing deep in the query.
+        if self.startTime.tzinfo is None:
+            raise ValueError(
+                "startTime must include a timezone offset, for example 2026-10-20T10:00:00Z"
+            )
         return self
+
 
 class BookingConfirmation(BaseModel):
     id: str
@@ -88,13 +105,18 @@ class BookingConfirmation(BaseModel):
 
 
 # ----------------------------------------------------
-# Pure helpers (no database access; unit-tested)
+# Pure helpers, mirroring packages/core/src/scheduling
 # ----------------------------------------------------
 
+
 def parse_hhmm(value: str) -> int:
-    """Convert a "HH:MM" string to minutes since midnight."""
+    """Convert an "HH:MM" string to minutes since midnight."""
     hours, minutes = value.split(":")
     return int(hours) * 60 + int(minutes)
+
+
+def minutes_to_hhmm(value: int) -> str:
+    return f"{value // 60:02d}:{value % 60:02d}"
 
 
 def prisma_day_of_week(day: date) -> int:
@@ -102,63 +124,137 @@ def prisma_day_of_week(day: date) -> int:
     return (day.weekday() + 1) % 7
 
 
-def compute_staff_slots(
+def local_time_to_utc(day: date, minutes: int, tz: ZoneInfo) -> Optional[datetime]:
+    """
+    Resolve a local wall-clock time to an absolute instant.
+
+    Returns None when that local time does not exist, which happens for the hour
+    a spring-forward transition skips. Without the check the value silently
+    lands an hour away from the label the customer chose.
+    """
+    naive = datetime.combine(day, datetime.min.time()) + timedelta(minutes=minutes)
+    localised = naive.replace(tzinfo=tz)
+    absolute = localised.astimezone(timezone.utc)
+
+    # Round-trip: a skipped local time renders back as a different wall clock.
+    if absolute.astimezone(tz).strftime("%H:%M") != minutes_to_hhmm(minutes):
+        return None
+    return absolute
+
+
+def resolve_working_window(
+    weekly: Optional[StaffWorkingHours], override: Optional[StaffOverride]
+) -> Optional[Tuple[str, str, List[Tuple[str, str]]]]:
+    """
+    Decide which hours apply on a date: (start, end, breaks).
+
+    An override wins over the weekly schedule. Non-working means leave. A
+    working override with no hours of its own falls back to the weekly shift,
+    which is what "working today, normal hours" should mean.
+    """
+    if override is not None:
+        if not override.is_working:
+            return None
+        if override.start_time and override.end_time:
+            # A deliberately different shift replaces the normal one, breaks included.
+            return (override.start_time, override.end_time, [])
+        if weekly is None:
+            return None
+        return (
+            weekly.start_time,
+            weekly.end_time,
+            [(b.start_time, b.end_time) for b in weekly.breaks],
+        )
+
+    if weekly is None:
+        return None
+    return (
+        weekly.start_time,
+        weekly.end_time,
+        [(b.start_time, b.end_time) for b in weekly.breaks],
+    )
+
+
+def _overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> bool:
+    # Half-open, matching the database exclusion constraint: touching endpoints
+    # do not collide, so back-to-back appointments are allowed.
+    return a_start < b_end and a_end > b_start
+
+
+def compute_slots(
     *,
     booking_date: date,
     tz: ZoneInfo,
-    shift_start_minutes: int,
-    shift_end_minutes: int,
-    breaks: Sequence[Tuple[int, int]],
+    window: Tuple[str, str, List[Tuple[str, str]]],
     busy: Sequence[Tuple[datetime, datetime]],
     duration_minutes: int,
     buffer_before_minutes: int = 0,
     buffer_after_minutes: int = 0,
     step_minutes: Optional[int] = None,
     now: Optional[datetime] = None,
-) -> List[Tuple[datetime, datetime]]:
+) -> List[Tuple[datetime, datetime, str]]:
     """
-    Generate bookable (start, end) intervals for one staff member on one day.
+    Generate bookable (start, end, local "HH:MM") tuples for one staff member.
 
-    - Shift and breaks are minutes-since-midnight in ``tz`` (the workspace timezone).
-    - ``busy`` holds timezone-aware booking intervals.
-    - Buffers pad the candidate slot before checking collisions with breaks and
-      bookings, mirroring the Prisma implementation in apps/web/app/book/actions.ts.
+    Works in absolute instants throughout. Minute-of-day arithmetic silently
+    misses appointments that cross midnight and breaks on daylight-saving days,
+    where a local day is not 1440 minutes long.
     """
+    start_str, end_str, breaks = window
+    if duration_minutes <= 0:
+        return []
+
     step = step_minutes or min(DEFAULT_SLOT_STEP_MINUTES, duration_minutes)
-    if step <= 0 or duration_minutes <= 0:
+    if step <= 0:
+        return []
+
+    shift_start = parse_hhmm(start_str)
+    shift_end = parse_hhmm(end_str)
+    if shift_end <= shift_start:
         return []
 
     now = now or datetime.now(timezone.utc)
-    midnight = datetime.combine(booking_date, datetime.min.time(), tzinfo=tz)
+    earliest = now + MIN_LEAD_TIME
 
-    def at(minutes: int) -> datetime:
-        return midnight + timedelta(minutes=minutes)
+    break_ranges: List[Tuple[datetime, datetime]] = []
+    for b_start, b_end in breaks:
+        start = local_time_to_utc(booking_date, parse_hhmm(b_start), tz)
+        end = local_time_to_utc(booking_date, parse_hhmm(b_end), tz)
+        if start and end and end > start:
+            break_ranges.append((start, end))
 
-    break_intervals = [(at(s), at(e)) for s, e in breaks]
+    slots: List[Tuple[datetime, datetime, str]] = []
+    seen: set = set()
 
-    slots: List[Tuple[datetime, datetime]] = []
-    current = shift_start_minutes
-    while current + duration_minutes <= shift_end_minutes:
-        slot_start = at(current)
-        slot_end = at(current + duration_minutes)
+    minute = shift_start
+    while minute + duration_minutes <= shift_end:
+        slot_start = local_time_to_utc(booking_date, minute, tz)
+        if slot_start is None or slot_start in seen:
+            minute += step
+            continue
+
+        slot_end = slot_start + timedelta(minutes=duration_minutes)
         padded_start = slot_start - timedelta(minutes=buffer_before_minutes)
         padded_end = slot_end + timedelta(minutes=buffer_after_minutes)
 
-        collides = any(padded_start < e and padded_end > s for s, e in break_intervals) or any(
-            padded_start < e and padded_end > s for s, e in busy
-        )
-        is_past = slot_start <= now + MIN_LEAD_TIME
+        collides = any(
+            _overlaps(padded_start, padded_end, s, e) for s, e in break_ranges
+        ) or any(_overlaps(padded_start, padded_end, s, e) for s, e in busy)
 
-        if not collides and not is_past:
-            slots.append((slot_start, slot_end))
-        current += step
+        if not collides and slot_start > earliest:
+            seen.add(slot_start)
+            slots.append((slot_start, slot_end, minutes_to_hhmm(minute)))
 
+        minute += step
+
+    slots.sort(key=lambda item: item[0])
     return slots
 
 
 # ----------------------------------------------------
 # Database helpers
 # ----------------------------------------------------
+
 
 def _safe_zone(name: Optional[str], fallback: str = "UTC") -> ZoneInfo:
     try:
@@ -177,9 +273,9 @@ async def _get_workspace(db: AsyncSession, slug: str) -> Workspace:
 
 async def _get_service(db: AsyncSession, ws: Workspace, slug: str) -> Service:
     res = await db.execute(
-        select(Service)
-        .options(selectinload(Service.staff_assignments))
-        .where(and_(Service.workspace_id == ws.id, Service.slug == slug, Service.is_active == True))
+        select(Service).where(
+            and_(Service.workspace_id == ws.id, Service.slug == slug, Service.is_active.is_(True))
+        )
     )
     service = res.scalar_one_or_none()
     if not service:
@@ -191,68 +287,94 @@ async def _candidate_staff(
     db: AsyncSession, ws: Workspace, service: Service, staff_id: Optional[str] = None
 ) -> List[Staff]:
     """
-    Staff eligible to deliver ``service``: the requested staff member if given,
-    otherwise the service's assigned staff, otherwise every active staff member
-    in the workspace. Working hours and breaks are eager-loaded.
+    Staff who may deliver this service.
+
+    Falls back to every active staff member when the service has no explicit
+    assignments, because a newly created service has none and would otherwise be
+    impossible to book.
     """
-    query = (
-        select(Staff)
-        .options(selectinload(Staff.working_hours).selectinload(StaffWorkingHours.breaks))
-        .where(and_(Staff.workspace_id == ws.id, Staff.is_active == True))
-        .order_by(Staff.name.asc())
+    assigned_res = await db.execute(
+        select(ServiceStaff.staff_id).where(ServiceStaff.service_id == service.id)
     )
+    assigned_ids = [row[0] for row in assigned_res.all()]
+
+    query = select(Staff).where(
+        and_(Staff.workspace_id == ws.id, Staff.is_active.is_(True))
+    ).order_by(Staff.name.asc())
+
+    if assigned_ids:
+        query = query.where(Staff.id.in_(assigned_ids))
     if staff_id:
         query = query.where(Staff.id == staff_id)
-    else:
-        assigned_ids = [a.staff_id for a in service.staff_assignments]
-        if assigned_ids:
-            query = query.where(Staff.id.in_(assigned_ids))
 
     res = await db.execute(query)
     return list(res.scalars().all())
 
 
-async def _staff_bookings_between(
-    db: AsyncSession, staff_id: str, window_start: datetime, window_end: datetime
-) -> List[Booking]:
-    res = await db.execute(
-        select(Booking).where(
+async def _schedule_for(
+    db: AsyncSession, staff: Staff, booking_date: date, tz: ZoneInfo
+) -> Optional[Tuple[Tuple[str, str, List[Tuple[str, str]]], List[Tuple[datetime, datetime]]]]:
+    """Working window and existing appointments for one staff member on a date."""
+    day_of_week = prisma_day_of_week(booking_date)
+
+    hours_res = await db.execute(
+        select(StaffWorkingHours)
+        .options(selectinload(StaffWorkingHours.breaks))
+        .where(
             and_(
-                Booking.staff_id == staff_id,
-                Booking.status != "CANCELLED",
-                Booking.start_time < window_end,
-                Booking.end_time > window_start,
+                StaffWorkingHours.staff_id == staff.id,
+                StaffWorkingHours.day_of_week == day_of_week,
             )
         )
     )
-    return list(res.scalars().all())
+    weekly = hours_res.scalar_one_or_none()
+
+    override_res = await db.execute(
+        select(StaffOverride).where(
+            and_(StaffOverride.staff_id == staff.id, StaffOverride.date == booking_date)
+        )
+    )
+    override = override_res.scalar_one_or_none()
+
+    window = resolve_working_window(weekly, override)
+    if window is None:
+        return None
+
+    # Wider than the day, so an appointment that began the previous evening and
+    # runs past midnight is still taken into account.
+    day_start = datetime.combine(booking_date, datetime.min.time(), tzinfo=tz)
+    bookings_res = await db.execute(
+        select(Booking).where(
+            and_(
+                Booking.staff_id == staff.id,
+                Booking.status != "CANCELLED",
+                Booking.start_time < day_start + timedelta(days=2),
+                Booking.end_time > day_start - timedelta(days=1),
+            )
+        )
+    )
+    busy = [(b.start_time, b.end_time) for b in bookings_res.scalars().all()]
+    return window, busy
 
 
 # ----------------------------------------------------
 # Routes
 # ----------------------------------------------------
 
+
 @router.get("/services", response_model=List[ServiceDTO])
 async def list_services(
-    workspaceSlug: str = Query("rooman-technologies", description="Slug of the workspace"),
+    workspaceSlug: str = Query(..., description="Slug of the workspace"),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all active services for a given workspace."""
-    ws_res = await db.execute(select(Workspace).where(Workspace.slug == workspaceSlug))
-    ws = ws_res.scalar_one_or_none()
-    if not ws:
-        # Fallback to first workspace if slug not found
-        ws_res = await db.execute(select(Workspace).order_by(Workspace.createdAt.asc()).limit(1))
-        ws = ws_res.scalar_one_or_none()
-        if not ws:
-            raise HTTPException(status_code=404, detail="Workspace not found")
+    """List the active services of a workspace."""
+    ws = await _get_workspace(db, workspaceSlug)
 
     services_res = await db.execute(
         select(Service)
-        .where(and_(Service.workspace_id == ws.id, Service.is_active == True))
+        .where(and_(Service.workspace_id == ws.id, Service.is_active.is_(True)))
         .order_by(Service.createdAt.asc())
     )
-    services = services_res.scalars().all()
 
     return [
         ServiceDTO(
@@ -268,25 +390,25 @@ async def list_services(
             locationType=s.location_type,
             locationDetails=s.location_details,
         )
-        for s in services
+        for s in services_res.scalars().all()
     ]
+
 
 @router.get("/availability", response_model=AvailabilityResponse)
 async def get_availability(
-    workspaceSlug: str = Query("rooman-technologies"),
-    serviceSlug: str = Query("career-guidance"),
+    workspaceSlug: str = Query(...),
+    serviceSlug: str = Query(...),
     target_date: str = Query(..., alias="date", description="Date in YYYY-MM-DD format"),
     client_tz: str = Query("Asia/Kolkata", alias="timezone"),
     staffId: Optional[str] = Query(None, description="Restrict to one staff member"),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Calculate open time slots for a service on a given date.
+    Open time slots for a service on a date.
 
-    Honours each staff member's weekly working hours and breaks (interpreted in
-    the workspace timezone), the service's pre/post buffers, and existing
-    bookings per staff member. A slot is offered when at least one eligible
-    staff member is free; the first free member is reported on the slot.
+    Honours each staff member's weekly hours, breaks and date overrides in the
+    workspace timezone, applies the service's buffers, and excludes times that
+    are already taken.
     """
     try:
         booking_date = date.fromisoformat(target_date)
@@ -300,87 +422,133 @@ async def get_availability(
     staff_members = await _candidate_staff(db, ws, service, staffId)
 
     workspace_tz = _safe_zone(ws.timezone)
-    day_of_week = prisma_day_of_week(booking_date)
-    day_start = datetime.combine(booking_date, datetime.min.time(), tzinfo=workspace_tz)
-    day_end = day_start + timedelta(days=1)
-
-    duration = service.duration_minutes or DEFAULT_SLOT_STEP_MINUTES
-    now = datetime.now(timezone.utc)
-
-    # Keyed by UTC start so identical slots from different staff collapse to one.
     slot_map: dict = {}
 
     for staff in staff_members:
-        hours = next((h for h in staff.working_hours if h.day_of_week == day_of_week), None)
-        if not hours:
+        schedule = await _schedule_for(db, staff, booking_date, workspace_tz)
+        if schedule is None:
             continue
+        window, busy = schedule
 
-        bookings = await _staff_bookings_between(db, staff.id, day_start, day_end)
-
-        staff_slots = compute_staff_slots(
+        for slot_start, slot_end, _local in compute_slots(
             booking_date=booking_date,
             tz=workspace_tz,
-            shift_start_minutes=parse_hhmm(hours.start_time),
-            shift_end_minutes=parse_hhmm(hours.end_time),
-            breaks=[(parse_hhmm(b.start_time), parse_hhmm(b.end_time)) for b in hours.breaks],
-            busy=[(b.start_time, b.end_time) for b in bookings],
-            duration_minutes=duration,
+            window=window,
+            busy=busy,
+            duration_minutes=service.duration_minutes or DEFAULT_SLOT_STEP_MINUTES,
             buffer_before_minutes=service.buffer_before_minutes or 0,
             buffer_after_minutes=service.buffer_after_minutes or 0,
-            now=now,
-        )
-
-        for slot_start, slot_end in staff_slots:
-            key = slot_start.astimezone(timezone.utc)
-            if key in slot_map:
+        ):
+            if slot_start in slot_map:
                 continue
             local_start = slot_start.astimezone(display_tz)
-            local_end = slot_end.astimezone(display_tz)
-            slot_map[key] = AvailabilitySlot(
+            slot_map[slot_start] = AvailabilitySlot(
                 startTime=local_start.isoformat(),
-                endTime=local_end.isoformat(),
+                endTime=slot_end.astimezone(display_tz).isoformat(),
                 displayTime=local_start.strftime("%I:%M %p"),
                 available=True,
                 staffId=staff.id,
                 staffName=staff.name,
             )
 
-    slots = [slot_map[k] for k in sorted(slot_map)]
-
     return AvailabilityResponse(
         date=target_date,
         timezone=str(display_tz),
-        slots=slots,
+        slots=[slot_map[key] for key in sorted(slot_map)],
     )
+
 
 @router.post("/bookings", response_model=BookingConfirmation, status_code=status.HTTP_201_CREATED)
 async def create_booking(req: CreateBookingRequest, db: AsyncSession = Depends(get_db)):
     """
-    Create a new confirmed appointment.
-    Crucial Rule: Performs strict double-booking collision check in PostgreSQL before committing.
+    Create a confirmed appointment.
+
+    The endpoint is unauthenticated, so the requested time is re-checked against
+    the same availability engine that produced the slot list, and the end time
+    is derived from the service rather than taken from the request. Accepting a
+    client-supplied window would allow a booking on a rest day, inside a lunch
+    break, or of an arbitrary length.
     """
     ws = await _get_workspace(db, req.workspaceSlug)
     service = await _get_service(db, ws, req.serviceSlug)
 
-    # Resolve eligible staff, then pick the first one who is free for the slot.
+    workspace_tz = _safe_zone(ws.timezone)
+    booking_date = req.startTime.astimezone(workspace_tz).date()
+
+    # Scoped to the workspace so one tenant cannot read another's booking by
+    # guessing or reusing an idempotency key.
+    if req.idempotencyKey:
+        existing_res = await db.execute(
+            select(Booking).where(
+                and_(
+                    Booking.workspace_id == ws.id,
+                    Booking.idempotency_key == req.idempotencyKey,
+                )
+            )
+        )
+        existing = existing_res.scalar_one_or_none()
+        if existing:
+            staff_res = await db.execute(select(Staff).where(Staff.id == existing.staff_id))
+            cust_res = await db.execute(select(Customer).where(Customer.id == existing.customer_id))
+            staff_row = staff_res.scalar_one()
+            customer_row = cust_res.scalar_one()
+            return BookingConfirmation(
+                id=existing.id,
+                status=existing.status,
+                serviceName=service.name,
+                staffName=staff_row.name,
+                startTime=existing.start_time.isoformat(),
+                endTime=existing.end_time.isoformat(),
+                customerName=customer_row.name,
+                customerEmail=customer_row.email,
+                meetingLink=existing.meeting_link,
+                message="Appointment already confirmed",
+            )
+
     candidates = await _candidate_staff(db, ws, service, req.staffId)
     if not candidates:
-        raise HTTPException(status_code=400, detail="No active staff member available for this service")
-
-    staff: Optional[Staff] = None
-    for candidate in candidates:
-        conflicts = await _staff_bookings_between(db, candidate.id, req.startTime, req.endTime)
-        if not conflicts:
-            staff = candidate
-            break
-
-    if staff is None:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Double-booking conflict: This time slot is already reserved for another appointment.",
+            status_code=400,
+            detail=(
+                "The selected staff member is not available for this service."
+                if req.staffId
+                else "No staff are available for this service."
+            ),
         )
 
-    # Resolve or create Customer
+    # Re-run the engine and take the first staff member for whom this exact
+    # start time is genuinely bookable.
+    chosen_staff: Optional[Staff] = None
+    chosen_end: Optional[datetime] = None
+
+    for staff in candidates:
+        schedule = await _schedule_for(db, staff, booking_date, workspace_tz)
+        if schedule is None:
+            continue
+        window, busy = schedule
+
+        for slot_start, slot_end, _local in compute_slots(
+            booking_date=booking_date,
+            tz=workspace_tz,
+            window=window,
+            busy=busy,
+            duration_minutes=service.duration_minutes or DEFAULT_SLOT_STEP_MINUTES,
+            buffer_before_minutes=service.buffer_before_minutes or 0,
+            buffer_after_minutes=service.buffer_after_minutes or 0,
+        ):
+            if slot_start == req.startTime:
+                chosen_staff = staff
+                chosen_end = slot_end
+                break
+        if chosen_staff:
+            break
+
+    if chosen_staff is None or chosen_end is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That time is not available. Please choose another slot.",
+        )
+
     cust_email = req.customerEmail.strip().lower()
     cust_res = await db.execute(
         select(Customer).where(
@@ -390,7 +558,6 @@ async def create_booking(req: CreateBookingRequest, db: AsyncSession = Depends(g
     customer = cust_res.scalar_one_or_none()
     if not customer:
         customer = Customer(
-            id=str(uuid.uuid4()),
             workspace_id=ws.id,
             name=req.customerName.strip(),
             email=cust_email,
@@ -400,30 +567,53 @@ async def create_booking(req: CreateBookingRequest, db: AsyncSession = Depends(g
         db.add(customer)
         await db.flush()
 
-    meeting_link = f"https://meet.google.com/roo-{uuid.uuid4().hex[:4]}-{uuid.uuid4().hex[:4]}"
+    # meeting_link holds a URL, so a non-online service leaves it null and the
+    # service's own location details are shown instead.
+    meeting_link = (
+        f"https://meet.jit.si/rooman-{uuid.uuid4().hex[:24]}"
+        if service.location_type == "ONLINE_MEETING"
+        else None
+    )
 
     booking = Booking(
-        id=str(uuid.uuid4()),
         workspace_id=ws.id,
         service_id=service.id,
-        staff_id=staff.id,
+        staff_id=chosen_staff.id,
         customer_id=customer.id,
         start_time=req.startTime,
-        end_time=req.endTime,
+        end_time=chosen_end,
         customer_timezone=req.customerTimezone,
         status="CONFIRMED",
         meeting_link=meeting_link,
-        idempotency_key=str(uuid.uuid4()),
+        idempotency_key=req.idempotencyKey,
     )
     db.add(booking)
-    await db.commit()
+
+    try:
+        await db.commit()
+    except IntegrityError as err:
+        await db.rollback()
+        # Two requests can both pass the availability check and both insert; the
+        # database exclusion constraint refuses the second. That is a conflict
+        # for the caller, not a server fault.
+        sqlstate = getattr(getattr(err, "orig", None), "sqlstate", None)
+        if sqlstate == EXCLUSION_VIOLATION or EXCLUSION_VIOLATION in str(err):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That time slot was just booked. Please choose another.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Could not save the appointment. Please try again.",
+        )
+
     await db.refresh(booking)
 
     return BookingConfirmation(
         id=booking.id,
         status=booking.status,
         serviceName=service.name,
-        staffName=staff.name,
+        staffName=chosen_staff.name,
         startTime=booking.start_time.isoformat(),
         endTime=booking.end_time.isoformat(),
         customerName=customer.name,

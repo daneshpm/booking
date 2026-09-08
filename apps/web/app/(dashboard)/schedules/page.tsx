@@ -6,7 +6,9 @@ import { AvailabilityClient } from '../availability/AvailabilityClient';
 export const dynamic = 'force-dynamic';
 
 export default async function SchedulesPage() {
-  const { workspace: access } = await requireWorkspace(null, 'STAFF');
+  // Saving a schedule requires ADMIN, so the editor is gated the same way
+  // rather than rendering a form whose save always fails.
+  const { workspace: access } = await requireWorkspace(null, 'ADMIN');
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: access.id },

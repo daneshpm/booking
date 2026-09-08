@@ -27,6 +27,18 @@ export interface AppointmentActionResult {
   error?: string;
 }
 
+/**
+ * Statuses a dashboard user may set. The type annotation is erased at the
+ * server-action boundary, so the value is validated at runtime.
+ */
+const ALLOWED_STATUSES: readonly BookingStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'CANCELLED',
+  'COMPLETED',
+  'NO_SHOW',
+];
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -169,6 +181,10 @@ export async function updateAppointmentStatusAction(
   status: BookingStatus
 ): Promise<AppointmentActionResult> {
   try {
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return { success: false, error: 'That is not a valid appointment status.' };
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       select: { id: true, workspaceId: true, status: true },

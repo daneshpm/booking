@@ -64,6 +64,8 @@ export const config = {
    * static assets. Public booking pages stay reachable without a session.
    */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|book|api|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
+    // `book` is anchored so it matches the public booking routes only, and not
+    // /booking-pages, which is a protected dashboard route.
+    '/((?!_next/static|_next/image|favicon.ico|book(?:/|$)|api/|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
   ],
 };

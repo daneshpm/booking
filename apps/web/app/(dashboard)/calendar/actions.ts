@@ -6,6 +6,21 @@ import { addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { requireWorkspace, toActionError } from '@/lib/session';
 import { isOverlapConstraintViolation } from '@/lib/booking-errors';
+import { dispatchBookingNotifications } from '@/lib/notifications';
+
+/**
+ * Statuses a dashboard user may set.
+ *
+ * TypeScript types are erased at the server-action boundary, so the value
+ * arriving here is whatever the caller sent.
+ */
+const ALLOWED_STATUSES: readonly BookingStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'CANCELLED',
+  'COMPLETED',
+  'NO_SHOW',
+];
 
 export interface BookingActionResult {
   success: boolean;
@@ -42,6 +57,10 @@ export async function updateBookingStatusAction(
   status: BookingStatus
 ): Promise<BookingActionResult> {
   try {
+    if (!ALLOWED_STATUSES.includes(status)) {
+      return { success: false, error: 'That is not a valid appointment status.' };
+    }
+
     const booking = await loadOwnedBooking(bookingId);
     if (!booking) {
       return { success: false, error: 'Booking not found.' };
@@ -64,6 +83,14 @@ export async function updateBookingStatusAction(
         },
       },
     });
+
+    // Cancelling from the calendar must tell the customer, exactly as
+    // cancelling from the appointments page does.
+    if (status === 'CANCELLED') {
+      await dispatchBookingNotifications(bookingId, 'BOOKING_CANCELLED').catch((err) =>
+        console.error('Cancellation notification dispatch failed:', err)
+      );
+    }
 
     revalidatePath('/calendar');
     revalidatePath('/appointments');
@@ -139,6 +166,11 @@ export async function rescheduleBookingAction(
         },
       },
     });
+
+    // The customer is holding a time that just moved, so they are told.
+    await dispatchBookingNotifications(bookingId, 'BOOKING_RESCHEDULED').catch((err) =>
+      console.error('Reschedule notification dispatch failed:', err)
+    );
 
     revalidatePath('/calendar');
     revalidatePath('/appointments');

@@ -24,9 +24,11 @@ interface BookingPortalPageProps {
 export default async function BookingPortalPage({ params }: BookingPortalPageProps) {
   const { slug } = await params;
 
-  // 1. Try finding workspace by slug
-  let workspace = await prisma.workspace.findUnique({
-    where: { slug },
+  // 1. A workspace slug resolves only when that workspace has a published
+  //    booking page. Without this check, un-publishing a page changed nothing
+  //    and the whole service catalogue stayed publicly readable.
+  let workspace = await prisma.workspace.findFirst({
+    where: { slug, bookingPages: { some: { isPublished: true } } },
     include: {
       services: {
         where: { isActive: true },

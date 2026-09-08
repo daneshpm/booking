@@ -340,9 +340,6 @@ CREATE UNIQUE INDEX "customers_workspace_id_email_key" ON "customers"("workspace
 CREATE UNIQUE INDEX "bookings_rescheduled_from_id_key" ON "bookings"("rescheduled_from_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "bookings_idempotency_key_key" ON "bookings"("idempotency_key");
-
--- CreateIndex
 CREATE INDEX "bookings_workspace_id_status_idx" ON "bookings"("workspace_id", "status");
 
 -- CreateIndex
@@ -350,6 +347,9 @@ CREATE INDEX "bookings_staff_id_start_time_end_time_idx" ON "bookings"("staff_id
 
 -- CreateIndex
 CREATE INDEX "bookings_customer_id_idx" ON "bookings"("customer_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "bookings_workspace_id_idempotency_key_key" ON "bookings"("workspace_id", "idempotency_key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "booking_pages_workspace_id_slug_key" ON "booking_pages"("workspace_id", "slug");

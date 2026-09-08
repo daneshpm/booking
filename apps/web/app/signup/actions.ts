@@ -9,6 +9,14 @@ import {
   validatePasswordPolicy,
 } from '@bookings/auth';
 import { startSession, endSession, getSession } from '@/lib/session';
+import {
+  checkRateLimit,
+  LOGIN_LIMIT,
+  LOGIN_PER_ACCOUNT_LIMIT,
+  SIGNUP_LIMIT,
+  PASSWORD_CHANGE_LIMIT,
+} from '@/lib/rate-limit';
+import { headers } from 'next/headers';
 
 export interface SignupInput {
   name: string;
@@ -25,6 +33,24 @@ export interface AuthResult {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Caller address, used to throttle authentication attempts.
+ *
+ * The forwarded header is client-supplied, so this is not proof of identity.
+ * Login is additionally throttled per account below, which no header can
+ * sidestep.
+ */
+async function callerAddress(): Promise<string> {
+  const headerList = await headers();
+  return (
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    headerList.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+const THROTTLED = 'Too many attempts. Please wait a few minutes and try again.';
 
 function slugify(input: string): string {
   return input
@@ -66,6 +92,10 @@ export async function signupUserAction(data: SignupInput): Promise<AuthResult> {
     const email = data.email?.toLowerCase().trim() ?? '';
     const workspaceName = data.workspaceName?.trim() ?? '';
     const password = data.password ?? '';
+
+    if (!checkRateLimit(`signup:${await callerAddress()}`, SIGNUP_LIMIT).allowed) {
+      return { success: false, error: THROTTLED };
+    }
 
     const fieldErrors: Record<string, string[]> = {};
 
@@ -172,6 +202,20 @@ export async function loginUserAction(email: string, password: string): Promise<
       return { success: false, error: 'Please enter your email address and password.' };
     }
 
+    // Verifying a password costs real CPU, and the unknown-account path below
+    // deliberately spends the same to avoid revealing which addresses exist.
+    // Without a cap that design becomes a denial-of-service lever, and an
+    // unlimited guessing oracle.
+    const address = await callerAddress();
+    if (!checkRateLimit(`login:${address}`, LOGIN_LIMIT).allowed) {
+      return { success: false, error: THROTTLED };
+    }
+    // Also per account, so a distributed attempt cannot escape the cap by
+    // rotating the forwarded address against one target.
+    if (!checkRateLimit(`login-account:${cleanEmail}`, LOGIN_PER_ACCOUNT_LIMIT).allowed) {
+      return { success: false, error: THROTTLED };
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: cleanEmail },
       include: { memberships: { include: { workspace: true }, orderBy: { createdAt: 'asc' } } },
@@ -228,12 +272,21 @@ export async function changePasswordAction(
       return { success: false, error: 'You must be signed in to change your password.' };
     }
 
+    if (!checkRateLimit(`password-change:${session.user.id}`, PASSWORD_CHANGE_LIMIT).allowed) {
+      return { success: false, error: THROTTLED };
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, isActive: true },
     });
     if (!user) {
       return { success: false, error: 'Account not found.' };
+    }
+    // An account deactivated during a live session must not be able to set a
+    // new password and mint a fresh session.
+    if (!user.isActive) {
+      return { success: false, error: 'This account has been deactivated.' };
     }
 
     if (!(await verifyPassword(currentPassword, user.passwordHash))) {

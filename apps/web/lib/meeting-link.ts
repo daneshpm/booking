@@ -16,12 +16,11 @@ const ROOM_PREFIX = process.env.VIDEO_MEETING_ROOM_PREFIX || 'rooman';
 /**
  * Create a unique, working video meeting URL.
  *
- * The room name carries 96 bits of entropy so an outsider cannot find a
- * meeting by guessing.
+ * The room name is 12 random bytes as hex, so it carries the full 96 bits and
+ * an outsider cannot find a meeting by guessing. Hex is used rather than
+ * base64url because stripping the non-alphanumeric characters out of base64url
+ * would discard entropy and let two different values collapse to one room.
  */
 export function generateMeetingLink(): string {
-  const room = randomBytes(12)
-    .toString('base64url')
-    .replace(/[^a-zA-Z0-9]/g, '');
-  return `${BASE_URL}/${ROOM_PREFIX}-${room}`;
+  return `${BASE_URL}/${ROOM_PREFIX}-${randomBytes(12).toString('hex')}`;
 }

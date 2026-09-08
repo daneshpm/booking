@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     Integer,
     Numeric,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -127,6 +128,9 @@ class Staff(Base):
     workspace = relationship("Workspace", back_populates="staff")
     user = relationship("User", back_populates="staff_profiles")
     working_hours = relationship("StaffWorkingHours", back_populates="staff", cascade="all, delete-orphan")
+    availability_overrides = relationship(
+        "StaffOverride", back_populates="staff", cascade="all, delete-orphan"
+    )
     service_assignments = relationship("ServiceStaff", back_populates="staff", cascade="all, delete-orphan")
     bookings = relationship("Booking", back_populates="staff")
 
@@ -146,6 +150,25 @@ class StaffWorkingHours(Base):
 
     staff = relationship("Staff", back_populates="working_hours")
     breaks = relationship("StaffBreak", back_populates="working_hours", cascade="all, delete-orphan")
+
+
+class StaffOverride(Base):
+    """A specific date that replaces the weekly schedule: leave, or a special shift."""
+
+    __tablename__ = "staff_overrides"
+
+    id = Column(String, primary_key=True, default=gen_uuid)
+    staff_id = Column(String, ForeignKey("staff.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+    is_working = Column(Boolean, default=False, nullable=False)
+    start_time = Column(String, nullable=True)
+    end_time = Column(String, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("staff_id", "date", name="uq_staff_overrides_staff_date"),
+    )
+
+    staff = relationship("Staff", back_populates="availability_overrides")
 
 
 class StaffBreak(Base):

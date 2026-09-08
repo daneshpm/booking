@@ -2,9 +2,11 @@
  * Bootstrap the database with the minimum a real deployment needs: one owner
  * account and its workspace.
  *
- * There is deliberately no sample staff, service or booking data. Fixture rows
- * that reach production look like real records to everyone who reads the
- * dashboard, and cannot be told apart from genuine customer data later.
+ * It creates the owner's own staff profile and a default weekday schedule, so
+ * the workspace can take appointments once services are added. It creates no
+ * sample services, customers or bookings: fixture rows that reach production
+ * look like real records to everyone reading the dashboard and cannot be told
+ * apart from genuine customer data later.
  *
  * Credentials come from the environment and the script refuses to invent them:
  *   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, WORKSPACE_NAME,
@@ -63,10 +65,12 @@ async function main() {
 
   // An existing account keeps its password. Overwriting it here would let
   // anyone who can run the seed reset a live administrator's credentials.
+  // isActive is deliberately not touched: re-running the seed must not
+  // reactivate an administrator somebody disabled on purpose.
   const user = existingUser
     ? await prisma.user.update({
         where: { id: existingUser.id },
-        data: { name: adminName, isActive: true },
+        data: { name: adminName },
       })
     : await prisma.user.create({
         data: {
