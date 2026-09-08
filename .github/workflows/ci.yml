@@ -198,9 +198,9 @@ jobs:
         # surface as a runtime error after deployment.
         run: |
           npx prisma migrate diff \
+            --config packages/database/prisma.config.ts \
             --from-migrations packages/database/prisma/migrations \
-            --to-schema-datamodel packages/database/prisma/schema.prisma \
-            --shadow-database-url "$DATABASE_URL" \
+            --to-schema packages/database/prisma/schema.prisma \
             --exit-code \
           && echo "Schema and migrations agree." \
           || { echo "::error::schema.prisma has changes with no migration. Run: npm run db:migrate"; exit 1; }
