@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { prisma, type BookingStatus } from '@bookings/database';
 import { addMinutes } from 'date-fns';
-import { fromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { requireWorkspace, toActionError } from '@/lib/session';
+import { isOverlapConstraintViolation } from '@/lib/booking-errors';
+import { generateMeetingLink } from '@/lib/meeting-link';
+import { dispatchBookingNotifications } from '@/lib/notifications';
 
 export interface CreateAppointmentInput {
   workspaceId: string;
@@ -23,102 +27,86 @@ export interface AppointmentActionResult {
   error?: string;
 }
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function createDashboardAppointmentAction(
   data: CreateAppointmentInput
 ): Promise<AppointmentActionResult> {
   try {
-    const {
-      workspaceId,
-      serviceId,
-      staffId,
-      date,
-      time,
-      customerName,
-      customerEmail,
-      customerPhone,
-      notes,
-    } = data;
+    const { workspaceId, serviceId, staffId, date, time } = data;
+    const customerName = data.customerName?.trim() ?? '';
+    const customerEmail = data.customerEmail?.toLowerCase().trim() ?? '';
 
     if (!workspaceId || !serviceId || !staffId || !date || !time || !customerName || !customerEmail) {
       return { success: false, error: 'Please fill in all required fields.' };
     }
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    });
-
-    if (!workspace) {
-      return { success: false, error: 'Workspace not found.' };
+    if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
+      return { success: false, error: 'Please provide a valid date and time.' };
+    }
+    if (!EMAIL_PATTERN.test(customerEmail)) {
+      return { success: false, error: 'Please provide a valid customer email address.' };
     }
 
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-    });
+    // Confirms the caller belongs to this workspace before anything is written.
+    await requireWorkspace(workspaceId, 'STAFF');
 
-    if (!service) {
-      return { success: false, error: 'Service not found.' };
+    const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
+
+    // Service and staff are looked up scoped to the workspace. An unscoped
+    // lookup would let one tenant's service or staff member be attached to
+    // another tenant's booking.
+    const [service, staff] = await Promise.all([
+      prisma.service.findFirst({ where: { id: serviceId, workspaceId, isActive: true } }),
+      prisma.staff.findFirst({ where: { id: staffId, workspaceId, isActive: true } }),
+    ]);
+
+    if (!service) return { success: false, error: 'Service not found in this workspace.' };
+    if (!staff) return { success: false, error: 'Staff member not found in this workspace.' };
+
+    const timezone = workspace.timezone || 'UTC';
+    const startUtc = fromZonedTime(`${date}T${time}:00`, timezone);
+    if (Number.isNaN(startUtc.getTime())) {
+      return { success: false, error: 'Please provide a valid date and time.' };
     }
-
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-    });
-
-    if (!staff) {
-      return { success: false, error: 'Staff member not found.' };
-    }
-
-    const timezone = workspace.timezone || 'America/New_York';
-    const localDateTimeStr = `${date}T${time}:00`;
-    const startUtc = fromZonedTime(localDateTimeStr, timezone);
     const endUtc = addMinutes(startUtc, service.durationMinutes);
 
-    // Collision check
     const conflict = await prisma.booking.findFirst({
       where: {
         staffId,
         status: { notIn: ['CANCELLED'] },
-        AND: [
-          { startTime: { lt: endUtc } },
-          { endTime: { gt: startUtc } },
-        ],
+        AND: [{ startTime: { lt: endUtc } }, { endTime: { gt: startUtc } }],
       },
+      select: { startTime: true, endTime: true },
     });
 
     if (conflict) {
+      // Rendered in the workspace timezone. Formatting with the server default
+      // would show a time that means nothing to the person reading it.
+      const from = formatInTimeZone(conflict.startTime, timezone, 'h:mm a');
+      const to = formatInTimeZone(conflict.endTime, timezone, 'h:mm a');
       return {
         success: false,
-        error: `Time conflict detected: Staff member is already booked between ${conflict.startTime.toLocaleTimeString()} and ${conflict.endTime.toLocaleTimeString()}.`,
+        error: `${staff.name} is already booked between ${from} and ${to}.`,
       };
     }
 
-    // Upsert customer
-    const cleanEmail = customerEmail.toLowerCase().trim();
     const customer = await prisma.customer.upsert({
-      where: {
-        workspaceId_email: {
-          workspaceId,
-          email: cleanEmail,
-        },
-      },
+      where: { workspaceId_email: { workspaceId, email: customerEmail } },
       update: {
-        name: customerName.trim(),
-        phone: customerPhone?.trim() || undefined,
-        notes: notes?.trim() || undefined,
+        name: customerName,
+        phone: data.customerPhone?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
       },
       create: {
         workspaceId,
-        name: customerName.trim(),
-        email: cleanEmail,
-        phone: customerPhone?.trim() || undefined,
-        notes: notes?.trim() || undefined,
+        name: customerName,
+        email: customerEmail,
+        phone: data.customerPhone?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
       },
     });
-
-    // Meeting link
-    const code = Math.random().toString(36).substring(2, 6) + '-' +
-                 Math.random().toString(36).substring(2, 6) + '-' +
-                 Math.random().toString(36).substring(2, 6);
-    const meetingLink = `https://meet.google.com/${code}`;
 
     const booking = await prisma.booking.create({
       data: {
@@ -130,8 +118,8 @@ export async function createDashboardAppointmentAction(
         endTime: endUtc,
         customerTimezone: timezone,
         status: 'CONFIRMED',
-        meetingLink,
-        idempotencyKey: `dash_${workspaceId}_${staffId}_${startUtc.getTime()}_${Date.now()}`,
+        meetingLink:
+          service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
         auditLogs: {
           create: {
             action: 'CREATED',
@@ -148,21 +136,24 @@ export async function createDashboardAppointmentAction(
       },
     });
 
-    try {
-      revalidatePath('/appointments');
-      revalidatePath('/calendar');
-      revalidatePath('/customers');
-    } catch {
-      // Ignored outside Next.js request context
-    }
+    // Notifications must never fail the booking that already committed.
+    await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
+      console.error('Booking notification dispatch failed:', err)
+    );
+
+    revalidatePath('/appointments');
+    revalidatePath('/calendar');
+    revalidatePath('/customers');
 
     return { success: true, bookingId: booking.id };
-  } catch (err: any) {
-    console.error('Error creating dashboard appointment:', err);
-    return {
-      success: false,
-      error: err.message || 'Failed to create appointment.',
-    };
+  } catch (err) {
+    if (isOverlapConstraintViolation(err)) {
+      return {
+        success: false,
+        error: 'That time slot was just taken. Please choose another.',
+      };
+    }
+    return toActionError(err);
   }
 }
 
@@ -173,9 +164,18 @@ export async function updateAppointmentStatusAction(
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
+      select: { id: true, workspaceId: true, status: true },
     });
 
     if (!booking) {
+      return { success: false, error: 'Appointment not found.' };
+    }
+
+    // Reported as "not found" rather than "forbidden" so the response does not
+    // confirm that a booking id from another workspace exists.
+    try {
+      await requireWorkspace(booking.workspaceId, 'STAFF');
+    } catch {
       return { success: false, error: 'Appointment not found.' };
     }
 
@@ -197,20 +197,18 @@ export async function updateAppointmentStatusAction(
       },
     });
 
-    try {
-      revalidatePath('/appointments');
-      revalidatePath('/calendar');
-      revalidatePath('/customers');
-    } catch {
-      // Ignored outside Next.js request context
+    if (status === 'CANCELLED') {
+      await dispatchBookingNotifications(bookingId, 'BOOKING_CANCELLED').catch((err) =>
+        console.error('Cancellation notification dispatch failed:', err)
+      );
     }
 
+    revalidatePath('/appointments');
+    revalidatePath('/calendar');
+    revalidatePath('/customers');
+
     return { success: true, bookingId };
-  } catch (err: any) {
-    console.error('Error updating appointment status:', err);
-    return {
-      success: false,
-      error: err.message || 'Failed to update status.',
-    };
+  } catch (err) {
+    return toActionError(err);
   }
 }

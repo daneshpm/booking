@@ -1,339 +1,142 @@
+/**
+ * Bootstrap the database with the minimum a real deployment needs: one owner
+ * account and its workspace.
+ *
+ * There is deliberately no sample staff, service or booking data. Fixture rows
+ * that reach production look like real records to everyone who reads the
+ * dashboard, and cannot be told apart from genuine customer data later.
+ *
+ * Credentials come from the environment and the script refuses to invent them:
+ *   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, WORKSPACE_NAME,
+ *   WORKSPACE_SLUG, WORKSPACE_TIMEZONE, WORKSPACE_CURRENCY
+ *
+ * Running it twice is safe: an existing owner keeps their current password.
+ */
 import { prisma } from './client';
+import { hashPassword, validatePasswordPolicy } from '@bookings/core';
+
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || !value.trim()) {
+    throw new Error(
+      `${name} is required. Set it in your environment before running the seed, ` +
+        'for example: ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=... npm run db:seed'
+    );
+  }
+  return value.trim();
+}
 
 async function main() {
-  console.log('🌱 Seeding Rooman Technologies development database...');
+  const adminEmail = requireEnv('ADMIN_EMAIL').toLowerCase();
+  const adminPassword = requireEnv('ADMIN_PASSWORD');
+  const adminName = process.env.ADMIN_NAME?.trim() || 'Workspace Owner';
 
-  // 1. Create or upsert Demo Users
-  const demoUser = await prisma.user.upsert({
-    where: { email: 'danesh@rooman.com' },
-    update: {},
-    create: {
-      email: 'danesh@rooman.com',
-      name: 'Danesh (Rooman Admin)',
-      passwordHash: '$2a$12$eX4mpleHashedPasswordForDevelopmentOnly1234567890',
-    },
+  const workspaceName = process.env.WORKSPACE_NAME?.trim() || 'Rooman Technologies';
+  const workspaceSlug = slugify(process.env.WORKSPACE_SLUG?.trim() || workspaceName);
+  const timezone = process.env.WORKSPACE_TIMEZONE?.trim() || 'Asia/Kolkata';
+  const currency = (process.env.WORKSPACE_CURRENCY?.trim() || 'INR').toUpperCase();
+
+  const policy = validatePasswordPolicy(adminPassword);
+  if (!policy.valid) {
+    throw new Error(`ADMIN_PASSWORD is not strong enough:\n  - ${policy.errors.join('\n  - ')}`);
+  }
+
+  console.log(`Seeding workspace "${workspaceName}" (${workspaceSlug})...`);
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email: adminEmail },
+    select: { id: true },
   });
 
-  const legacyUser = await prisma.user.upsert({
-    where: { email: 'owner@acmeconsulting.com' },
-    update: {},
-    create: {
-      email: 'owner@acmeconsulting.com',
-      name: 'Rooman Admin',
-      passwordHash: '$2a$12$eX4mpleHashedPasswordForDevelopmentOnly1234567890',
-    },
-  });
-
-  // 2. Create or upsert Rooman Technologies Workspace
-  const workspace = await prisma.workspace.upsert({
-    where: { slug: 'rooman-technologies' },
-    update: {
-      name: 'Rooman Technologies',
-      timezone: 'Asia/Kolkata',
-      currency: 'INR',
-    },
-    create: {
-      name: 'Rooman Technologies',
-      slug: 'rooman-technologies',
-      timezone: 'Asia/Kolkata',
-      currency: 'INR',
-      members: {
-        create: [
-          { userId: demoUser.id, role: 'OWNER' },
-          { userId: legacyUser.id, role: 'ADMIN' },
-        ],
-      },
-    },
-  });
-
-  // Also maintain acme-consulting alias workspace for legacy compatibility
-  await prisma.workspace.upsert({
-    where: { slug: 'acme-consulting' },
-    update: {},
-    create: {
-      name: 'Rooman Advisory & Skilling',
-      slug: 'acme-consulting',
-      timezone: 'Asia/Kolkata',
-      currency: 'INR',
-      members: {
-        create: {
-          userId: demoUser.id,
-          role: 'OWNER',
+  // An existing account keeps its password. Overwriting it here would let
+  // anyone who can run the seed reset a live administrator's credentials.
+  const user = existingUser
+    ? await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { name: adminName, isActive: true },
+      })
+    : await prisma.user.create({
+        data: {
+          email: adminEmail,
+          name: adminName,
+          passwordHash: await hashPassword(adminPassword),
         },
-      },
-    },
+      });
+
+  if (existingUser) {
+    console.log(`  User ${adminEmail} already exists; password left unchanged.`);
+  }
+
+  const workspace = await prisma.workspace.upsert({
+    where: { slug: workspaceSlug },
+    update: { name: workspaceName, timezone, currency },
+    create: { name: workspaceName, slug: workspaceSlug, timezone, currency },
   });
 
-  // 3. Create Service Categories for Rooman
-  const catSkilling = await prisma.serviceCategory.upsert({
-    where: {
-      workspaceId_name: {
-        workspaceId: workspace.id,
-        name: 'Career Mentorship & Skilling',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      name: 'Career Mentorship & Skilling',
-    },
+  await prisma.workspaceMember.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
+    update: { role: 'OWNER' },
+    create: { workspaceId: workspace.id, userId: user.id, role: 'OWNER' },
   });
 
-  const catEnterprise = await prisma.serviceCategory.upsert({
-    where: {
-      workspaceId_name: {
-        workspaceId: workspace.id,
-        name: 'Enterprise & Academic Partnerships',
-      },
-    },
-    update: {},
+  // The owner is also a bookable staff member so the workspace can take
+  // appointments as soon as services are added.
+  const staff = await prisma.staff.upsert({
+    where: { workspaceId_email: { workspaceId: workspace.id, email: adminEmail } },
+    update: { name: adminName, timezone, isActive: true },
     create: {
       workspaceId: workspace.id,
-      name: 'Enterprise & Academic Partnerships',
-    },
-  });
-
-  // 4. Create Rooman Staff Members
-  const staff1 = await prisma.staff.upsert({
-    where: {
-      workspaceId_email: {
-        workspaceId: workspace.id,
-        email: 'manish.k@rooman.com',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      userId: demoUser.id,
-      name: 'Dr. Manish K. (Academic & CoE Director)',
-      email: 'manish.k@rooman.com',
-      timezone: 'Asia/Kolkata',
+      userId: user.id,
+      name: adminName,
+      email: adminEmail,
+      timezone,
       isActive: true,
-      workingHours: {
-        create: [
-          // Mon-Fri: 09:30 - 18:30 with 13:30 - 14:30 Lunch Break
-          ...[1, 2, 3, 4, 5].map((day) => ({
-            dayOfWeek: day,
-            startTime: '09:30',
-            endTime: '18:30',
-            breaks: {
-              create: [
-                {
-                  startTime: '13:30',
-                  endTime: '14:30',
-                },
-              ],
-            },
-          })),
-        ],
-      },
     },
   });
 
-  const staff2 = await prisma.staff.upsert({
-    where: {
-      workspaceId_email: {
-        workspaceId: workspace.id,
-        email: 'priya.sharma@rooman.com',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      name: 'Priya Sharma (Principal AI & Cloud Architect)',
-      email: 'priya.sharma@rooman.com',
-      timezone: 'Asia/Kolkata',
-      isActive: true,
-      workingHours: {
-        create: [
-          // Mon-Sat: 10:00 - 19:00
-          ...[1, 2, 3, 4, 5, 6].map((day) => ({
-            dayOfWeek: day,
-            startTime: '10:00',
-            endTime: '19:00',
-          })),
-        ],
-      },
-    },
-  });
+  const hasHours = await prisma.staffWorkingHours.count({ where: { staffId: staff.id } });
+  if (hasHours === 0) {
+    await prisma.staffWorkingHours.createMany({
+      data: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+        staffId: staff.id,
+        dayOfWeek,
+        startTime: '09:00',
+        endTime: '18:00',
+      })),
+    });
+    console.log('  Added default Monday to Friday working hours.');
+  }
 
-  const staff3 = await prisma.staff.upsert({
-    where: {
-      workspaceId_email: {
-        workspaceId: workspace.id,
-        email: 'rohan.verma@rooman.com',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      name: 'Rohan Verma (Cybersecurity & Cisco Specialist)',
-      email: 'rohan.verma@rooman.com',
-      timezone: 'Asia/Kolkata',
-      isActive: true,
-      workingHours: {
-        create: [
-          // Mon-Fri: 10:00 - 18:00
-          ...[1, 2, 3, 4, 5].map((day) => ({
-            dayOfWeek: day,
-            startTime: '10:00',
-            endTime: '18:00',
-          })),
-        ],
-      },
-    },
-  });
-
-  // 5. Create Rooman Services
-  const service1 = await prisma.service.upsert({
-    where: {
-      workspaceId_slug: {
-        workspaceId: workspace.id,
-        slug: 'career-guidance',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      categoryId: catSkilling.id,
-      name: '1-on-1 IT Career & Certification Guidance',
-      slug: 'career-guidance',
-      description: 'Free 30-minute career roadmapping with Rooman senior advisors. Get tailored advice on AI/ML, Cloud Computing, Cybersecurity, and Cisco networking certifications.',
-      durationMinutes: 30,
-      bufferBeforeMinutes: 5,
-      bufferAfterMinutes: 10,
-      price: 0,
-      currency: 'INR',
-      locationType: 'ONLINE_MEETING',
-      locationDetails: 'Google Meet link provided upon booking confirmation',
-      isActive: true,
-      staffAssignments: {
-        create: [
-          { staffId: staff1.id },
-          { staffId: staff2.id },
-          { staffId: staff3.id },
-        ],
-      },
-    },
-  });
-
-  const service2 = await prisma.service.upsert({
-    where: {
-      workspaceId_slug: {
-        workspaceId: workspace.id,
-        slug: 'mock-interview-assessment',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      categoryId: catSkilling.id,
-      name: 'Technical Mock Interview & Skill Assessment',
-      slug: 'mock-interview-assessment',
-      description: 'Comprehensive 45-minute technical mock interview assessing coding, cloud architecture, or networking skills with actionable scorecard and feedback.',
-      durationMinutes: 45,
-      bufferBeforeMinutes: 10,
-      bufferAfterMinutes: 15,
-      price: 499.00,
-      currency: 'INR',
-      locationType: 'ONLINE_MEETING',
-      locationDetails: 'Google Meet video session with screen-share coding pad',
-      isActive: true,
-      staffAssignments: {
-        create: [
-          { staffId: staff2.id },
-          { staffId: staff3.id },
-        ],
-      },
-    },
-  });
-
-  const service3 = await prisma.service.upsert({
-    where: {
-      workspaceId_slug: {
-        workspaceId: workspace.id,
-        slug: 'university-coe-consultation',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      categoryId: catEnterprise.id,
-      name: 'University Center of Excellence (CoE) Consultation',
-      slug: 'university-coe-consultation',
-      description: 'Strategic 60-minute partnership discovery for university deans, college trustees, and directors to establish on-campus Rooman Centers of Excellence.',
-      durationMinutes: 60,
-      bufferBeforeMinutes: 10,
-      bufferAfterMinutes: 20,
-      price: 0,
-      currency: 'INR',
-      locationType: 'ONLINE_MEETING',
-      locationDetails: 'Executive Google Meet briefing room',
-      isActive: true,
-      staffAssignments: {
-        create: [
-          { staffId: staff1.id },
-        ],
-      },
-    },
-  });
-
-  const service4 = await prisma.service.upsert({
-    where: {
-      workspaceId_slug: {
-        workspaceId: workspace.id,
-        slug: 'corporate-upskilling-discovery',
-      },
-    },
-    update: {},
-    create: {
-      workspaceId: workspace.id,
-      categoryId: catEnterprise.id,
-      name: 'Corporate Workforce Upskilling Consultation',
-      slug: 'corporate-upskilling-discovery',
-      description: '45-minute enterprise consultation to design customized upskilling and reskilling cohorts in Generative AI, Cloud DevOps, and Cyber Defense for corporate teams.',
-      durationMinutes: 45,
-      bufferBeforeMinutes: 10,
-      bufferAfterMinutes: 10,
-      price: 0,
-      currency: 'INR',
-      locationType: 'ONLINE_MEETING',
-      locationDetails: 'Google Meet conference room',
-      isActive: true,
-      staffAssignments: {
-        create: [
-          { staffId: staff1.id },
-          { staffId: staff2.id },
-        ],
-      },
-    },
-  });
-
-  // 6. Create Rooman Public Booking Page
   await prisma.bookingPage.upsert({
-    where: {
-      workspaceId_slug: {
-        workspaceId: workspace.id,
-        slug: 'rooman-booking',
-      },
-    },
+    where: { workspaceId_slug: { workspaceId: workspace.id, slug: workspaceSlug } },
     update: {},
     create: {
       workspaceId: workspace.id,
-      slug: 'rooman-booking',
-      title: 'Rooman Technologies Official Booking Portal',
-      description: 'Book your career counseling, mock interview, university CoE partnership, or corporate training consultation with Rooman experts.',
+      slug: workspaceSlug,
+      title: `${workspaceName} Booking Portal`,
+      description: `Schedule an appointment with ${workspaceName}.`,
       isPublished: true,
     },
   });
 
-  console.log('✅ Rooman Technologies seed completed successfully!');
+  console.log('Seed complete.');
+  console.log(`  Sign in at /login as ${adminEmail}`);
+  console.log(`  Public booking page: /book/${workspaceSlug}`);
+  console.log('  Add your services and staff from the dashboard.');
 }
 
 main()
-  .catch((e) => {
-    console.error('Error during database seed:', e);
-    process.exit(1);
+  .catch((err) => {
+    console.error('Seed failed:', err instanceof Error ? err.message : err);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

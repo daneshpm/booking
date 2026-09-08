@@ -1,47 +1,23 @@
 import * as React from 'react';
-import { cookies } from 'next/headers';
 import { prisma } from '@bookings/database';
+import { requireWorkspace } from '@/lib/session';
 import { CustomersClient, type CustomerItem } from './CustomersClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CustomersPage() {
-  const cookieStore = await cookies();
-  const activeSlug = cookieStore.get('active_workspace')?.value;
+  const { workspace } = await requireWorkspace();
 
-  let workspace = null;
-  if (activeSlug) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: activeSlug },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: 'rooman' },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findFirst();
-  }
-
-  const customers = workspace
-    ? await prisma.customer.findMany({
-        where: { workspaceId: workspace.id },
-        include: {
-          bookings: {
-            include: {
-              service: {
-                select: { name: true, durationMinutes: true },
-              },
-            },
-            orderBy: { startTime: 'desc' },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      })
-    : [];
+  const customers = await prisma.customer.findMany({
+    where: { workspaceId: workspace.id },
+    include: {
+      bookings: {
+        include: { service: { select: { name: true, durationMinutes: true } } },
+        orderBy: { startTime: 'desc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 
   const formattedCustomers: CustomerItem[] = customers.map((c) => ({
     id: c.id,

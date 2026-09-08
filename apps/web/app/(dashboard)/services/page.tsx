@@ -1,38 +1,20 @@
 import * as React from 'react';
-import { prisma } from '@bookings/database';
-import { PrismaServiceRepository } from '@bookings/feature-services';
-import { GetServicesUseCase } from '@bookings/feature-services';
-import { ServiceList } from '@bookings/feature-services';
+import { requireWorkspace } from '@/lib/session';
+import {
+  PrismaServiceRepository,
+  GetServicesUseCase,
+  ServiceList,
+} from '@bookings/feature-services';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ServicesPage() {
-  try {
-    let workspace = await prisma.workspace.findUnique({
-      where: { slug: 'rooman-technologies' },
-    }) || await prisma.workspace.findUnique({
-      where: { slug: 'acme-consulting' },
-    });
+  const { workspace } = await requireWorkspace();
 
-    if (!workspace) {
-      workspace = await prisma.workspace.create({
-        data: {
-          name: 'Rooman Technologies',
-          slug: 'rooman-technologies',
-          timezone: 'Asia/Kolkata',
-          currency: 'INR',
-        },
-      });
-    }
+  const repo = new PrismaServiceRepository();
+  const getServicesUseCase = new GetServicesUseCase(repo);
+  const result = await getServicesUseCase.execute({ workspaceId: workspace.id });
+  const services = result.isSuccess ? result.getValue() : [];
 
-    const repo = new PrismaServiceRepository();
-    const getServicesUseCase = new GetServicesUseCase(repo);
-    const result = await getServicesUseCase.execute({ workspaceId: workspace.id });
-    const services = result.isSuccess ? result.getValue() : [];
-
-    return <ServiceList workspaceId={workspace.id} initialServices={services} />;
-  } catch (err) {
-    // Graceful fallback during static build without active DB connection
-    return <ServiceList workspaceId="demo-workspace" initialServices={[]} />;
-  }
+  return <ServiceList workspaceId={workspace.id} initialServices={services} />;
 }

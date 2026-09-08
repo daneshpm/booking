@@ -36,10 +36,11 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     },
   });
 
-  // 2. If not found by workspace slug, check bookingPage slug
+  // 2. If not found by workspace slug, check for a published booking page.
+  //    Unpublished pages stay unreachable.
   if (!workspace) {
     const bookingPage = await prisma.bookingPage.findFirst({
-      where: { slug },
+      where: { slug, isPublished: true },
       include: {
         workspace: {
           include: {
@@ -58,43 +59,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     }
   }
 
-  // 3. If still not found, check if slug is actually a service under default workspace
+  // A slug that matches no workspace and no published booking page is a 404.
+  // Guessing at a "default" workspace here would silently serve one tenant's
+  // services under another tenant's URL.
   if (!workspace) {
-    const defaultWorkspace = await prisma.workspace.findFirst({
-      where: { slug: 'rooman-technologies' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'rooman' },
-    }) || await prisma.workspace.findFirst({
-      where: { slug: 'acme-consulting' },
-    }) || await prisma.workspace.findFirst();
-
-    if (defaultWorkspace) {
-      const service = await prisma.service.findUnique({
-        where: {
-          workspaceId_slug: {
-            workspaceId: defaultWorkspace.id,
-            slug,
-          },
-        },
-      });
-
-      if (service) {
-        // Redirect or render direct service booker
-        return (
-          <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-4">
-            <div className="text-center space-y-4">
-              <p className="text-sm text-slate-600">Loading service booking page...</p>
-              <Link href={`/book/${defaultWorkspace.slug}/${service.slug}`}>
-                <Button variant="primary" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                  Proceed to Booking
-                </Button>
-              </Link>
-            </div>
-          </div>
-        );
-      }
-    }
-
     return notFound();
   }
 

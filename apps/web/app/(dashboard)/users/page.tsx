@@ -1,43 +1,13 @@
 import * as React from 'react';
-import { cookies } from 'next/headers';
 import { prisma } from '@bookings/database';
+import { requireWorkspace } from '@/lib/session';
 import { StaffManagementClient } from '../staff/StaffManagementClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UsersPage() {
-  const cookieStore = await cookies();
-  const activeSlug = cookieStore.get('active_workspace')?.value;
-
-  let workspace = null;
-  if (activeSlug) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: activeSlug },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: 'rooman' },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findFirst({
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.create({
-      data: {
-        name: 'rooman',
-        slug: 'rooman',
-        timezone: 'America/New_York',
-        currency: 'USD',
-      },
-    });
-  }
+  // Managing team members is an administrative action.
+  const { workspace } = await requireWorkspace(null, 'ADMIN');
 
   const [staffMembers, services] = await Promise.all([
     prisma.staff.findMany({

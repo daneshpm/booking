@@ -30,8 +30,12 @@ interface SetupWizardModalProps {
   onClose: () => void;
   workspaceName: string;
   workspaceSlug: string;
-  completedSteps?: number[];
-  onToggleStep?: (stepId: number) => void;
+  /**
+   * Steps already satisfied, derived from real workspace data by the server.
+   * Progress is not user-togglable: a checklist you can tick without doing the
+   * work reports a setup state that is not true.
+   */
+  completedSteps: number[];
 }
 
 export function SetupWizardModal({
@@ -39,25 +43,11 @@ export function SetupWizardModal({
   onClose,
   workspaceName,
   workspaceSlug,
-  completedSteps: controlledSteps,
-  onToggleStep: controlledToggleStep,
+  completedSteps: activeCompletedSteps,
 }: SetupWizardModalProps) {
   const [copied, setCopied] = React.useState(false);
-  const [internalSteps, setInternalSteps] = React.useState<number[]>([1, 3]);
-
-  const activeCompletedSteps = controlledSteps ?? internalSteps;
 
   if (!isOpen) return null;
-
-  const toggleStep = (stepId: number) => {
-    if (controlledToggleStep) {
-      controlledToggleStep(stepId);
-    } else {
-      setInternalSteps((prev) =>
-        prev.includes(stepId) ? prev.filter((id) => id !== stepId) : [...prev, stepId]
-      );
-    }
-  };
 
   const steps: SetupStep[] = [
     {
@@ -104,9 +94,6 @@ export function SetupWizardModal({
   const copyShareLink = () => {
     navigator.clipboard.writeText(bookingUrl);
     setCopied(true);
-    if (!activeCompletedSteps.includes(4)) {
-      toggleStep(4);
-    }
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -163,18 +150,16 @@ export function SetupWizardModal({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleStep(step.id)}
-                      className="mt-0.5 text-slate-400 hover:text-emerald-600 transition-colors"
-                      title={step.isCompleted ? 'Mark incomplete' : 'Mark complete'}
+                    <span
+                      className="mt-0.5 shrink-0"
+                      title={step.isCompleted ? 'Completed' : 'Not yet configured'}
                     >
                       {step.isCompleted ? (
                         <CheckCircle2 className="h-5 w-5 text-emerald-600 fill-emerald-50" />
                       ) : (
                         <Circle className="h-5 w-5 text-slate-300" />
                       )}
-                    </button>
+                    </span>
 
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">

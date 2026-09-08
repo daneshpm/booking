@@ -1,43 +1,11 @@
 import * as React from 'react';
-import { cookies } from 'next/headers';
-import { prisma } from '@bookings/database';
+import { requireWorkspace } from '@/lib/session';
 import { PrismaServiceRepository, GetServicesUseCase, ServiceList } from '@bookings/feature-services';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EventTypesPage() {
-  const cookieStore = await cookies();
-  const activeSlug = cookieStore.get('active_workspace')?.value;
-
-  let workspace = null;
-  if (activeSlug) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: activeSlug },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findUnique({
-      where: { slug: 'rooman' },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.findFirst({
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  if (!workspace) {
-    workspace = await prisma.workspace.create({
-      data: {
-        name: 'rooman',
-        slug: 'rooman',
-        timezone: 'America/New_York',
-        currency: 'USD',
-      },
-    });
-  }
+  const { workspace } = await requireWorkspace();
 
   const repo = new PrismaServiceRepository();
   const getServicesUseCase = new GetServicesUseCase(repo);

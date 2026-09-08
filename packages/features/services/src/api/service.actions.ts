@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireWorkspace, toActionError } from '@bookings/auth/next';
 import { PrismaServiceRepository } from '../infrastructure/repositories/PrismaServiceRepository';
 import { CreateServiceUseCase } from '../application/create-service/CreateServiceUseCase';
 import { UpdateServiceUseCase } from '../application/update-service/UpdateServiceUseCase';
@@ -29,6 +30,12 @@ export async function createServiceAction(
   workspaceId: string,
   formData: ServiceFormData
 ): Promise<ActionResponse<ServiceOutputDTO>> {
+  try {
+    await requireWorkspace(workspaceId, 'ADMIN');
+  } catch (err) {
+    return toActionError(err);
+  }
+
   const parsed = serviceFormSchema.safeParse(formData);
   if (!parsed.success) {
     return {
@@ -73,6 +80,12 @@ export async function updateServiceAction(
   id: string,
   formData: ServiceFormData
 ): Promise<ActionResponse<ServiceOutputDTO>> {
+  try {
+    await requireWorkspace(workspaceId, 'ADMIN');
+  } catch (err) {
+    return toActionError(err);
+  }
+
   const parsed = serviceFormSchema.safeParse(formData);
   if (!parsed.success) {
     return {
@@ -117,6 +130,12 @@ export async function deleteServiceAction(
   workspaceId: string,
   id: string
 ): Promise<ActionResponse<void>> {
+  try {
+    await requireWorkspace(workspaceId, 'ADMIN');
+  } catch (err) {
+    return toActionError(err);
+  }
+
   const result = await deleteServiceUseCase.execute({ workspaceId, id });
   if (result.isFailure) {
     return {
@@ -134,6 +153,12 @@ export async function deleteServiceAction(
 export async function getServicesAction(
   workspaceId: string
 ): Promise<ActionResponse<ServiceOutputDTO[]>> {
+  try {
+    await requireWorkspace(workspaceId);
+  } catch (err) {
+    return toActionError(err);
+  }
+
   const result = await getServicesUseCase.execute({ workspaceId });
   if (result.isFailure) {
     return {
@@ -152,6 +177,12 @@ export async function getServiceByIdAction(
   workspaceId: string,
   id: string
 ): Promise<ActionResponse<ServiceOutputDTO>> {
+  try {
+    await requireWorkspace(workspaceId);
+  } catch (err) {
+    return toActionError(err);
+  }
+
   const result = await getServiceByIdUseCase.execute({ workspaceId, id });
   if (result.isFailure) {
     return {

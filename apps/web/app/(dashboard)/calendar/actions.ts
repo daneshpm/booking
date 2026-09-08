@@ -4,16 +4,45 @@ import { revalidatePath } from 'next/cache';
 import { prisma, type BookingStatus } from '@bookings/database';
 import { addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
+import { requireWorkspace, toActionError } from '@/lib/session';
+import { isOverlapConstraintViolation } from '@/lib/booking-errors';
+
+export interface BookingActionResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Load a booking only if the signed-in caller belongs to its workspace.
+ *
+ * A booking id arriving from the browser is attacker-controlled, so the row is
+ * fetched first and its workspace is then checked against the session. An id
+ * from another tenant is reported as "not found", which avoids confirming that
+ * the id exists.
+ */
+async function loadOwnedBooking(bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { workspace: true, service: true },
+  });
+
+  if (!booking) return null;
+
+  try {
+    await requireWorkspace(booking.workspaceId, 'STAFF');
+  } catch {
+    return null;
+  }
+
+  return booking;
+}
 
 export async function updateBookingStatusAction(
   bookingId: string,
   status: BookingStatus
-): Promise<{ success: boolean; error?: string }> {
+): Promise<BookingActionResult> {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
-
+    const booking = await loadOwnedBooking(bookingId);
     if (!booking) {
       return { success: false, error: 'Booking not found.' };
     }
@@ -36,20 +65,13 @@ export async function updateBookingStatusAction(
       },
     });
 
-    try {
-      revalidatePath('/calendar');
-      revalidatePath('/customers');
-    } catch {
-      // Safely ignore when called outside Next.js request context
-    }
+    revalidatePath('/calendar');
+    revalidatePath('/appointments');
+    revalidatePath('/customers');
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating booking status:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to update status.',
-    };
+    return toActionError(error);
   }
 }
 
@@ -57,36 +79,36 @@ export async function rescheduleBookingAction(
   bookingId: string,
   newDate: string, // YYYY-MM-DD
   newTime: string // HH:mm
-): Promise<{ success: boolean; error?: string }> {
+): Promise<BookingActionResult> {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        workspace: true,
-        service: true,
-      },
-    });
-
+    const booking = await loadOwnedBooking(bookingId);
     if (!booking) {
       return { success: false, error: 'Booking not found.' };
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate) || !/^\d{2}:\d{2}$/.test(newTime)) {
+      return { success: false, error: 'Please provide a valid date and time.' };
+    }
+
     const timezone = booking.workspace.timezone || 'UTC';
-    const localDateTimeStr = `${newDate}T${newTime}:00`;
-    const newStartUtc = fromZonedTime(localDateTimeStr, timezone);
+    const newStartUtc = fromZonedTime(`${newDate}T${newTime}:00`, timezone);
     const newEndUtc = addMinutes(newStartUtc, booking.service.durationMinutes);
 
-    // Collision check for new slot
+    if (Number.isNaN(newStartUtc.getTime())) {
+      return { success: false, error: 'Please provide a valid date and time.' };
+    }
+
+    // The database holds an exclusion constraint that rejects overlapping
+    // appointments for a staff member, so the write below is the real check.
+    // This lookup only turns the common case into a friendlier message.
     const conflict = await prisma.booking.findFirst({
       where: {
         id: { not: bookingId },
         staffId: booking.staffId,
         status: { notIn: ['CANCELLED'] },
-        AND: [
-          { startTime: { lt: newEndUtc } },
-          { endTime: { gt: newStartUtc } },
-        ],
+        AND: [{ startTime: { lt: newEndUtc } }, { endTime: { gt: newStartUtc } }],
       },
+      select: { id: true },
     });
 
     if (conflict) {
@@ -119,12 +141,15 @@ export async function rescheduleBookingAction(
     });
 
     revalidatePath('/calendar');
+    revalidatePath('/appointments');
     return { success: true };
   } catch (error) {
-    console.error('Error rescheduling booking:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to reschedule booking.',
-    };
+    if (isOverlapConstraintViolation(error)) {
+      return {
+        success: false,
+        error: 'That time slot was just taken. Please choose another.',
+      };
+    }
+    return toActionError(error);
   }
 }
