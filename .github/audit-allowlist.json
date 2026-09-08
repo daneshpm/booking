@@ -7,39 +7,21 @@
   ],
   "allow": [
     {
-      "advisory": "GHSA-f88m-g3jw-g9cj",
-      "package": "sharp",
-      "reason": "sharp reaches us only as an optional dependency of Next.js, used for next/image optimization. The application never renders next/image and serves one static logo, so no image ever passes through libvips at runtime. The published fix requires Next.js 16, a major upgrade that is out of scope for this change.",
-      "reviewOn": "2027-03-31"
-    },
-    {
-      "advisory": "GHSA-qx2v-qp2m-jg93",
-      "package": "postcss",
-      "reason": "Nested inside Next.js at a pinned version. PostCSS runs at build time over our own Tailwind stylesheets; no attacker-controlled CSS is ever processed. Fixing it requires Next.js 16.",
-      "reviewOn": "2027-03-31"
-    },
-    {
-      "advisory": "GHSA-6g55-p6wh-862q",
-      "package": "postcss",
-      "reason": "Same nested Next.js PostCSS. The sourceMappingURL read needs attacker-controlled CSS input, which never reaches the build.",
-      "reviewOn": "2027-03-31"
-    },
-    {
-      "advisory": "GHSA-fxqj-rqcc-2cmp",
-      "package": "postcss",
-      "reason": "Same nested Next.js PostCSS and the same reasoning as GHSA-6g55-p6wh-862q.",
-      "reviewOn": "2027-03-31"
-    },
-    {
-      "advisory": "GHSA-r28c-9q8g-f849",
-      "package": "postcss",
-      "reason": "Same nested Next.js PostCSS and the same reasoning as GHSA-6g55-p6wh-862q.",
-      "reviewOn": "2027-03-31"
-    },
-    {
       "advisory": "GHSA-ggr8-5vv4-36mx",
       "package": "deepmerge-ts",
       "reason": "Reaches us through the Prisma CLI, which is a development and migration tool. It is not installed in either production image, and the stack-exhaustion path needs a recursive object graph we never hand it.",
+      "reviewOn": "2027-03-31"
+    },
+    {
+      "advisory": "GHSA-3f6p-5ww8-9rcr",
+      "package": "mysql2",
+      "reason": "mysql2 is bundled inside the Prisma CLI, which supports several database engines. This project's datasource provider is postgresql and no MySQL connection is ever opened, so the auth-plugin downgrade cannot be reached: it requires connecting to a hostile MySQL server. The CLI is a build and migration tool and is excluded from both production images.",
+      "reviewOn": "2027-03-31"
+    },
+    {
+      "advisory": "GHSA-rgwj-5xj2-c3m3",
+      "package": "mysql2",
+      "reason": "Same bundled Prisma CLI dependency. The decompression bomb needs a MySQL server speaking the compressed protocol, and this project never connects to MySQL.",
       "reviewOn": "2027-03-31"
     }
   ]

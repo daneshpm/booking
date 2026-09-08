@@ -4,7 +4,7 @@
 # dependencies, so no source, build cache or dev dependency ships to production.
 
 # ---------------------------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /repo
 
 # Copy only the manifests first so this layer is reused whenever dependencies
@@ -20,7 +20,7 @@ COPY packages/features/services/package.json packages/features/services/
 RUN npm ci
 
 # ---------------------------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /repo
 
 COPY --from=deps /repo/node_modules ./node_modules
@@ -37,7 +37,7 @@ ENV NODE_ENV=production
 RUN npm run build --workspace=@bookings/web
 
 # ---------------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

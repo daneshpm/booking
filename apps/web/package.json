@@ -15,8 +15,8 @@
     "@bookings/notifications": "*",
     "@bookings/ui": "*",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.16.0",
-    "next": "^15.1.7",
+    "lucide-react": "^1.41.0",
+    "next": "^16.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "redis": "^5.12.1",
@@ -26,11 +26,11 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
-    "autoprefixer": "^10.5.4",
-    "postcss": "^8.5.2",
+    "@types/react-dom": "^19.2.7",
+    "autoprefixer": "^10.5.5",
+    "postcss": "^8.5.28",
     "server-only": "^0.0.1",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "typescript": "^7.0.2"
   }
 }
