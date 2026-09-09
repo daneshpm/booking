@@ -25,6 +25,10 @@ export default async function BookRootPage() {
   }
 
   if (pages.length === 0) {
+    const ws = await prisma.workspace.findFirst({ select: { slug: true } });
+    if (ws) {
+      redirect(`/book/${ws.slug}`);
+    }
     return (
       <div className="min-h-screen bg-[#fafbfc] flex items-center justify-center p-6">
         <div className="max-w-md text-center bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">

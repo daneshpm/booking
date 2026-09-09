@@ -39,6 +39,12 @@ export class GetServiceByIdUseCase {
         locationType: service.locationType,
         locationDetails: service.locationDetails,
         isActive: service.isActive,
+        hasYieldPricing: service.hasYieldPricing,
+        yieldDiscountPercent: service.yieldDiscountPercent,
+        yieldDays: service.yieldDays,
+        yieldStartTime: service.yieldStartTime,
+        yieldEndTime: service.yieldEndTime,
+        yieldLabel: service.yieldLabel,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

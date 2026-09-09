@@ -16,12 +16,18 @@ import { isOverlapConstraintViolation } from '@/lib/booking-errors';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications } from '@/lib/notifications';
 import { checkRateLimit, PUBLIC_BOOKING_LIMIT, PUBLIC_AVAILABILITY_LIMIT } from '@/lib/rate-limit';
+import { addToWaitlist, getWaitlistEntryByClaimToken, claimWaitlistSpot } from '@/lib/waitlist';
 
 export interface AvailableSlot {
   time: string; // "09:00"
   label: string; // "09:00 AM"
   staffId: string;
   staffName?: string;
+  isOffPeak?: boolean;
+  discountPercent?: number;
+  discountLabel?: string;
+  originalPrice?: number;
+  discountedPrice?: number;
 }
 
 export interface BookingFormData {
@@ -198,7 +204,10 @@ async function candidateStaff(
         });
 
   if (preferredStaffId) {
-    return pool.filter((s) => s.id === preferredStaffId).map((s) => ({ id: s.id, name: s.name }));
+    const matched = pool.filter((s) => s.id === preferredStaffId);
+    if (matched.length > 0) {
+      return matched.map((s) => ({ id: s.id, name: s.name }));
+    }
   }
   return pool.map((s) => ({ id: s.id, name: s.name }));
 }
@@ -257,6 +266,21 @@ export async function getAvailableSlotsAction(
 
     const schedules = await loadSchedules(candidates, date, timezone);
 
+    // Dynamic Off-Peak Yield Pricing evaluation setup
+    const slotDayOfWeek = dayOfWeekFor(date);
+    const hasYield = Boolean(
+      service.hasYieldPricing &&
+      service.yieldDiscountPercent &&
+      service.yieldDiscountPercent > 0
+    );
+    let allowedDays: number[] = [];
+    if (hasYield && service.yieldDays) {
+      allowedDays = service.yieldDays
+        .split(',')
+        .map((d) => parseInt(d.trim(), 10))
+        .filter((d) => !isNaN(d));
+    }
+
     // Keyed by local start time: when several staff are free at the same time,
     // the customer is offered one slot and the first free member takes it.
     const byTime = new Map<string, AvailableSlot>();
@@ -274,11 +298,37 @@ export async function getAvailableSlotsAction(
 
       for (const slot of slots) {
         if (byTime.has(slot.localTime)) continue;
+
+        const isDayEligible = hasYield && (allowedDays.length === 0 || allowedDays.includes(slotDayOfWeek));
+        const isTimeEligible =
+          isDayEligible &&
+          (!service.yieldStartTime || slot.localTime >= service.yieldStartTime) &&
+          (!service.yieldEndTime || slot.localTime < service.yieldEndTime);
+
+        let isOffPeak = false;
+        let discountPercent: number | undefined;
+        let discountLabel: string | undefined;
+        let originalPrice: number | undefined;
+        let discountedPrice: number | undefined;
+
+        if (isTimeEligible && service.yieldDiscountPercent) {
+          isOffPeak = true;
+          discountPercent = service.yieldDiscountPercent;
+          discountLabel = service.yieldLabel || 'Off-Peak Special';
+          originalPrice = Number(service.price);
+          discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100) * 100) / 100;
+        }
+
         byTime.set(slot.localTime, {
           time: slot.localTime,
           label: slot.label,
           staffId: schedule.staffId,
           staffName: schedule.staffName,
+          isOffPeak,
+          discountPercent,
+          discountLabel,
+          originalPrice,
+          discountedPrice,
         });
       }
     }
@@ -445,6 +495,33 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     // service's own location details are shown to the customer instead.
     const meetingLink = service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
 
+    // Dynamic Off-Peak Yield Pricing calculation for persisted booking
+    let paidPrice: number = Number(service.price);
+    let discountApplied = 0;
+    let discountLabel: string | null = null;
+
+    if (service.hasYieldPricing && service.yieldDiscountPercent && service.yieldDiscountPercent > 0) {
+      const slotDayOfWeek = dayOfWeekFor(date);
+      let allowedDays: number[] = [];
+      if (service.yieldDays) {
+        allowedDays = service.yieldDays
+          .split(',')
+          .map((d) => parseInt(d.trim(), 10))
+          .filter((d) => !isNaN(d));
+      }
+      const isDayEligible = allowedDays.length === 0 || allowedDays.includes(slotDayOfWeek);
+      const isTimeEligible =
+        isDayEligible &&
+        (!service.yieldStartTime || time >= service.yieldStartTime) &&
+        (!service.yieldEndTime || time < service.yieldEndTime);
+
+      if (isTimeEligible) {
+        discountApplied = service.yieldDiscountPercent;
+        discountLabel = service.yieldLabel || 'Off-Peak Special';
+        paidPrice = Math.round(Number(service.price) * (1 - discountApplied / 100) * 100) / 100;
+      }
+    }
+
     const booking = await prisma.booking.create({
       data: {
         workspaceId,
@@ -455,6 +532,10 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
         endTime: chosen.slot.endUtc,
         customerTimezone,
         status: 'CONFIRMED',
+        source: 'ONLINE',
+        paidPrice,
+        discountApplied,
+        discountLabel,
         meetingLink,
         idempotencyKey: data.idempotencyKey || null,
         auditLogs: {
@@ -505,5 +586,73 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
     console.error('Error creating booking:', error);
     return { success: false, error: 'We could not complete your booking. Please try again.' };
+  }
+}
+
+// ----------------------------------------------------
+// PUBLIC SMART WAITLIST & INSTANT CLAIM ACTIONS
+// ----------------------------------------------------
+
+export interface JoinWaitlistInput {
+  workspaceId: string;
+  serviceId: string;
+  staffId?: string;
+  preferredDate: string; // YYYY-MM-DD
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  notes?: string;
+}
+
+export async function joinPublicWaitlistAction(data: JoinWaitlistInput) {
+  try {
+    if (!data.workspaceId || !data.serviceId || !data.preferredDate) {
+      return { success: false, error: 'Please select a service and date.' };
+    }
+    if (!data.customerName?.trim() || !data.customerEmail?.trim()) {
+      return { success: false, error: 'Please enter your name and email address.' };
+    }
+    return await addToWaitlist(data);
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to join waitlist.' };
+  }
+}
+
+export async function getClaimSpotDetailsAction(token: string) {
+  try {
+    const entry = await getWaitlistEntryByClaimToken(token);
+    if (!entry) {
+      return { success: false, error: 'Claim link is invalid or has expired.' };
+    }
+    return {
+      success: true,
+      entry: {
+        id: entry.id,
+        status: entry.status,
+        customerName: entry.customerName,
+        customerEmail: entry.customerEmail,
+        serviceName: entry.service.name,
+        serviceDuration: entry.service.durationMinutes,
+        servicePrice: entry.service.price ? Number(entry.service.price) : 0,
+        staffName: entry.staff?.name || 'Assigned Staff Specialist',
+        preferredDate: entry.preferredDate.toISOString().split('T')[0],
+        workspaceName: entry.workspace.name,
+      },
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to load spot details.' };
+  }
+}
+
+export async function claimPublicWaitlistSpotAction(token: string) {
+  try {
+    const res = await claimWaitlistSpot(token);
+    if (res.success) {
+      revalidatePath('/calendar');
+      revalidatePath('/appointments');
+    }
+    return res;
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Could not claim appointment slot.' };
   }
 }

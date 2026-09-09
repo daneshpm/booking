@@ -21,8 +21,19 @@ import {
   X,
   Mail,
   Phone,
+  Zap,
+  Sparkles,
+  Bell,
+  Trash2,
 } from 'lucide-react';
-import { createDashboardAppointmentAction, updateAppointmentStatusAction } from './actions';
+import {
+  createDashboardAppointmentAction,
+  updateAppointmentStatusAction,
+  notifyWaitlistEntryAction,
+  cancelWaitlistEntryAction,
+} from './actions';
+import { FastPassModal } from '../components/FastPassModal';
+import { AddToWaitlistModal } from '../components/AddToWaitlistModal';
 
 export interface AppointmentItem {
   id: string;
@@ -30,6 +41,7 @@ export interface AppointmentItem {
   endTime: string | Date;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW' | 'RESCHEDULED';
   meetingLink?: string | null;
+  source?: string | null;
   customer: {
     id?: string;
     name: string;
@@ -48,6 +60,29 @@ export interface AppointmentItem {
   };
 }
 
+export interface WaitlistItem {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  preferredDate: string;
+  status: 'WAITING' | 'NOTIFIED' | 'CLAIMED' | 'EXPIRED' | 'CANCELLED';
+  notes?: string | null;
+  service: {
+    id: string;
+    name: string;
+    durationMinutes: number;
+    price?: number;
+  };
+  staff?: {
+    id: string;
+    name: string;
+  } | null;
+  claimToken?: string | null;
+  notifiedAt?: string | null;
+  createdAt: string;
+}
+
 export interface AvailableService {
   id: string;
   name: string;
@@ -63,6 +98,7 @@ interface AppointmentsClientProps {
   workspaceId: string;
   workspaceTimezone: string;
   initialAppointments: AppointmentItem[];
+  initialWaitlist?: WaitlistItem[];
   services: AvailableService[];
   staffMembers: AvailableStaff[];
 }
@@ -71,17 +107,29 @@ export function AppointmentsClient({
   workspaceId,
   workspaceTimezone,
   initialAppointments,
+  initialWaitlist = [],
   services,
   staffMembers,
 }: AppointmentsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = React.useState<'upcoming' | 'past' | 'custom'>('upcoming');
+  const [activeTab, setActiveTab] = React.useState<'upcoming' | 'past' | 'custom' | 'waitlist'>('upcoming');
+  const [waitlistEntries, setWaitlistEntries] = React.useState<WaitlistItem[]>(initialWaitlist);
+  const [isAddWaitlistOpen, setIsAddWaitlistOpen] = React.useState(false);
+  const [waitlistStatusFilter, setWaitlistStatusFilter] = React.useState<string>('ALL');
+  const [actionLoadingWaitlistId, setActionLoadingWaitlistId] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isFastPassOpen, setIsFastPassOpen] = React.useState(false);
   const [isCalendarView, setIsCalendarView] = React.useState(searchParams.get('clview') === 'true');
   const [weekOffset, setWeekOffset] = React.useState(0);
+
+  React.useEffect(() => {
+    if (initialWaitlist) {
+      setWaitlistEntries(initialWaitlist);
+    }
+  }, [initialWaitlist]);
 
   // Synchronize clview param
   React.useEffect(() => {
@@ -89,6 +137,16 @@ export function AppointmentsClient({
       setIsCalendarView(true);
     } else if (searchParams.get('clview') === 'false') {
       setIsCalendarView(false);
+    }
+  }, [searchParams]);
+
+  // Open modal if URL has ?new=true or ?fastpass=true
+  React.useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setIsModalOpen(true);
+    }
+    if (searchParams.get('fastpass') === 'true') {
+      setIsFastPassOpen(true);
     }
   }, [searchParams]);
 
@@ -135,13 +193,6 @@ export function AppointmentsClient({
   const [formError, setFormError] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
-
-  // Open modal if URL has ?new=true
-  React.useEffect(() => {
-    if (searchParams.get('new') === 'true') {
-      setIsModalOpen(true);
-    }
-  }, [searchParams]);
 
   // Filter appointments
   const now = new Date();
@@ -223,6 +274,59 @@ export function AppointmentsClient({
     }
   };
 
+  const filteredWaitlist = React.useMemo(() => {
+    return waitlistEntries.filter((w) => {
+      if (waitlistStatusFilter !== 'ALL' && w.status !== waitlistStatusFilter) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = w.customerName.toLowerCase().includes(q);
+        const matchesEmail = w.customerEmail.toLowerCase().includes(q);
+        const matchesService = w.service.name.toLowerCase().includes(q);
+        const matchesStaff = w.staff?.name.toLowerCase().includes(q);
+        return matchesName || matchesEmail || matchesService || matchesStaff;
+      }
+      return true;
+    });
+  }, [waitlistEntries, waitlistStatusFilter, searchQuery]);
+
+  const handleNotifyWaitlist = async (entryId: string) => {
+    setActionLoadingWaitlistId(entryId);
+    try {
+      const res = await notifyWaitlistEntryAction(entryId);
+      if (res.success) {
+        setWaitlistEntries((prev) =>
+          prev.map((w) =>
+            w.id === entryId
+              ? { ...w, status: 'NOTIFIED', notifiedAt: new Date().toISOString() }
+              : w
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to notify waitlist client:', err);
+    } finally {
+      setActionLoadingWaitlistId(null);
+    }
+  };
+
+  const handleCancelWaitlist = async (entryId: string) => {
+    setActionLoadingWaitlistId(entryId);
+    try {
+      const res = await cancelWaitlistEntryAction(entryId);
+      if (res.success) {
+        setWaitlistEntries((prev) =>
+          prev.map((w) => (w.id === entryId ? { ...w, status: 'CANCELLED' } : w))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to cancel waitlist client:', err);
+    } finally {
+      setActionLoadingWaitlistId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-full bg-white">
       {/* ---------------------------------------------------- */}
@@ -277,6 +381,23 @@ export function AppointmentsClient({
               }`}
             >
               Custom Date
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('waitlist')}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 ${
+                activeTab === 'waitlist'
+                  ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Smart Waitlist</span>
+              {waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED').length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-100 text-[#5c34ad] font-bold">
+                  {waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED').length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -333,9 +454,211 @@ export function AppointmentsClient({
       </div>
 
       {/* ---------------------------------------------------- */}
-      {/* 2. APPOINTMENTS CONTENT AREA                         */}
+      {/* 2. APPOINTMENTS & WAITLIST CONTENT AREA              */}
       {/* ---------------------------------------------------- */}
-      {isCalendarView ? (
+      {activeTab === 'waitlist' ? (
+        /* SMART WAITLIST VIEW */
+        <div className="flex-1 p-6 flex flex-col space-y-5 max-w-6xl w-full self-start animate-in fade-in duration-150">
+          {/* Waitlist Header & Subtitle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-purple-50/70 via-slate-50 to-amber-50/50 p-5 rounded-2xl border border-purple-100/80 shadow-xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-[#5c34ad] text-white flex items-center justify-center font-bold shadow-xs">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <h2 className="text-base font-bold text-slate-900">Priority Smart Waitlist</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#5c34ad] text-white">
+                  {waitlistEntries.filter((w) => w.status === 'WAITING').length} Waiting
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 max-w-xl">
+                When appointments fill up, clients queued here automatically receive priority claim passes the instant any booking is cancelled or rescheduled.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAddWaitlistOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-xl shadow-sm transition-all self-start sm:self-auto cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+              <span>Add Client to Waitlist</span>
+            </button>
+          </div>
+
+          {/* Status Filters */}
+          <div className="flex items-center gap-2">
+            {[
+              { label: 'All', value: 'ALL', count: waitlistEntries.length },
+              { label: 'Waiting', value: 'WAITING', count: waitlistEntries.filter((w) => w.status === 'WAITING').length },
+              { label: 'Notified', value: 'NOTIFIED', count: waitlistEntries.filter((w) => w.status === 'NOTIFIED').length },
+              { label: 'Claimed', value: 'CLAIMED', count: waitlistEntries.filter((w) => w.status === 'CLAIMED').length },
+            ].map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => setWaitlistStatusFilter(f.value)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  waitlistStatusFilter === f.value
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                <span>{f.label}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    waitlistStatusFilter === f.value
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  {f.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Waitlist Table or Empty State */}
+          {filteredWaitlist.length === 0 ? (
+            <div className="p-12 rounded-2xl border border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="h-12 w-12 rounded-2xl bg-purple-100 text-[#5c34ad] flex items-center justify-center shadow-xs">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Waitlist is Clean & Empty</h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                No clients are currently on the waitlist for this filter. Clients will appear here when slots fill up on your public booking page or when added manually.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsAddWaitlistOpen(true)}
+                className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Add Client to Waitlist</span>
+              </button>
+            </div>
+          ) : (
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Client</th>
+                    <th className="py-3 px-4">Service & Staff</th>
+                    <th className="py-3 px-4">Requested Date</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Joined Queue</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredWaitlist.map((entry) => {
+                    const isBusy = actionLoadingWaitlistId === entry.id;
+                    const joinedDate = new Date(entry.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+
+                    return (
+                      <tr key={entry.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-900">{entry.customerName}</div>
+                          <div className="text-[11px] text-slate-500">{entry.customerEmail}</div>
+                          {entry.customerPhone && (
+                            <div className="text-[10px] text-slate-400">{entry.customerPhone}</div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="font-semibold text-slate-800">{entry.service.name}</span>
+                          <span className="text-[10px] text-slate-400 block">
+                            Staff: {entry.staff?.name || 'Any Staff Specialist'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-slate-800">{entry.preferredDate}</div>
+                          {entry.notes && (
+                            <div className="text-[10px] text-slate-500 truncate max-w-xs" title={entry.notes}>
+                              Note: {entry.notes}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              entry.status === 'WAITING'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : entry.status === 'NOTIFIED'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : entry.status === 'CLAIMED'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {entry.status === 'WAITING' && <Clock className="h-3 w-3" />}
+                            {entry.status === 'NOTIFIED' && <Bell className="h-3 w-3" />}
+                            {entry.status === 'CLAIMED' && <CheckCircle className="h-3 w-3" />}
+                            <span>{entry.status}</span>
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500 text-[11px]">{joinedDate}</td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {entry.status === 'WAITING' && (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleNotifyWaitlist(entry.id)}
+                                title="Issue Spot Now (Notify Client)"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors cursor-pointer"
+                              >
+                                {isBusy ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Bell className="h-3 w-3" />
+                                    <span>Notify Spot</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            {entry.status === 'NOTIFIED' && entry.claimToken && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = `${window.location.origin}/claim-spot?token=${entry.claimToken}`;
+                                  navigator.clipboard.writeText(url);
+                                  alert('Claim link copied to clipboard!');
+                                }}
+                                title="Copy Claim Link"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold text-[#5c34ad] bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors cursor-pointer"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                <span>Copy Link</span>
+                              </button>
+                            )}
+                            {entry.status !== 'CANCELLED' && entry.status !== 'CLAIMED' && (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleCancelWaitlist(entry.id)}
+                                title="Cancel Waitlist Entry"
+                                className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : isCalendarView ? (
         /* CALENDAR WEEK GRID VIEW (clview=true) */
         <div className="flex-1 p-6 flex flex-col space-y-4 max-w-7xl w-full self-start">
           {/* Calendar Header with Week Controls */}
@@ -375,14 +698,25 @@ export function AppointmentsClient({
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-            >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-              <span>New Appointment</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFastPassOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all cursor-pointer"
+                title="10-Sec Fast Pass (Alt+W)"
+              >
+                <Zap className="h-3.5 w-3.5 fill-current" />
+                <span>Fast Pass</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>New Appointment</span>
+              </button>
+            </div>
           </div>
 
           {/* Grid Container */}
@@ -512,6 +846,15 @@ export function AppointmentsClient({
               <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
                 <button
                   type="button"
+                  onClick={() => setIsFastPassOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                  title="10-Sec Fast Pass (Alt+W)"
+                >
+                  <Zap className="h-3.5 w-3.5 fill-current" />
+                  <span>10-Sec Fast Pass (Walk-In)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-semibold rounded-xl shadow-xs transition-all"
                 >
@@ -528,14 +871,25 @@ export function AppointmentsClient({
                   {filteredAppointments.length} appointment
                   {filteredAppointments.length > 1 ? 's' : ''} found
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-                >
-                  <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-                  <span>New Appointment</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsFastPassOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all cursor-pointer"
+                    title="10-Sec Fast Pass (Alt+W)"
+                  >
+                    <Zap className="h-3.5 w-3.5 fill-current" />
+                    <span>Fast Pass</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <span>New Appointment</span>
+                  </button>
+                </div>
               </div>
 
               <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
@@ -576,7 +930,22 @@ export function AppointmentsClient({
                             <div className="text-[11px] text-slate-500">{timeStr}</div>
                           </td>
                           <td className="py-3.5 px-4">
-                            <div className="font-bold text-slate-900">{app.customer.name}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-slate-900">{app.customer.name}</span>
+                              {app.source === 'WALK_IN' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-tight">
+                                  Walk-In
+                                </span>
+                              ) : app.source === 'PHONE_CALL' ? (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-tight">
+                                  Phone
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 text-slate-600 uppercase tracking-tight">
+                                  Online
+                                </span>
+                              )}
+                            </div>
                             <div className="text-[11px] text-slate-500">{app.customer.email}</div>
                             {app.customer.phone && (
                               <div className="text-[10px] text-slate-400">{app.customer.phone}</div>
@@ -864,6 +1233,34 @@ export function AppointmentsClient({
           </div>
         </div>
       )}
+
+      {/* ---------------------------------------------------- */}
+      {/* 4. 10-SECOND FAST PASS MODAL                         */}
+      {/* ---------------------------------------------------- */}
+      <FastPassModal
+        workspaceId={workspaceId}
+        isOpen={isFastPassOpen}
+        onClose={() => setIsFastPassOpen(false)}
+        onSuccess={() => {
+          router.refresh();
+        }}
+        services={services}
+        staffMembers={staffMembers}
+      />
+
+      {/* ---------------------------------------------------- */}
+      {/* 5. ADD TO WAITLIST MODAL                             */}
+      {/* ---------------------------------------------------- */}
+      <AddToWaitlistModal
+        workspaceId={workspaceId}
+        isOpen={isAddWaitlistOpen}
+        onClose={() => setIsAddWaitlistOpen(false)}
+        onSuccess={() => {
+          router.refresh();
+        }}
+        services={services}
+        staffMembers={staffMembers}
+      />
     </div>
   );
 }

@@ -16,5 +16,13 @@ export default async function ServicesPage() {
   const result = await getServicesUseCase.execute({ workspaceId: workspace.id });
   const services = result.isSuccess ? result.getValue() : [];
 
-  return <ServiceList workspaceId={workspace.id} initialServices={services} />;
+  return (
+    <div className="p-6">
+      <ServiceList
+        workspaceId={workspace.id}
+        workspaceSlug={workspace.slug}
+        initialServices={services}
+      />
+    </div>
+  );
 }

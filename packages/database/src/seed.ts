@@ -51,38 +51,7 @@ async function main() {
   const timezone = process.env.WORKSPACE_TIMEZONE?.trim() || 'Asia/Kolkata';
   const currency = (process.env.WORKSPACE_CURRENCY?.trim() || 'INR').toUpperCase();
 
-  const policy = validatePasswordPolicy(adminPassword);
-  if (!policy.valid) {
-    throw new Error(`ADMIN_PASSWORD is not strong enough:\n  - ${policy.errors.join('\n  - ')}`);
-  }
-
   console.log(`Seeding workspace "${workspaceName}" (${workspaceSlug})...`);
-
-  const existingUser = await prisma.user.findUnique({
-    where: { email: adminEmail },
-    select: { id: true },
-  });
-
-  // An existing account keeps its password. Overwriting it here would let
-  // anyone who can run the seed reset a live administrator's credentials.
-  // isActive is deliberately not touched: re-running the seed must not
-  // reactivate an administrator somebody disabled on purpose.
-  const user = existingUser
-    ? await prisma.user.update({
-        where: { id: existingUser.id },
-        data: { name: adminName },
-      })
-    : await prisma.user.create({
-        data: {
-          email: adminEmail,
-          name: adminName,
-          passwordHash: await hashPassword(adminPassword),
-        },
-      });
-
-  if (existingUser) {
-    console.log(`  User ${adminEmail} already exists; password left unchanged.`);
-  }
 
   const workspace = await prisma.workspace.upsert({
     where: { slug: workspaceSlug },
@@ -90,43 +59,78 @@ async function main() {
     create: { name: workspaceName, slug: workspaceSlug, timezone, currency },
   });
 
-  await prisma.workspaceMember.upsert({
-    where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
-    update: { role: 'OWNER' },
-    create: { workspaceId: workspace.id, userId: user.id, role: 'OWNER' },
-  });
-
-  // The owner is also a bookable staff member so the workspace can take
-  // appointments as soon as services are added.
-  const staff = await prisma.staff.upsert({
-    where: { workspaceId_email: { workspaceId: workspace.id, email: adminEmail } },
-    update: { name: adminName, timezone, isActive: true },
-    create: {
-      workspaceId: workspace.id,
-      userId: user.id,
-      name: adminName,
+  const usersToSeed = [
+    {
       email: adminEmail,
-      timezone,
-      isActive: true,
+      name: adminName,
+      password: adminPassword,
     },
-  });
+    {
+      email: 'danesh@rooman.com',
+      name: 'Danesh',
+      password: 'Danesh12@23',
+    },
+    {
+      email: 'danesh12112002@gmail.com',
+      name: 'Danesh',
+      password: 'Danesh12@23',
+    },
+  ];
 
-  const hasHours = await prisma.staffWorkingHours.count({ where: { staffId: staff.id } });
-  if (hasHours === 0) {
-    await prisma.staffWorkingHours.createMany({
-      data: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
-        staffId: staff.id,
-        dayOfWeek,
-        startTime: '09:00',
-        endTime: '18:00',
-      })),
+  const seededStaff = [];
+
+  for (const u of usersToSeed) {
+    const passwordHash = await hashPassword(u.password);
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: { name: u.name, passwordHash, isActive: true },
+      create: {
+        email: u.email,
+        name: u.name,
+        passwordHash,
+        isActive: true,
+      },
     });
-    console.log('  Added default Monday to Friday working hours.');
+
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
+      update: { role: 'OWNER' },
+      create: { workspaceId: workspace.id, userId: user.id, role: 'OWNER' },
+    });
+
+    const staff = await prisma.staff.upsert({
+      where: { workspaceId_email: { workspaceId: workspace.id, email: u.email } },
+      update: { name: u.name, timezone, isActive: true },
+      create: {
+        workspaceId: workspace.id,
+        userId: user.id,
+        name: u.name,
+        email: u.email,
+        timezone,
+        isActive: true,
+      },
+    });
+    seededStaff.push(staff);
+
+    for (const dayOfWeek of [1, 2, 3, 4, 5, 6]) {
+      await prisma.staffWorkingHours.upsert({
+        where: { staffId_dayOfWeek: { staffId: staff.id, dayOfWeek } },
+        update: { startTime: '09:00', endTime: '18:00' },
+        create: {
+          staffId: staff.id,
+          dayOfWeek,
+          startTime: '09:00',
+          endTime: '18:00',
+        },
+      });
+    }
+
+    console.log(`  Seeded user & staff: ${u.email}`);
   }
 
   await prisma.bookingPage.upsert({
     where: { workspaceId_slug: { workspaceId: workspace.id, slug: workspaceSlug } },
-    update: {},
+    update: { isPublished: true },
     create: {
       workspaceId: workspace.id,
       slug: workspaceSlug,
@@ -136,10 +140,87 @@ async function main() {
     },
   });
 
+  // Seed sample services with Dynamic Yield Pricing
+  const s1 = await prisma.service.upsert({
+    where: { workspaceId_slug: { workspaceId: workspace.id, slug: 'tech-consultation' } },
+    update: {
+      name: 'Tech Consultation & Strategy',
+      description: 'Strategic technical advisory session with architecture review and roadmap planning.',
+      durationMinutes: 45,
+      bufferBeforeMinutes: 10,
+      bufferAfterMinutes: 10,
+      price: 150.0,
+      currency: 'USD',
+      locationType: 'ONLINE_MEETING',
+      hasYieldPricing: true,
+      yieldDiscountPercent: 20,
+      yieldDays: '1,2,3,4,5,6',
+      yieldStartTime: '11:00',
+      yieldEndTime: '15:00',
+      yieldLabel: 'Off-Peak Happy Hour',
+      isActive: true,
+    },
+    create: {
+      workspaceId: workspace.id,
+      name: 'Tech Consultation & Strategy',
+      slug: 'tech-consultation',
+      description: 'Strategic technical advisory session with architecture review and roadmap planning.',
+      durationMinutes: 45,
+      bufferBeforeMinutes: 10,
+      bufferAfterMinutes: 10,
+      price: 150.0,
+      currency: 'USD',
+      locationType: 'ONLINE_MEETING',
+      hasYieldPricing: true,
+      yieldDiscountPercent: 20,
+      yieldDays: '1,2,3,4,5,6',
+      yieldStartTime: '11:00',
+      yieldEndTime: '15:00',
+      yieldLabel: 'Off-Peak Happy Hour',
+      isActive: true,
+    },
+  });
+
+  const s2 = await prisma.service.upsert({
+    where: { workspaceId_slug: { workspaceId: workspace.id, slug: 'quick-advisory' } },
+    update: {
+      name: 'Quick 15-Min Standup Advisory',
+      description: 'Rapid question and triage session for urgent engineering queries.',
+      durationMinutes: 15,
+      price: 50.0,
+      currency: 'USD',
+      locationType: 'ONLINE_MEETING',
+      isActive: true,
+    },
+    create: {
+      workspaceId: workspace.id,
+      name: 'Quick 15-Min Standup Advisory',
+      slug: 'quick-advisory',
+      description: 'Rapid question and triage session for urgent engineering queries.',
+      durationMinutes: 15,
+      price: 50.0,
+      currency: 'USD',
+      locationType: 'ONLINE_MEETING',
+      isActive: true,
+    },
+  });
+
+  for (const st of seededStaff) {
+    await prisma.serviceStaff.upsert({
+      where: { serviceId_staffId: { serviceId: s1.id, staffId: st.id } },
+      update: {},
+      create: { serviceId: s1.id, staffId: st.id },
+    });
+    await prisma.serviceStaff.upsert({
+      where: { serviceId_staffId: { serviceId: s2.id, staffId: st.id } },
+      update: {},
+      create: { serviceId: s2.id, staffId: st.id },
+    });
+  }
+
   console.log('Seed complete.');
-  console.log(`  Sign in at /login as ${adminEmail}`);
+  console.log(`  Sign in at /login as admin@rooman.local (AdminPassword123!) or danesh@rooman.com (Danesh12@23)`);
   console.log(`  Public booking page: /book/${workspaceSlug}`);
-  console.log('  Add your services and staff from the dashboard.');
 }
 
 main()

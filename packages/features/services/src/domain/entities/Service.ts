@@ -16,6 +16,12 @@ export interface ServiceProps {
   locationType: LocationType;
   locationDetails?: string | null;
   isActive: boolean;
+  hasYieldPricing?: boolean;
+  yieldDiscountPercent?: number | null;
+  yieldDays?: string | null;
+  yieldStartTime?: string | null;
+  yieldEndTime?: string | null;
+  yieldLabel?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +39,12 @@ export class Service {
   private _locationType: LocationType;
   private _locationDetails: string | null;
   private _isActive: boolean;
+  private _hasYieldPricing: boolean;
+  private _yieldDiscountPercent: number | null;
+  private _yieldDays: string | null;
+  private _yieldStartTime: string | null;
+  private _yieldEndTime: string | null;
+  private _yieldLabel: string | null;
   private readonly _createdAt: Date;
   private _updatedAt: Date;
 
@@ -49,6 +61,12 @@ export class Service {
     this._locationType = props.locationType;
     this._locationDetails = props.locationDetails ?? null;
     this._isActive = props.isActive;
+    this._hasYieldPricing = props.hasYieldPricing ?? false;
+    this._yieldDiscountPercent = props.yieldDiscountPercent ?? null;
+    this._yieldDays = props.yieldDays ?? null;
+    this._yieldStartTime = props.yieldStartTime ?? null;
+    this._yieldEndTime = props.yieldEndTime ?? null;
+    this._yieldLabel = props.yieldLabel ?? 'Off-Peak Special';
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
@@ -90,6 +108,24 @@ export class Service {
   public get isActive(): boolean {
     return this._isActive;
   }
+  public get hasYieldPricing(): boolean {
+    return this._hasYieldPricing;
+  }
+  public get yieldDiscountPercent(): number | null {
+    return this._yieldDiscountPercent;
+  }
+  public get yieldDays(): string | null {
+    return this._yieldDays;
+  }
+  public get yieldStartTime(): string | null {
+    return this._yieldStartTime;
+  }
+  public get yieldEndTime(): string | null {
+    return this._yieldEndTime;
+  }
+  public get yieldLabel(): string | null {
+    return this._yieldLabel;
+  }
   public get createdAt(): Date {
     return this._createdAt;
   }
@@ -113,6 +149,12 @@ export class Service {
     locationType?: LocationType;
     locationDetails?: string | null;
     isActive?: boolean;
+    hasYieldPricing?: boolean;
+    yieldDiscountPercent?: number | null;
+    yieldDays?: string | null;
+    yieldStartTime?: string | null;
+    yieldEndTime?: string | null;
+    yieldLabel?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
   }): Service {
@@ -151,6 +193,12 @@ export class Service {
       locationType: params.locationType ?? 'ONLINE_MEETING',
       locationDetails: params.locationDetails?.trim() ?? null,
       isActive: params.isActive ?? true,
+      hasYieldPricing: params.hasYieldPricing ?? false,
+      yieldDiscountPercent: params.yieldDiscountPercent ?? null,
+      yieldDays: params.yieldDays ?? null,
+      yieldStartTime: params.yieldStartTime ?? null,
+      yieldEndTime: params.yieldEndTime ?? null,
+      yieldLabel: params.yieldLabel ?? 'Off-Peak Special',
       createdAt: params.createdAt ?? new Date(),
       updatedAt: params.updatedAt ?? new Date(),
     });
@@ -169,6 +217,12 @@ export class Service {
     currency?: string;
     locationType?: LocationType;
     locationDetails?: string | null;
+    hasYieldPricing?: boolean;
+    yieldDiscountPercent?: number | null;
+    yieldDays?: string | null;
+    yieldStartTime?: string | null;
+    yieldEndTime?: string | null;
+    yieldLabel?: string | null;
   }): void {
     if (!params.name || params.name.trim().length === 0) {
       throw new DomainError('Service name cannot be empty.');
@@ -191,6 +245,12 @@ export class Service {
     this._pricing = Money.create(params.price ?? 0, params.currency ?? this._pricing.currency);
     if (params.locationType) this._locationType = params.locationType;
     this._locationDetails = params.locationDetails?.trim() ?? null;
+    if (params.hasYieldPricing !== undefined) this._hasYieldPricing = params.hasYieldPricing;
+    if (params.yieldDiscountPercent !== undefined) this._yieldDiscountPercent = params.yieldDiscountPercent;
+    if (params.yieldDays !== undefined) this._yieldDays = params.yieldDays;
+    if (params.yieldStartTime !== undefined) this._yieldStartTime = params.yieldStartTime;
+    if (params.yieldEndTime !== undefined) this._yieldEndTime = params.yieldEndTime;
+    if (params.yieldLabel !== undefined) this._yieldLabel = params.yieldLabel;
     this._updatedAt = new Date();
   }
 

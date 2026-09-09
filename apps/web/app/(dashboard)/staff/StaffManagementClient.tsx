@@ -84,6 +84,56 @@ interface StaffManagementClientProps {
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+function toMinutes(val: string): number {
+  if (!val || !val.includes(':')) return 0;
+  const [h, m] = val.split(':');
+  return (Number(h) || 0) * 60 + (Number(m) || 0);
+}
+
+function toTimeString(totalMinutes: number): string {
+  const normalized = Math.max(0, Math.min(23 * 60 + 59, totalMinutes));
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function computeSensibleBreak(startTime: string, endTime: string): { breakStartTime: string; breakEndTime: string } {
+  const startMins = toMinutes(startTime);
+  const endMins = toMinutes(endTime);
+  const duration = endMins - startMins;
+
+  if (duration <= 90) {
+    const mid = startMins + Math.floor(duration / 2);
+    return {
+      breakStartTime: toTimeString(Math.max(startMins, mid - 10)),
+      breakEndTime: toTimeString(Math.min(endMins, mid + 10)),
+    };
+  }
+
+  if (duration <= 240) {
+    const mid = startMins + Math.floor(duration / 2);
+    return {
+      breakStartTime: toTimeString(mid - 15),
+      breakEndTime: toTimeString(mid + 15),
+    };
+  }
+
+  const midDayMins = 13 * 60; // 13:00
+  let breakStart = midDayMins;
+  let breakEnd = midDayMins + 60;
+
+  if (breakStart < startMins + 60 || breakEnd > endMins - 30) {
+    const mid = startMins + Math.floor(duration / 2);
+    breakStart = mid - 30;
+    breakEnd = mid + 30;
+  }
+
+  return {
+    breakStartTime: toTimeString(breakStart),
+    breakEndTime: toTimeString(breakEnd),
+  };
+}
+
 const TIMEZONES = [
   'America/New_York',
   'America/Chicago',
@@ -177,14 +227,18 @@ export function StaffManagementClient({
     const schedule: DayScheduleInput[] = [0, 1, 2, 3, 4, 5, 6].map((dayIdx) => {
       const existingShift = staff.workingHours.find((w) => w.dayOfWeek === dayIdx);
       const hasBreak = Boolean(existingShift?.breaks && existingShift.breaks.length > 0);
+      const shiftStart = existingShift?.startTime || '09:00';
+      const shiftEnd = existingShift?.endTime || '17:00';
+      const defaultBreak = computeSensibleBreak(shiftStart, shiftEnd);
+
       return {
         dayOfWeek: dayIdx,
         enabled: Boolean(existingShift),
-        startTime: existingShift?.startTime || '09:00',
-        endTime: existingShift?.endTime || '17:00',
+        startTime: shiftStart,
+        endTime: shiftEnd,
         hasBreak: hasBreak,
-        breakStartTime: hasBreak ? existingShift?.breaks[0].startTime : '13:00',
-        breakEndTime: hasBreak ? existingShift?.breaks[0].endTime : '14:00',
+        breakStartTime: hasBreak ? existingShift?.breaks[0].startTime : defaultBreak.breakStartTime,
+        breakEndTime: hasBreak ? existingShift?.breaks[0].endTime : defaultBreak.breakEndTime,
       };
     });
     setWorkingSchedule(schedule);
@@ -310,10 +364,147 @@ export function StaffManagementClient({
     }
   };
 
+  // Day timing change with smart break auto-adjustment
+  const updateDayTimes = (idx: number, newStart: string, newEnd: string) => {
+    setWorkingSchedule((prev) =>
+      prev.map((d, i) => {
+        if (i !== idx) return d;
+        const startMins = toMinutes(newStart);
+        const endMins = toMinutes(newEnd);
+        let hasBreak = d.hasBreak;
+        let breakStart = d.breakStartTime || '13:00';
+        let breakEnd = d.breakEndTime || '14:00';
+
+        if (hasBreak && newStart && newEnd) {
+          const bStartMins = toMinutes(breakStart);
+          const bEndMins = toMinutes(breakEnd);
+          if (bStartMins < startMins || bEndMins > endMins || bEndMins <= bStartMins) {
+            if (endMins - startMins >= 90) {
+              const adjusted = computeSensibleBreak(newStart, newEnd);
+              breakStart = adjusted.breakStartTime;
+              breakEnd = adjusted.breakEndTime;
+            } else {
+              hasBreak = false;
+            }
+          }
+        }
+
+        return {
+          ...d,
+          startTime: newStart,
+          endTime: newEnd,
+          hasBreak,
+          breakStartTime: breakStart,
+          breakEndTime: breakEnd,
+        };
+      })
+    );
+    setFormError(null);
+  };
+
+  const toggleBreak = (idx: number) => {
+    setWorkingSchedule((prev) =>
+      prev.map((d, i) => {
+        if (i !== idx) return d;
+        const nextHasBreak = !d.hasBreak;
+        let breakStart = d.breakStartTime;
+        let breakEnd = d.breakEndTime;
+
+        if (nextHasBreak) {
+          const startMins = toMinutes(d.startTime);
+          const endMins = toMinutes(d.endTime);
+          const bStartMins = toMinutes(breakStart || '');
+          const bEndMins = toMinutes(breakEnd || '');
+          if (!breakStart || !breakEnd || bStartMins < startMins || bEndMins > endMins || bEndMins <= bStartMins) {
+            const sensible = computeSensibleBreak(d.startTime, d.endTime);
+            breakStart = sensible.breakStartTime;
+            breakEnd = sensible.breakEndTime;
+          }
+        }
+
+        return {
+          ...d,
+          hasBreak: nextHasBreak,
+          breakStartTime: breakStart,
+          breakEndTime: breakEnd,
+        };
+      })
+    );
+    setFormError(null);
+  };
+
+  const applyPresetToWeekdays = (startTime: string, endTime: string, hasBreak = true) => {
+    const sensibleBreak = computeSensibleBreak(startTime, endTime);
+    setWorkingSchedule((prev) =>
+      prev.map((d) => {
+        if (d.dayOfWeek >= 1 && d.dayOfWeek <= 5) {
+          return {
+            ...d,
+            enabled: true,
+            startTime,
+            endTime,
+            hasBreak,
+            breakStartTime: sensibleBreak.breakStartTime,
+            breakEndTime: sensibleBreak.breakEndTime,
+          };
+        }
+        return d;
+      })
+    );
+    setFormError(null);
+  };
+
+  const copyMondayToWeekdays = () => {
+    const monday = workingSchedule.find((d) => d.dayOfWeek === 1);
+    if (!monday) return;
+    setWorkingSchedule((prev) =>
+      prev.map((d) => {
+        if (d.dayOfWeek >= 2 && d.dayOfWeek <= 5) {
+          return {
+            ...d,
+            enabled: monday.enabled,
+            startTime: monday.startTime,
+            endTime: monday.endTime,
+            hasBreak: monday.hasBreak,
+            breakStartTime: monday.breakStartTime,
+            breakEndTime: monday.breakEndTime,
+          };
+        }
+        return d;
+      })
+    );
+    setFormError(null);
+  };
+
+  const getDayValidation = (day: DayScheduleInput): string | null => {
+    if (!day.enabled) return null;
+    if (!day.startTime || !day.endTime) return 'Start and end time required';
+    const start = toMinutes(day.startTime);
+    const end = toMinutes(day.endTime);
+    if (end <= start) return 'Shift must end after start time';
+
+    if (day.hasBreak) {
+      if (!day.breakStartTime || !day.breakEndTime) return 'Break start and end required';
+      const bStart = toMinutes(day.breakStartTime);
+      const bEnd = toMinutes(day.breakEndTime);
+      if (bEnd <= bStart) return 'Break must end after break start';
+      if (bStart < start || bEnd > end) return `Break must be between ${day.startTime} and ${day.endTime}`;
+    }
+    return null;
+  };
+
+  const hasAnyScheduleErrors = workingSchedule.some((d) => Boolean(getDayValidation(d)));
+
   // Handle Save Working Schedule
   const handleSaveSchedule = async () => {
     if (!scheduleStaff) return;
+    if (hasAnyScheduleErrors) {
+      setFormError('Please resolve the highlighted shift issues before saving.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setFormError(null);
     const res = await updateStaffWorkingHoursAction(workspaceId, scheduleStaff.id, workingSchedule);
     setIsSubmitting(false);
 
@@ -855,145 +1046,208 @@ export function StaffManagementClient({
             </div>
           )}
 
-          <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
-            {workingSchedule.map((day, idx) => (
-              <div
-                key={day.dayOfWeek}
-                className={`p-3.5 rounded-xl border transition-all ${
-                  day.enabled
-                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
-                    : 'bg-slate-50 dark:bg-slate-950/40 border-dashed border-slate-200 dark:border-slate-800/80 opacity-60'
-                }`}
+          {/* Quick Presets Toolbar */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Quick Shift Presets (Weekdays)
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyPresetToWeekdays('09:00', '17:00', true)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 text-slate-700 dark:text-slate-200 text-xs font-medium shadow-2xs transition-all"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 w-32">
-                    <input
-                      type="checkbox"
-                      id={`day-${day.dayOfWeek}`}
-                      checked={day.enabled}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setWorkingSchedule((prev) =>
-                          prev.map((d, i) => (i === idx ? { ...d, enabled: checked } : d))
-                        );
-                      }}
-                      className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
-                    />
-                    <label
-                      htmlFor={`day-${day.dayOfWeek}`}
-                      className="font-bold text-slate-900 dark:text-slate-100 cursor-pointer"
-                    >
-                      {DAYS_OF_WEEK[day.dayOfWeek]}
-                    </label>
-                  </div>
-
-                  {day.enabled ? (
-                    <div className="flex flex-wrap items-center gap-3 flex-1 justify-end">
-                      {/* Shift Hours */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-slate-400 font-semibold">Shift:</span>
-                        <input
-                          type="time"
-                          value={day.startTime}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setWorkingSchedule((prev) =>
-                              prev.map((d, i) => (i === idx ? { ...d, startTime: val } : d))
-                            );
-                          }}
-                          className="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
-                        />
-                        <span className="text-slate-400">–</span>
-                        <input
-                          type="time"
-                          value={day.endTime}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setWorkingSchedule((prev) =>
-                              prev.map((d, i) => (i === idx ? { ...d, endTime: val } : d))
-                            );
-                          }}
-                          className="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
-                        />
-                      </div>
-
-                      {/* Break Toggle */}
-                      <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWorkingSchedule((prev) =>
-                              prev.map((d, i) => (i === idx ? { ...d, hasBreak: !d.hasBreak } : d))
-                            );
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all ${
-                            day.hasBreak
-                              ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300'
-                              : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-500'
-                          }`}
-                        >
-                          <Coffee className="h-3 w-3" />
-                          <span>Break</span>
-                        </button>
-
-                        {day.hasBreak && (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="time"
-                              value={day.breakStartTime || '13:00'}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setWorkingSchedule((prev) =>
-                                  prev.map((d, i) =>
-                                    i === idx ? { ...d, breakStartTime: val } : d
-                                  )
-                                );
-                              }}
-                              className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
-                            />
-                            <span>–</span>
-                            <input
-                              type="time"
-                              value={day.breakEndTime || '14:00'}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setWorkingSchedule((prev) =>
-                                  prev.map((d, i) => (i === idx ? { ...d, breakEndTime: val } : d))
-                                );
-                              }}
-                              className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-slate-400 italic text-xs">Off Day</span>
-                  )}
-                </div>
-              </div>
-            ))}
+                9 AM – 5 PM
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetToWeekdays('08:00', '16:00', true)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 text-slate-700 dark:text-slate-200 text-xs font-medium shadow-2xs transition-all"
+              >
+                8 AM – 4 PM
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetToWeekdays('09:00', '13:00', false)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 text-slate-700 dark:text-slate-200 text-xs font-medium shadow-2xs transition-all"
+              >
+                9 AM – 1 PM (Half Day)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPresetToWeekdays('13:00', '21:00', true)}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 text-slate-700 dark:text-slate-200 text-xs font-medium shadow-2xs transition-all"
+              >
+                1 PM – 9 PM (Evening)
+              </button>
+              <button
+                type="button"
+                onClick={copyMondayToWeekdays}
+                className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 text-blue-700 dark:text-blue-300 text-xs font-semibold shadow-2xs transition-all"
+              >
+                Copy Mon to All Weekdays
+              </button>
+            </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setScheduleStaff(null)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleSaveSchedule}
-              isLoading={isSubmitting}
-              className="gap-2"
-            >
-              <Check className="h-4 w-4" />
-              Save Working Shifts
-            </Button>
+          <div className="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">
+            {workingSchedule.map((day, idx) => {
+              const dayError = getDayValidation(day);
+
+              return (
+                <div
+                  key={day.dayOfWeek}
+                  className={`p-3.5 rounded-xl border transition-all ${
+                    dayError
+                      ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800 shadow-sm'
+                      : day.enabled
+                      ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
+                      : 'bg-slate-50 dark:bg-slate-950/40 border-dashed border-slate-200 dark:border-slate-800/80 opacity-60'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 w-32">
+                      <input
+                        type="checkbox"
+                        id={`day-${day.dayOfWeek}`}
+                        checked={day.enabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setWorkingSchedule((prev) =>
+                            prev.map((d, i) => (i === idx ? { ...d, enabled: checked } : d))
+                          );
+                          setFormError(null);
+                        }}
+                        className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                      />
+                      <label
+                        htmlFor={`day-${day.dayOfWeek}`}
+                        className="font-bold text-slate-900 dark:text-slate-100 cursor-pointer"
+                      >
+                        {DAYS_OF_WEEK[day.dayOfWeek]}
+                      </label>
+                    </div>
+
+                    {day.enabled ? (
+                      <div className="flex flex-wrap items-center gap-3 flex-1 justify-end">
+                        {/* Shift Hours */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400 font-semibold">Shift:</span>
+                          <input
+                            type="time"
+                            value={day.startTime}
+                            onChange={(e) => updateDayTimes(idx, e.target.value, day.endTime)}
+                            className="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
+                          />
+                          <span className="text-slate-400">–</span>
+                          <input
+                            type="time"
+                            value={day.endTime}
+                            onChange={(e) => updateDayTimes(idx, day.startTime, e.target.value)}
+                            className="px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
+                          />
+                        </div>
+
+                        {/* Break Toggle */}
+                        <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => toggleBreak(idx)}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all ${
+                              day.hasBreak
+                                ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300'
+                                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800'
+                            }`}
+                            title={day.hasBreak ? 'Click to remove break' : 'Click to add break window'}
+                          >
+                            <Coffee className="h-3 w-3" />
+                            <span>{day.hasBreak ? 'Break On' : '+ Break'}</span>
+                          </button>
+
+                          {day.hasBreak && (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="time"
+                                value={day.breakStartTime || '13:00'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setWorkingSchedule((prev) =>
+                                    prev.map((d, i) =>
+                                      i === idx ? { ...d, breakStartTime: val } : d
+                                    )
+                                  );
+                                  setFormError(null);
+                                }}
+                                className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
+                              />
+                              <span className="text-slate-400">–</span>
+                              <input
+                                type="time"
+                                value={day.breakEndTime || '14:00'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setWorkingSchedule((prev) =>
+                                    prev.map((d, i) => (i === idx ? { ...d, breakEndTime: val } : d))
+                                  );
+                                  setFormError(null);
+                                }}
+                                className="px-1.5 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-mono"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 italic text-xs">Off Day</span>
+                    )}
+                  </div>
+
+                  {dayError && (
+                    <div className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold mt-2 pt-2 border-t border-rose-100 dark:border-rose-900/40 flex items-center gap-1.5">
+                      <AlertCircle className="h-3 w-3 shrink-0 text-rose-500" />
+                      <span>{dayError}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              {hasAnyScheduleErrors ? (
+                <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Please fix invalid times above before saving.
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-400">
+                  Times are automatically verified against operating constraints.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setScheduleStaff(null)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleSaveSchedule}
+                isLoading={isSubmitting}
+                disabled={hasAnyScheduleErrors || isSubmitting}
+                className="gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Save Working Shifts
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>

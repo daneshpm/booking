@@ -33,6 +33,12 @@ export class GetServicesUseCase {
         locationType: s.locationType,
         locationDetails: s.locationDetails,
         isActive: s.isActive,
+        hasYieldPricing: s.hasYieldPricing,
+        yieldDiscountPercent: s.yieldDiscountPercent,
+        yieldDays: s.yieldDays,
+        yieldStartTime: s.yieldStartTime,
+        yieldEndTime: s.yieldEndTime,
+        yieldLabel: s.yieldLabel,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
       }));

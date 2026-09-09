@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { notFound } from 'next/navigation';
+import { prisma } from '@bookings/database';
 import { requireWorkspace } from '@/lib/session';
 import {
   PrismaServiceRepository,
@@ -30,8 +31,22 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
 
   const service = result.getValue();
 
+  const [staff, currentAssignments] = await Promise.all([
+    prisma.staff.findMany({
+      where: { workspaceId: workspace.id, isActive: true },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.serviceStaff.findMany({
+      where: { serviceId: id },
+      select: { staffId: true },
+    }),
+  ]);
+
+  const initialAssignedStaffIds = currentAssignments.map((a) => a.staffId);
+
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">
           Edit Service: {service.name}
@@ -41,7 +56,14 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
         </p>
       </div>
 
-      <ServiceForm workspaceId={workspace.id} initialData={service} isEditing={true} />
+      <ServiceForm
+        workspaceId={workspace.id}
+        initialData={service}
+        isEditing={true}
+        availableStaff={staff}
+        initialAssignedStaffIds={initialAssignedStaffIds}
+      />
     </div>
   );
 }
+

@@ -5,15 +5,21 @@ export interface UpdateServiceInputDTO {
   id: string;
   workspaceId: string;
   name: string;
-  slug?: string;
-  description?: string;
-  categoryId?: string;
+  slug?: string | null;
+  description?: string | null;
+  categoryId?: string | null;
   durationMinutes: number;
   bufferBeforeMinutes?: number;
   bufferAfterMinutes?: number;
   price?: number;
   currency?: string;
   locationType?: LocationType;
-  locationDetails?: string;
+  locationDetails?: string | null;
   isActive?: boolean;
+  hasYieldPricing?: boolean;
+  yieldDiscountPercent?: number | null;
+  yieldDays?: string | null;
+  yieldStartTime?: string | null;
+  yieldEndTime?: string | null;
+  yieldLabel?: string | null;
 }

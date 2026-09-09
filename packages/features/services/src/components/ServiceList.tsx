@@ -10,10 +10,11 @@ import type { ServiceOutputDTO } from '../application/create-service/CreateServi
 
 interface ServiceListProps {
   workspaceId: string;
+  workspaceSlug?: string;
   initialServices: ServiceOutputDTO[];
 }
 
-export function ServiceList({ workspaceId, initialServices }: ServiceListProps) {
+export function ServiceList({ workspaceId, workspaceSlug, initialServices }: ServiceListProps) {
   const [services, setServices] = React.useState<ServiceOutputDTO[]>(initialServices);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'DRAFT'>('ALL');
@@ -115,7 +116,12 @@ export function ServiceList({ workspaceId, initialServices }: ServiceListProps) 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => (
-            <ServiceCard key={service.id} service={service} onDelete={(id) => setDeleteId(id)} />
+            <ServiceCard
+              key={service.id}
+              service={service}
+              workspaceSlug={workspaceSlug}
+              onDelete={(id) => setDeleteId(id)}
+            />
           ))}
         </div>
       )}

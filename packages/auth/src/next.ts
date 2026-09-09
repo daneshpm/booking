@@ -63,8 +63,36 @@ export async function requireWorkspace(
   requiredRole: Role = 'RECEPTIONIST'
 ): Promise<{ session: AuthSession; workspace: SessionWorkspace }> {
   const session = await getSession();
-  const workspace = resolveWorkspaceAccess(session, requestedWorkspaceId, requiredRole);
-  return { session: session!, workspace };
+  if (!session) {
+    const headerList = await headers();
+    const isServerAction = headerList.has('next-action');
+    if (!isServerAction) {
+      redirect('/login');
+    }
+    throw new AuthorizationError(
+      'UNAUTHENTICATED',
+      'You must be signed in to perform this action.'
+    );
+  }
+
+  let workspace: SessionWorkspace;
+  try {
+    workspace = resolveWorkspaceAccess(session, requestedWorkspaceId, requiredRole);
+  } catch (err) {
+    const headerList = await headers();
+    const isServerAction = headerList.has('next-action');
+    if (!isServerAction && err instanceof AuthorizationError) {
+      if (err.code === 'FORBIDDEN') {
+        redirect('/appointments');
+      }
+      if (err.code === 'NO_WORKSPACE') {
+        redirect('/login');
+      }
+    }
+    throw err;
+  }
+
+  return { session, workspace };
 }
 
 /** Same guard for routes that address a workspace by slug. */
@@ -73,8 +101,36 @@ export async function requireWorkspaceBySlug(
   requiredRole: Role = 'RECEPTIONIST'
 ): Promise<{ session: AuthSession; workspace: SessionWorkspace }> {
   const session = await getSession();
-  const workspace = resolveWorkspaceAccessBySlug(session, slug, requiredRole);
-  return { session: session!, workspace };
+  if (!session) {
+    const headerList = await headers();
+    const isServerAction = headerList.has('next-action');
+    if (!isServerAction) {
+      redirect('/login');
+    }
+    throw new AuthorizationError(
+      'UNAUTHENTICATED',
+      'You must be signed in to perform this action.'
+    );
+  }
+
+  let workspace: SessionWorkspace;
+  try {
+    workspace = resolveWorkspaceAccessBySlug(session, slug, requiredRole);
+  } catch (err) {
+    const headerList = await headers();
+    const isServerAction = headerList.has('next-action');
+    if (!isServerAction && err instanceof AuthorizationError) {
+      if (err.code === 'FORBIDDEN') {
+        redirect('/appointments');
+      }
+      if (err.code === 'NO_WORKSPACE') {
+        redirect('/login');
+      }
+    }
+    throw err;
+  }
+
+  return { session, workspace };
 }
 
 /** Issue a session for a user and attach the cookie to the response. */

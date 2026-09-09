@@ -34,5 +34,9 @@ export default async function CalendarPage() {
     },
   }));
 
-  return <CalendarBookingsClient initialBookings={formattedBookings} />;
+  return (
+    <div className="p-6">
+      <CalendarBookingsClient initialBookings={formattedBookings} />
+    </div>
+  );
 }

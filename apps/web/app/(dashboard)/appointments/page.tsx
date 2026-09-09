@@ -9,8 +9,8 @@ export default async function AppointmentsPage() {
   // The workspace comes from the verified session, never from a client cookie.
   const { workspace } = await requireWorkspace();
 
-  // Fetch workspace bookings, services, and staff
-  const [bookings, services, staffMembers] = await Promise.all([
+  // Fetch workspace bookings, services, staff, and waitlist entries
+  const [bookings, services, staffMembers, waitlistEntries] = await Promise.all([
     prisma.booking.findMany({
       where: { workspaceId: workspace.id },
       include: {
@@ -37,6 +37,14 @@ export default async function AppointmentsPage() {
       },
       orderBy: { name: 'asc' },
     }),
+    prisma.waitlistEntry.findMany({
+      where: { workspaceId: workspace.id },
+      include: {
+        service: { select: { id: true, name: true, durationMinutes: true, price: true } },
+        staff: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
   ]);
 
   const formattedAppointments: AppointmentItem[] = bookings.map((b) => ({
@@ -61,6 +69,27 @@ export default async function AppointmentsPage() {
       id: b.staff.id,
       name: b.staff.name,
     },
+    source: b.source || 'ONLINE',
+  }));
+
+  const formattedWaitlist = waitlistEntries.map((w) => ({
+    id: w.id,
+    customerName: w.customerName,
+    customerEmail: w.customerEmail,
+    customerPhone: w.customerPhone,
+    preferredDate: w.preferredDate.toISOString().split('T')[0],
+    status: w.status as 'WAITING' | 'NOTIFIED' | 'CLAIMED' | 'EXPIRED' | 'CANCELLED',
+    notes: w.notes,
+    service: {
+      id: w.service.id,
+      name: w.service.name,
+      durationMinutes: w.service.durationMinutes,
+      price: w.service.price ? Number(w.service.price) : 0,
+    },
+    staff: w.staff ? { id: w.staff.id, name: w.staff.name } : null,
+    claimToken: w.claimToken,
+    notifiedAt: w.notifiedAt ? w.notifiedAt.toISOString() : null,
+    createdAt: w.createdAt.toISOString(),
   }));
 
   return (
@@ -68,6 +97,7 @@ export default async function AppointmentsPage() {
       workspaceId={workspace.id}
       workspaceTimezone={workspace.timezone}
       initialAppointments={formattedAppointments}
+      initialWaitlist={formattedWaitlist}
       services={services}
       staffMembers={staffMembers}
     />

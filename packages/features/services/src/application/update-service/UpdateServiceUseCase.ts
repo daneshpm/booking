@@ -15,7 +15,11 @@ export class UpdateServiceUseCase {
       }
 
       const rawSlug = input.slug?.trim() || slugify(input.name, { lower: true, strict: true });
-      const slug = rawSlug.toLowerCase();
+      const slug =
+        (rawSlug || service.slug)
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/(^-+|-+$)/g, '') || service.slug;
 
       // Check slug uniqueness excluding self
       const slugExists = await this.serviceRepo.existsWithSlug(input.workspaceId, slug, input.id);
@@ -38,6 +42,12 @@ export class UpdateServiceUseCase {
         currency: input.currency,
         locationType: input.locationType,
         locationDetails: input.locationDetails,
+        hasYieldPricing: input.hasYieldPricing,
+        yieldDiscountPercent: input.yieldDiscountPercent,
+        yieldDays: input.yieldDays,
+        yieldStartTime: input.yieldStartTime,
+        yieldEndTime: input.yieldEndTime,
+        yieldLabel: input.yieldLabel,
       });
 
       if (input.isActive !== undefined) {
@@ -64,6 +74,12 @@ export class UpdateServiceUseCase {
         locationType: service.locationType,
         locationDetails: service.locationDetails,
         isActive: service.isActive,
+        hasYieldPricing: service.hasYieldPricing,
+        yieldDiscountPercent: service.yieldDiscountPercent,
+        yieldDays: service.yieldDays,
+        yieldStartTime: service.yieldStartTime,
+        yieldEndTime: service.yieldEndTime,
+        yieldLabel: service.yieldLabel,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

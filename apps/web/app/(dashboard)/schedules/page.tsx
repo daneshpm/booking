@@ -25,9 +25,28 @@ export default async function SchedulesPage() {
     },
   });
 
+  const serializedStaff = workspace.staff.map((s) => ({
+    id: s.id,
+    name: s.name,
+    email: s.email,
+    timezone: s.timezone,
+    isActive: s.isActive,
+    workingHours: s.workingHours.map((wh) => ({
+      id: wh.id,
+      dayOfWeek: wh.dayOfWeek,
+      startTime: wh.startTime,
+      endTime: wh.endTime,
+      breaks: wh.breaks.map((b) => ({
+        id: b.id,
+        startTime: b.startTime,
+        endTime: b.endTime,
+      })),
+    })),
+  }));
+
   return (
     <div className="p-6">
-      <AvailabilityClient workspaceId={workspace.id} initialStaff={workspace.staff as any} />
+      <AvailabilityClient workspaceId={workspace.id} initialStaff={serializedStaff} />
     </div>
   );
 }
