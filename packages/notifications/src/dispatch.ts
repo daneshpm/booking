@@ -112,10 +112,23 @@ async function claimJob(job: Job, booking: BookingWithRelations): Promise<string
     });
     return row.id;
   } catch (err) {
-    // P2002 is the unique violation, and the only error that means another
-    // worker holds this delivery. Treating every failure that way would let a
-    // database outage look like healthy operation in the sweep summary.
-    if ((err as { code?: string })?.code === 'P2002') return null;
+    // Handle both Prisma error codes (P2002) and raw database unique constraint violations
+    const code = (err as { code?: string })?.code;
+    const causeCode = (err as { cause?: { code?: string } })?.cause?.code;
+    const message =
+      ((err as { message?: string })?.message || '') +
+      ((err as { cause?: { message?: string } })?.cause?.message || '');
+
+    if (
+      code === 'P2002' ||
+      code === '23505' ||
+      causeCode === '23505' ||
+      message.includes('notification_logs_workflow_id_booking_id_recipient_key') ||
+      message.includes('Unique constraint failed') ||
+      message.includes('duplicate key value violates unique constraint')
+    ) {
+      return null; // Another worker already owns this delivery
+    }
     throw err;
   }
 }
