@@ -118,7 +118,11 @@ export function ServiceCard({ service, onDelete, workspaceSlug }: ServiceCardPro
 
       <CardFooter className="pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
         <Link
-          href={workspaceSlug ? `/book/${workspaceSlug}/${service.slug}` : `/book/service/${service.slug}`}
+          href={
+            workspaceSlug
+              ? `/book/${workspaceSlug}/${service.slug}`
+              : `/book/service/${service.slug}`
+          }
           target="_blank"
           className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
         >

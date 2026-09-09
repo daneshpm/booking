@@ -275,7 +275,11 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     {service.yieldLabel || 'Off-Peak Special'} • {service.yieldDiscountPercent}% OFF
                   </span>
                   <span className="text-[11px] text-amber-900 leading-tight block mt-0.5">
-                    Select an off-peak slot {service.yieldStartTime && service.yieldEndTime ? `(${service.yieldStartTime} - ${service.yieldEndTime})` : ''} for instant promotional savings!
+                    Select an off-peak slot{' '}
+                    {service.yieldStartTime && service.yieldEndTime
+                      ? `(${service.yieldStartTime} - ${service.yieldEndTime})`
+                      : ''}{' '}
+                    for instant promotional savings!
                   </span>
                 </div>
               </div>
@@ -370,19 +374,28 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                       <Sparkles className="h-5 w-5 fill-current text-[#5c34ad]" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-slate-900">All Slots Booked for {selectedDate}</h3>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        All Slots Booked for {selectedDate}
+                      </h3>
                       <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                        Don't miss out! Join our priority waitlist. If any client cancels or reschedules, we'll notify you instantly.
+                        Don't miss out! Join our priority waitlist. If any client cancels or
+                        reschedules, we'll notify you instantly.
                       </p>
                     </div>
 
                     {waitlistSuccess ? (
                       <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-center gap-2 font-bold animate-in fade-in">
                         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <span>You are on the priority waitlist! We will alert you immediately if a spot opens.</span>
+                        <span>
+                          You are on the priority waitlist! We will alert you immediately if a spot
+                          opens.
+                        </span>
                       </div>
                     ) : isWaitlistOpen ? (
-                      <form onSubmit={handleWaitlistSubmit} className="text-left space-y-3 pt-2 animate-in fade-in">
+                      <form
+                        onSubmit={handleWaitlistSubmit}
+                        className="text-left space-y-3 pt-2 animate-in fade-in"
+                      >
                         {waitlistError && (
                           <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
                             {waitlistError}
@@ -390,7 +403,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div>
-                            <label className="text-[11px] font-bold text-slate-700 block mb-1">Your Name *</label>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              Your Name *
+                            </label>
                             <input
                               type="text"
                               placeholder="Jane Doe"
@@ -401,7 +416,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                             />
                           </div>
                           <div>
-                            <label className="text-[11px] font-bold text-slate-700 block mb-1">Your Email *</label>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              Your Email *
+                            </label>
                             <input
                               type="email"
                               placeholder="jane@example.com"
@@ -413,7 +430,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                           </div>
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Phone Number (Optional)</label>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Phone Number (Optional)
+                          </label>
                           <input
                             type="tel"
                             placeholder="+1 555-0199"
@@ -423,7 +442,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                           />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-slate-700 block mb-1">Preferred Time Window (Optional)</label>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Preferred Time Window (Optional)
+                          </label>
                           <input
                             type="text"
                             placeholder="e.g. Afternoon between 2pm - 5pm"
@@ -483,7 +504,9 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <span className={`text-xs font-bold ${isOffPeak ? 'text-slate-900 group-hover:text-amber-950' : 'group-hover:text-white'}`}>
+                            <span
+                              className={`text-xs font-bold ${isOffPeak ? 'text-slate-900 group-hover:text-amber-950' : 'group-hover:text-white'}`}
+                            >
                               {slot.label}
                             </span>
                             {isOffPeak ? (

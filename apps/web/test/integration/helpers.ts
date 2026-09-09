@@ -14,7 +14,6 @@ export async function resetDatabase(): Promise<void> {
       "notification_logs",
       "booking_audit_logs",
       "bookings",
-      "waitlist_entries",
       "workflows",
       "service_staff",
       "staff_breaks",

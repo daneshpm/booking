@@ -14,10 +14,7 @@ import {
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react';
-import {
-  getClaimSpotDetailsAction,
-  claimPublicWaitlistSpotAction,
-} from '../book/actions';
+import { getClaimSpotDetailsAction, claimPublicWaitlistSpotAction } from '../book/actions';
 
 export default function ClaimSpotPage() {
   return (
@@ -95,9 +92,7 @@ function ClaimSpotContent() {
             <Sparkles className="h-3.5 w-3.5 fill-current" />
             <span>PRIORITY WAITLIST RECOVERY</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-            A Spot Has Opened Up!
-          </h1>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">A Spot Has Opened Up!</h1>
           <p className="text-xs text-purple-200 mt-1 max-w-sm mx-auto">
             A previously booked time slot became available and has been reserved for you.
           </p>
@@ -205,7 +200,8 @@ function ClaimSpotContent() {
               <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/80 flex items-start gap-2.5 text-xs text-amber-900">
                 <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>
-                  Reserved exclusively for <strong>{spotDetails.customerName}</strong>. Click below to confirm before this priority pass expires.
+                  Reserved exclusively for <strong>{spotDetails.customerName}</strong>. Click below
+                  to confirm before this priority pass expires.
                 </span>
               </div>
 

@@ -382,8 +382,16 @@ export async function createFastPassBookingAction(
       // Start immediately
       startUtc = new Date();
     } else {
-      if (!data.date || !data.time || !DATE_PATTERN.test(data.date) || !TIME_PATTERN.test(data.time)) {
-        return { success: false, error: 'Please provide a valid date (YYYY-MM-DD) and time (HH:mm).' };
+      if (
+        !data.date ||
+        !data.time ||
+        !DATE_PATTERN.test(data.date) ||
+        !TIME_PATTERN.test(data.time)
+      ) {
+        return {
+          success: false,
+          error: 'Please provide a valid date (YYYY-MM-DD) and time (HH:mm).',
+        };
       }
       startUtc = fromZonedTime(`${data.date}T${data.time}:00`, timezone);
       if (Number.isNaN(startUtc.getTime())) {
@@ -428,9 +436,7 @@ export async function createFastPassBookingAction(
         where: { serviceId },
         include: { staff: true },
       });
-      let candidateStaffList = serviceAssignments
-        .map((sa) => sa.staff)
-        .filter((s) => s.isActive);
+      let candidateStaffList = serviceAssignments.map((sa) => sa.staff).filter((s) => s.isActive);
 
       if (candidateStaffList.length === 0) {
         candidateStaffList = await prisma.staff.findMany({

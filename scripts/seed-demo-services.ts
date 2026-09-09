@@ -30,7 +30,8 @@ async function seedServices() {
       workspaceId: ws.id,
       name: 'Tech Consultation & Strategy',
       slug: 'tech-consultation',
-      description: 'Strategic technical advisory session with architecture review and roadmap planning.',
+      description:
+        'Strategic technical advisory session with architecture review and roadmap planning.',
       durationMinutes: 45,
       bufferBeforeMinutes: 10,
       bufferAfterMinutes: 10,

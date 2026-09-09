@@ -669,7 +669,9 @@ export function ApexLandingPage({ defaultWorkspaceSlug }: ApexLandingPageProps =
               </div>
 
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">₹0</span>
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                  ₹0
+                </span>
                 <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   FREE
                 </span>
@@ -770,7 +772,9 @@ export function ApexLandingPage({ defaultWorkspaceSlug }: ApexLandingPageProps =
               </div>
 
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">₹499</span>
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                  ₹499
+                </span>
                 <span className="text-xs font-semibold text-slate-500">/ session</span>
               </div>
 
@@ -779,7 +783,9 @@ export function ApexLandingPage({ defaultWorkspaceSlug }: ApexLandingPageProps =
                   <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
                     <Check className="h-3.5 w-3.5 text-indigo-600" />
                   </div>
-                  <span className="font-medium text-slate-700">45-minute live technical interview</span>
+                  <span className="font-medium text-slate-700">
+                    45-minute live technical interview
+                  </span>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
@@ -866,8 +872,12 @@ export function ApexLandingPage({ defaultWorkspaceSlug }: ApexLandingPageProps =
               </div>
 
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Custom</span>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">MOU Based</span>
+                <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                  Custom
+                </span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  MOU Based
+                </span>
               </div>
 
               <ul className="space-y-3.5 text-xs text-slate-600 pt-4 border-t border-slate-100">

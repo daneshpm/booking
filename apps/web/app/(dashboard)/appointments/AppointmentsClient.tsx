@@ -114,7 +114,9 @@ export function AppointmentsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = React.useState<'upcoming' | 'past' | 'custom' | 'waitlist'>('upcoming');
+  const [activeTab, setActiveTab] = React.useState<'upcoming' | 'past' | 'custom' | 'waitlist'>(
+    'upcoming'
+  );
   const [waitlistEntries, setWaitlistEntries] = React.useState<WaitlistItem[]>(initialWaitlist);
   const [isAddWaitlistOpen, setIsAddWaitlistOpen] = React.useState(false);
   const [waitlistStatusFilter, setWaitlistStatusFilter] = React.useState<string>('ALL');
@@ -393,9 +395,13 @@ export function AppointmentsClient({
             >
               <Sparkles className="h-3.5 w-3.5" />
               <span>Smart Waitlist</span>
-              {waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED').length > 0 && (
+              {waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED')
+                .length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-100 text-[#5c34ad] font-bold">
-                  {waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED').length}
+                  {
+                    waitlistEntries.filter((w) => w.status === 'WAITING' || w.status === 'NOTIFIED')
+                      .length
+                  }
                 </span>
               )}
             </button>
@@ -472,7 +478,8 @@ export function AppointmentsClient({
                 </span>
               </div>
               <p className="text-xs text-slate-500 max-w-xl">
-                When appointments fill up, clients queued here automatically receive priority claim passes the instant any booking is cancelled or rescheduled.
+                When appointments fill up, clients queued here automatically receive priority claim
+                passes the instant any booking is cancelled or rescheduled.
               </p>
             </div>
 
@@ -490,9 +497,21 @@ export function AppointmentsClient({
           <div className="flex items-center gap-2">
             {[
               { label: 'All', value: 'ALL', count: waitlistEntries.length },
-              { label: 'Waiting', value: 'WAITING', count: waitlistEntries.filter((w) => w.status === 'WAITING').length },
-              { label: 'Notified', value: 'NOTIFIED', count: waitlistEntries.filter((w) => w.status === 'NOTIFIED').length },
-              { label: 'Claimed', value: 'CLAIMED', count: waitlistEntries.filter((w) => w.status === 'CLAIMED').length },
+              {
+                label: 'Waiting',
+                value: 'WAITING',
+                count: waitlistEntries.filter((w) => w.status === 'WAITING').length,
+              },
+              {
+                label: 'Notified',
+                value: 'NOTIFIED',
+                count: waitlistEntries.filter((w) => w.status === 'NOTIFIED').length,
+              },
+              {
+                label: 'Claimed',
+                value: 'CLAIMED',
+                count: waitlistEntries.filter((w) => w.status === 'CLAIMED').length,
+              },
             ].map((f) => (
               <button
                 key={f.value}
@@ -526,7 +545,8 @@ export function AppointmentsClient({
               </div>
               <h3 className="text-sm font-bold text-slate-900">Waitlist is Clean & Empty</h3>
               <p className="text-xs text-slate-500 max-w-sm">
-                No clients are currently on the waitlist for this filter. Clients will appear here when slots fill up on your public booking page or when added manually.
+                No clients are currently on the waitlist for this filter. Clients will appear here
+                when slots fill up on your public booking page or when added manually.
               </p>
               <button
                 type="button"
@@ -578,7 +598,10 @@ export function AppointmentsClient({
                         <td className="py-3.5 px-4">
                           <div className="font-bold text-slate-800">{entry.preferredDate}</div>
                           {entry.notes && (
-                            <div className="text-[10px] text-slate-500 truncate max-w-xs" title={entry.notes}>
+                            <div
+                              className="text-[10px] text-slate-500 truncate max-w-xs"
+                              title={entry.notes}
+                            >
                               Note: {entry.notes}
                             </div>
                           )}

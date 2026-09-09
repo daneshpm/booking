@@ -269,9 +269,7 @@ export async function getAvailableSlotsAction(
     // Dynamic Off-Peak Yield Pricing evaluation setup
     const slotDayOfWeek = dayOfWeekFor(date);
     const hasYield = Boolean(
-      service.hasYieldPricing &&
-      service.yieldDiscountPercent &&
-      service.yieldDiscountPercent > 0
+      service.hasYieldPricing && service.yieldDiscountPercent && service.yieldDiscountPercent > 0
     );
     let allowedDays: number[] = [];
     if (hasYield && service.yieldDays) {
@@ -299,7 +297,8 @@ export async function getAvailableSlotsAction(
       for (const slot of slots) {
         if (byTime.has(slot.localTime)) continue;
 
-        const isDayEligible = hasYield && (allowedDays.length === 0 || allowedDays.includes(slotDayOfWeek));
+        const isDayEligible =
+          hasYield && (allowedDays.length === 0 || allowedDays.includes(slotDayOfWeek));
         const isTimeEligible =
           isDayEligible &&
           (!service.yieldStartTime || slot.localTime >= service.yieldStartTime) &&
@@ -500,7 +499,11 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     let discountApplied = 0;
     let discountLabel: string | null = null;
 
-    if (service.hasYieldPricing && service.yieldDiscountPercent && service.yieldDiscountPercent > 0) {
+    if (
+      service.hasYieldPricing &&
+      service.yieldDiscountPercent &&
+      service.yieldDiscountPercent > 0
+    ) {
       const slotDayOfWeek = dayOfWeekFor(date);
       let allowedDays: number[] = [];
       if (service.yieldDays) {

@@ -117,34 +117,34 @@ export async function createServiceAction(
     };
   }
 
-    const createdService = result.getValue();
+  const createdService = result.getValue();
 
-    if (parsed.data.assignedStaffIds && parsed.data.assignedStaffIds.length > 0) {
-      const validStaff = await prisma.staff.findMany({
-        where: { id: { in: parsed.data.assignedStaffIds }, workspaceId, isActive: true },
-        select: { id: true },
+  if (parsed.data.assignedStaffIds && parsed.data.assignedStaffIds.length > 0) {
+    const validStaff = await prisma.staff.findMany({
+      where: { id: { in: parsed.data.assignedStaffIds }, workspaceId, isActive: true },
+      select: { id: true },
+    });
+    if (validStaff.length > 0) {
+      await prisma.serviceStaff.createMany({
+        data: validStaff.map((s) => ({
+          serviceId: createdService.id,
+          staffId: s.id,
+        })),
+        skipDuplicates: true,
       });
-      if (validStaff.length > 0) {
-        await prisma.serviceStaff.createMany({
-          data: validStaff.map((s) => ({
-            serviceId: createdService.id,
-            staffId: s.id,
-          })),
-          skipDuplicates: true,
-        });
-      }
     }
-
-    revalidatePath('/services');
-    revalidatePath('/staff');
-    revalidatePath('/users');
-    revalidatePath('/availability');
-    revalidatePath('/schedules');
-    return {
-      success: true,
-      data: createdService,
-    };
   }
+
+  revalidatePath('/services');
+  revalidatePath('/staff');
+  revalidatePath('/users');
+  revalidatePath('/availability');
+  revalidatePath('/schedules');
+  return {
+    success: true,
+    data: createdService,
+  };
+}
 
 export async function updateServiceAction(
   workspaceId: string,

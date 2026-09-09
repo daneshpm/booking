@@ -44,7 +44,10 @@ function toTimeString(totalMinutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function computeSensibleBreak(startTime: string, endTime: string): { breakStartTime: string; breakEndTime: string } {
+function computeSensibleBreak(
+  startTime: string,
+  endTime: string
+): { breakStartTime: string; breakEndTime: string } {
   const startMins = toMinutes(startTime);
   const endMins = toMinutes(endTime);
   const duration = endMins - startMins;
@@ -170,7 +173,13 @@ export function AvailabilityClient({ workspaceId, initialStaff }: AvailabilityCl
           const endMins = toMinutes(d.endTime);
           const bStartMins = toMinutes(breakStart || '');
           const bEndMins = toMinutes(breakEnd || '');
-          if (!breakStart || !breakEnd || bStartMins < startMins || bEndMins > endMins || bEndMins <= bStartMins) {
+          if (
+            !breakStart ||
+            !breakEnd ||
+            bStartMins < startMins ||
+            bEndMins > endMins ||
+            bEndMins <= bStartMins
+          ) {
             const sensible = computeSensibleBreak(d.startTime, d.endTime);
             breakStart = sensible.breakStartTime;
             breakEnd = sensible.breakEndTime;
@@ -243,7 +252,8 @@ export function AvailabilityClient({ workspaceId, initialStaff }: AvailabilityCl
       const bStart = toMinutes(day.breakStartTime);
       const bEnd = toMinutes(day.breakEndTime);
       if (bEnd <= bStart) return 'Break must end after break start';
-      if (bStart < start || bEnd > end) return `Break must be between ${day.startTime} and ${day.endTime}`;
+      if (bStart < start || bEnd > end)
+        return `Break must be between ${day.startTime} and ${day.endTime}`;
     }
     return null;
   };
@@ -482,8 +492,8 @@ export function AvailabilityClient({ workspaceId, initialStaff }: AvailabilityCl
                     dayError
                       ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800 shadow-sm'
                       : day.enabled
-                      ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
-                      : 'bg-slate-50 dark:bg-slate-950/40 border-dashed border-slate-200 dark:border-slate-800/80 opacity-60'
+                        ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950/40 border-dashed border-slate-200 dark:border-slate-800/80 opacity-60'
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -537,7 +547,9 @@ export function AvailabilityClient({ workspaceId, initialStaff }: AvailabilityCl
                                 ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300'
                                 : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800'
                             }`}
-                            title={day.hasBreak ? 'Click to remove break' : 'Click to add break window'}
+                            title={
+                              day.hasBreak ? 'Click to remove break' : 'Click to add break window'
+                            }
                           >
                             <Coffee className="h-3 w-3" />
                             <span>{day.hasBreak ? 'Break On' : '+ Break'}</span>

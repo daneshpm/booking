@@ -146,13 +146,7 @@ const COUNTRIES = [
   { name: 'France', flag: '🇫🇷' },
 ];
 
-const GENDERS = [
-  "I'd prefer not to say",
-  'Male',
-  'Female',
-  'Non-binary',
-  'Custom',
-];
+const GENDERS = ["I'd prefer not to say", 'Male', 'Female', 'Non-binary', 'Custom'];
 
 const LANGUAGES = [
   'English',
@@ -169,7 +163,11 @@ const LANGUAGES = [
 const AVATAR_PRESETS = [
   { id: 'purple', bg: 'bg-gradient-to-tr from-[#5c34ad] to-indigo-600', text: 'text-white' },
   { id: 'emerald', bg: 'bg-gradient-to-tr from-emerald-600 to-teal-500', text: 'text-white' },
-  { id: 'sunset', bg: 'bg-gradient-to-tr from-rose-500 via-orange-500 to-amber-400', text: 'text-white' },
+  {
+    id: 'sunset',
+    bg: 'bg-gradient-to-tr from-rose-500 via-orange-500 to-amber-400',
+    text: 'text-white',
+  },
   { id: 'blue', bg: 'bg-gradient-to-tr from-blue-600 to-cyan-500', text: 'text-white' },
   { id: 'dark', bg: 'bg-gradient-to-tr from-slate-900 to-slate-700', text: 'text-white' },
 ];
@@ -186,7 +184,9 @@ export function SettingsClient({
   const [activeTab, setActiveTab] = React.useState<
     'profile' | 'security' | 'mfa' | 'settings' | 'sessions' | 'groups' | 'privacy'
   >('profile');
-  const [activeSubTab, setActiveSubTab] = React.useState<'personal' | 'email' | 'mobile'>('personal');
+  const [activeSubTab, setActiveSubTab] = React.useState<'personal' | 'email' | 'mobile'>(
+    'personal'
+  );
 
   // Hidden local file input ref
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -626,7 +626,8 @@ export function SettingsClient({
                   Profile
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Manage your personal information, local profile photo, contact details, and social links.
+                  Manage your personal information, local profile photo, contact details, and social
+                  links.
                 </p>
               </div>
 
@@ -772,7 +773,8 @@ export function SettingsClient({
                             Time zone
                           </div>
                           <div className="text-slate-900 dark:text-slate-100 font-semibold text-sm">
-                            (GMT +05:30) India Standard Time ( {profileData.timezone || 'Asia/Kolkata'} )
+                            (GMT +05:30) India Standard Time ({' '}
+                            {profileData.timezone || 'Asia/Kolkata'} )
                           </div>
                         </div>
 
@@ -787,7 +789,10 @@ export function SettingsClient({
                           </div>
                         )}
 
-                        {(profileData.instagram || profileData.linkedin || profileData.twitter || profileData.website) && (
+                        {(profileData.instagram ||
+                          profileData.linkedin ||
+                          profileData.twitter ||
+                          profileData.website) && (
                           <div className="sm:col-span-2 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-2">
                               Social & Web Presence
@@ -890,7 +895,9 @@ export function SettingsClient({
                             type="text"
                             required
                             value={profileData.name}
-                            onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, name: e.target.value })
+                            }
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           />
                         </div>
@@ -902,7 +909,9 @@ export function SettingsClient({
                           <input
                             type="text"
                             value={profileData.displayName || ''}
-                            onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, displayName: e.target.value })
+                            }
                             placeholder="e.g. Danesh"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           />
@@ -914,7 +923,9 @@ export function SettingsClient({
                           </label>
                           <select
                             value={profileData.gender || "I'd prefer not to say"}
-                            onChange={(e) => setProfileData({ ...profileData, gender: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, gender: e.target.value })
+                            }
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           >
                             {GENDERS.map((g) => (
@@ -931,7 +942,9 @@ export function SettingsClient({
                           </label>
                           <select
                             value={profileData.country || 'India'}
-                            onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, country: e.target.value })
+                            }
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           >
                             {COUNTRIES.map((c) => (
@@ -949,7 +962,9 @@ export function SettingsClient({
                           <input
                             type="text"
                             value={profileData.state || ''}
-                            onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, state: e.target.value })
+                            }
                             placeholder="e.g. Karnataka"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           />
@@ -961,7 +976,9 @@ export function SettingsClient({
                           </label>
                           <select
                             value={profileData.language || 'English'}
-                            onChange={(e) => setProfileData({ ...profileData, language: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, language: e.target.value })
+                            }
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           >
                             {LANGUAGES.map((lang) => (
@@ -980,7 +997,9 @@ export function SettingsClient({
                             type="text"
                             maxLength={100}
                             value={profileData.headline || ''}
-                            onChange={(e) => setProfileData({ ...profileData, headline: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, headline: e.target.value })
+                            }
                             placeholder="e.g. Senior Career Advisor & Cloud Architect at Rooman"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           />
@@ -999,7 +1018,9 @@ export function SettingsClient({
                             rows={3}
                             maxLength={300}
                             value={profileData.bio || ''}
-                            onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, bio: e.target.value })
+                            }
                             placeholder="e.g. Helping professionals master cloud tech 🚀 | 1-on-1 career guidance"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none resize-none"
                           />
@@ -1015,11 +1036,15 @@ export function SettingsClient({
                                 📸 Instagram Username
                               </label>
                               <div className="relative">
-                                <span className="absolute left-3 top-2 text-slate-400 text-xs">@</span>
+                                <span className="absolute left-3 top-2 text-slate-400 text-xs">
+                                  @
+                                </span>
                                 <input
                                   type="text"
                                   value={profileData.instagram || ''}
-                                  onChange={(e) => setProfileData({ ...profileData, instagram: e.target.value })}
+                                  onChange={(e) =>
+                                    setProfileData({ ...profileData, instagram: e.target.value })
+                                  }
                                   placeholder="username"
                                   className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                                 />
@@ -1033,7 +1058,9 @@ export function SettingsClient({
                               <input
                                 type="url"
                                 value={profileData.linkedin || ''}
-                                onChange={(e) => setProfileData({ ...profileData, linkedin: e.target.value })}
+                                onChange={(e) =>
+                                  setProfileData({ ...profileData, linkedin: e.target.value })
+                                }
                                 placeholder="https://linkedin.com/in/username"
                                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                               />
@@ -1044,11 +1071,15 @@ export function SettingsClient({
                                 𝕏 Twitter / X Handle
                               </label>
                               <div className="relative">
-                                <span className="absolute left-3 top-2 text-slate-400 text-xs">@</span>
+                                <span className="absolute left-3 top-2 text-slate-400 text-xs">
+                                  @
+                                </span>
                                 <input
                                   type="text"
                                   value={profileData.twitter || ''}
-                                  onChange={(e) => setProfileData({ ...profileData, twitter: e.target.value })}
+                                  onChange={(e) =>
+                                    setProfileData({ ...profileData, twitter: e.target.value })
+                                  }
                                   placeholder="handle"
                                   className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                                 />
@@ -1062,7 +1093,9 @@ export function SettingsClient({
                               <input
                                 type="url"
                                 value={profileData.website || ''}
-                                onChange={(e) => setProfileData({ ...profileData, website: e.target.value })}
+                                onChange={(e) =>
+                                  setProfileData({ ...profileData, website: e.target.value })
+                                }
                                 placeholder="https://danesh.dev"
                                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                               />
@@ -1100,7 +1133,8 @@ export function SettingsClient({
                     My Email Addresses
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    View and manage the email addresses associated with your account. They can be used to sign in and to reset password if you ever forget it.
+                    View and manage the email addresses associated with your account. They can be
+                    used to sign in and to reset password if you ever forget it.
                   </p>
                 </div>
 
@@ -1132,7 +1166,8 @@ export function SettingsClient({
                     Mobile Numbers
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    View and manage the mobile phone numbers associated with your account for appointment alerts and WhatsApp updates.
+                    View and manage the mobile phone numbers associated with your account for
+                    appointment alerts and WhatsApp updates.
                   </p>
                 </div>
 
@@ -1282,14 +1317,19 @@ export function SettingsClient({
                         Authenticator App (TOTP)
                       </div>
                       <div className="text-[11px] text-slate-400">
-                        Use Google Authenticator, 1Password, or Authy to generate single-use verification codes.
+                        Use Google Authenticator, 1Password, or Authy to generate single-use
+                        verification codes.
                       </div>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => alert('Authenticator app configuration ready. Scan QR with your preferred authenticator app.')}
+                    onClick={() =>
+                      alert(
+                        'Authenticator app configuration ready. Scan QR with your preferred authenticator app.'
+                      )
+                    }
                     className="px-4 py-1.5 rounded-xl bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold shadow-sm"
                   >
                     Setup
@@ -1327,9 +1367,7 @@ export function SettingsClient({
                       type="text"
                       required
                       value={workspaceData.name}
-                      onChange={(e) =>
-                        setWorkspaceData({ ...workspaceData, name: e.target.value })
-                      }
+                      onChange={(e) => setWorkspaceData({ ...workspaceData, name: e.target.value })}
                       className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                     />
                   </div>
@@ -1418,7 +1456,8 @@ export function SettingsClient({
                   Active Sessions & Devices
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Manage devices currently signed into your account. You can revoke any unfamiliar session.
+                  Manage devices currently signed into your account. You can revoke any unfamiliar
+                  session.
                 </p>
               </div>
 
@@ -1438,7 +1477,9 @@ export function SettingsClient({
                       </div>
                       <div>
                         <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <span>{sess.userAgent ? sess.userAgent.split(' ')[0] : 'Web Browser'}</span>
+                          <span>
+                            {sess.userAgent ? sess.userAgent.split(' ')[0] : 'Web Browser'}
+                          </span>
                           {sess.isCurrent && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-[#5c34ad] dark:text-purple-300">
                               Current Device
@@ -1483,7 +1524,8 @@ export function SettingsClient({
                     Groups & Workspace Members
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    View, search, and manage all team members, role permissions, and service assignments in {workspace.name}.
+                    View, search, and manage all team members, role permissions, and service
+                    assignments in {workspace.name}.
                   </p>
                 </div>
 
@@ -1562,7 +1604,11 @@ export function SettingsClient({
                         <div className="flex items-center gap-3.5">
                           <div className="h-10 w-10 rounded-full bg-[#5c34ad] text-white font-bold text-sm flex items-center justify-center shadow-sm overflow-hidden shrink-0">
                             {m.avatarUrl ? (
-                              <img src={m.avatarUrl} alt="" className="h-full w-full object-cover" />
+                              <img
+                                src={m.avatarUrl}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
                             ) : (
                               <span>{m.name.charAt(0).toUpperCase()}</span>
                             )}
@@ -1579,9 +1625,15 @@ export function SettingsClient({
                                 </span>
                               )}
                               {m.isActive ? (
-                                <span className="h-2 w-2 rounded-full bg-emerald-500" title="Active" />
+                                <span
+                                  className="h-2 w-2 rounded-full bg-emerald-500"
+                                  title="Active"
+                                />
                               ) : (
-                                <span className="h-2 w-2 rounded-full bg-slate-300" title="Inactive" />
+                                <span
+                                  className="h-2 w-2 rounded-full bg-slate-300"
+                                  title="Inactive"
+                                />
                               )}
                             </div>
                             <div className="text-[11px] text-slate-400 mt-0.5">{m.email}</div>
@@ -1605,10 +1657,10 @@ export function SettingsClient({
                               m.role === 'OWNER'
                                 ? 'bg-purple-100 dark:bg-purple-950/60 text-[#5c34ad] dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                                 : m.role === 'ADMIN'
-                                ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                                : m.role === 'STAFF'
-                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                  ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                  : m.role === 'STAFF'
+                                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                             }`}
                           >
                             {m.role}
@@ -1634,11 +1686,10 @@ export function SettingsClient({
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30">
-                    <div className="font-bold text-[#5c34ad] tracking-wide">
-                      OWNER
-                    </div>
+                    <div className="font-bold text-[#5c34ad] tracking-wide">OWNER</div>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      Full workspace authority, billing control, team membership management, and tenant settings.
+                      Full workspace authority, billing control, team membership management, and
+                      tenant settings.
                     </p>
                   </div>
 
@@ -1647,7 +1698,8 @@ export function SettingsClient({
                       ADMIN
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      Create and edit services, configure staff shifts & buffer rules, publish booking pages.
+                      Create and edit services, configure staff shifts & buffer rules, publish
+                      booking pages.
                     </p>
                   </div>
 
@@ -1656,7 +1708,8 @@ export function SettingsClient({
                       STAFF
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      View their own appointments, set shift availability and breaks, accept client bookings.
+                      View their own appointments, set shift availability and breaks, accept client
+                      bookings.
                     </p>
                   </div>
 
@@ -1665,7 +1718,8 @@ export function SettingsClient({
                       RECEPTIONIST
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                      Front-desk booking intake, view calendar schedules, check in clients, record attendance.
+                      Front-desk booking intake, view calendar schedules, check in clients, record
+                      attendance.
                     </p>
                   </div>
                 </div>

@@ -246,7 +246,8 @@ export class Service {
     if (params.locationType) this._locationType = params.locationType;
     this._locationDetails = params.locationDetails?.trim() ?? null;
     if (params.hasYieldPricing !== undefined) this._hasYieldPricing = params.hasYieldPricing;
-    if (params.yieldDiscountPercent !== undefined) this._yieldDiscountPercent = params.yieldDiscountPercent;
+    if (params.yieldDiscountPercent !== undefined)
+      this._yieldDiscountPercent = params.yieldDiscountPercent;
     if (params.yieldDays !== undefined) this._yieldDays = params.yieldDays;
     if (params.yieldStartTime !== undefined) this._yieldStartTime = params.yieldStartTime;
     if (params.yieldEndTime !== undefined) this._yieldEndTime = params.yieldEndTime;

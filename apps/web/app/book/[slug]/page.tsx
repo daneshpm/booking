@@ -30,10 +30,7 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
   let workspace = await prisma.workspace.findFirst({
     where: {
       slug,
-      OR: [
-        { bookingPages: { some: { isPublished: true } } },
-        { bookingPages: { none: {} } },
-      ],
+      OR: [{ bookingPages: { some: { isPublished: true } } }, { bookingPages: { none: {} } }],
     },
     include: {
       services: {

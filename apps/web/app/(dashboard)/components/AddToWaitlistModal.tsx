@@ -163,7 +163,9 @@ export function AddToWaitlistModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Staff Preference</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Staff Preference
+              </label>
               <select
                 value={staffId}
                 onChange={(e) => setStaffId(e.target.value)}
@@ -241,7 +243,8 @@ export function AddToWaitlistModal({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Preferred Time / Notes <span className="text-slate-400 font-normal">(Optional)</span>
+                Preferred Time / Notes{' '}
+                <span className="text-slate-400 font-normal">(Optional)</span>
               </label>
               <input
                 type="text"

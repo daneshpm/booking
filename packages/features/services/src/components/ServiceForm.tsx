@@ -463,7 +463,8 @@ export function ServiceForm({
                   </span>
                 </CardTitle>
                 <CardDescription>
-                  Automatically discount slow hours to fill gaps in your team's calendar and drive off-peak bookings.
+                  Automatically discount slow hours to fill gaps in your team's calendar and drive
+                  off-peak bookings.
                 </CardDescription>
               </div>
             </div>
@@ -486,7 +487,9 @@ export function ServiceForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label required>Promotional Discount Percentage</Label>
-                <p className="text-xs text-slate-500 mb-2">Discount applied automatically to qualified slots</p>
+                <p className="text-xs text-slate-500 mb-2">
+                  Discount applied automatically to qualified slots
+                </p>
                 <div className="relative">
                   <Input
                     type="number"
@@ -502,24 +505,36 @@ export function ServiceForm({
                     placeholder="15"
                     className="pr-8"
                   />
-                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">%</span>
+                  <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">
+                    %
+                  </span>
                 </div>
                 {formData.price > 0 && formData.yieldDiscountPercent ? (
                   <p className="text-xs font-semibold text-emerald-600 mt-1.5 flex items-center gap-1.5">
                     <span>Preview:</span>
-                    <span className="line-through text-slate-400">${Number(formData.price).toFixed(2)}</span>
+                    <span className="line-through text-slate-400">
+                      ${Number(formData.price).toFixed(2)}
+                    </span>
                     <span>→</span>
                     <span className="text-emerald-700 dark:text-emerald-400 font-bold">
-                      ${(Number(formData.price) * (1 - (formData.yieldDiscountPercent || 0) / 100)).toFixed(2)}
+                      $
+                      {(
+                        Number(formData.price) *
+                        (1 - (formData.yieldDiscountPercent || 0) / 100)
+                      ).toFixed(2)}
                     </span>
-                    <span className="text-slate-500">({formData.yieldDiscountPercent}% savings)</span>
+                    <span className="text-slate-500">
+                      ({formData.yieldDiscountPercent}% savings)
+                    </span>
                   </p>
                 ) : null}
               </div>
 
               <div>
                 <Label>Promotional Badge Label</Label>
-                <p className="text-xs text-slate-500 mb-2">Shown to clients on booking slots (e.g. "Off-Peak Special")</p>
+                <p className="text-xs text-slate-500 mb-2">
+                  Shown to clients on booking slots (e.g. "Off-Peak Special")
+                </p>
                 <Input
                   type="text"
                   value={formData.yieldLabel ?? ''}
@@ -532,7 +547,9 @@ export function ServiceForm({
             {/* Applicable Days */}
             <div>
               <Label required>Eligible Days of the Week</Label>
-              <p className="text-xs text-slate-500 mb-2">Select which days dynamic discounts should be active</p>
+              <p className="text-xs text-slate-500 mb-2">
+                Select which days dynamic discounts should be active
+              </p>
               <div className="flex flex-wrap gap-2">
                 {daysOfWeekList.map((d) => {
                   const activeDays = (formData.yieldDays || '')
@@ -568,7 +585,9 @@ export function ServiceForm({
                   value={formData.yieldStartTime ?? '11:00'}
                   onChange={(e) => setFormData({ ...formData, yieldStartTime: e.target.value })}
                 />
-                <span className="text-[11px] text-slate-500 mt-1 block">Typically early afternoon or mid-day lull</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Typically early afternoon or mid-day lull
+                </span>
               </div>
 
               <div>
@@ -578,7 +597,9 @@ export function ServiceForm({
                   value={formData.yieldEndTime ?? '15:00'}
                   onChange={(e) => setFormData({ ...formData, yieldEndTime: e.target.value })}
                 />
-                <span className="text-[11px] text-slate-500 mt-1 block">Slots starting prior to this time get discounted</span>
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Slots starting prior to this time get discounted
+                </span>
               </div>
             </div>
           </CardContent>
@@ -598,12 +619,15 @@ export function ServiceForm({
             </span>
           </div>
           <CardDescription>
-            Choose which team members can be booked for this service. If none are selected, all active staff members in this workspace will be available by default.
+            Choose which team members can be booked for this service. If none are selected, all
+            active staff members in this workspace will be available by default.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {availableStaff.length === 0 ? (
-            <p className="text-xs text-slate-500 italic">No staff members found in this workspace yet. Add staff under Staff & Team.</p>
+            <p className="text-xs text-slate-500 italic">
+              No staff members found in this workspace yet. Add staff under Staff & Team.
+            </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {availableStaff.map((staff) => {
@@ -628,9 +652,7 @@ export function ServiceForm({
                       <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                         {staff.name}
                       </div>
-                      <div className="text-[11px] text-slate-500 truncate">
-                        {staff.email}
-                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">{staff.email}</div>
                     </div>
                   </div>
                 );

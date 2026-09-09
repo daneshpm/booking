@@ -137,19 +137,21 @@ export async function triggerWaitlistRecovery(
     });
 
     // Log notification audit
-    await prisma.notificationLog.create({
-      data: {
-        workspaceId: booking.workspaceId,
-        bookingId: booking.id,
-        channel: 'EMAIL',
-        recipient: waitingEntry.customerEmail,
-        subject: `Spot Opened: ${booking.service.name} with ${booking.staff.name}`,
-        status: 'SENT',
-        sentAt: new Date(),
-      },
-    }).catch((err) => {
-      console.warn('Failed to log waitlist notification record:', err);
-    });
+    await prisma.notificationLog
+      .create({
+        data: {
+          workspaceId: booking.workspaceId,
+          bookingId: booking.id,
+          channel: 'EMAIL',
+          recipient: waitingEntry.customerEmail,
+          subject: `Spot Opened: ${booking.service.name} with ${booking.staff.name}`,
+          status: 'SENT',
+          sentAt: new Date(),
+        },
+      })
+      .catch((err) => {
+        console.warn('Failed to log waitlist notification record:', err);
+      });
 
     return {
       recovered: true,
@@ -215,18 +217,20 @@ export async function notifyWaitlistEntry(entryId: string) {
     },
   });
 
-  await prisma.notificationLog.create({
-    data: {
-      workspaceId: entry.workspaceId,
-      channel: 'EMAIL',
-      recipient: entry.customerEmail,
-      subject: `Spot Opened: ${entry.service.name}`,
-      status: 'SENT',
-      sentAt: new Date(),
-    },
-  }).catch((err) => {
-    console.warn('Failed to log waitlist notification record:', err);
-  });
+  await prisma.notificationLog
+    .create({
+      data: {
+        workspaceId: entry.workspaceId,
+        channel: 'EMAIL',
+        recipient: entry.customerEmail,
+        subject: `Spot Opened: ${entry.service.name}`,
+        status: 'SENT',
+        sentAt: new Date(),
+      },
+    })
+    .catch((err) => {
+      console.warn('Failed to log waitlist notification record:', err);
+    });
 
   return {
     success: true,

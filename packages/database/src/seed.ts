@@ -145,7 +145,8 @@ async function main() {
     where: { workspaceId_slug: { workspaceId: workspace.id, slug: 'tech-consultation' } },
     update: {
       name: 'Tech Consultation & Strategy',
-      description: 'Strategic technical advisory session with architecture review and roadmap planning.',
+      description:
+        'Strategic technical advisory session with architecture review and roadmap planning.',
       durationMinutes: 45,
       bufferBeforeMinutes: 10,
       bufferAfterMinutes: 10,
@@ -164,7 +165,8 @@ async function main() {
       workspaceId: workspace.id,
       name: 'Tech Consultation & Strategy',
       slug: 'tech-consultation',
-      description: 'Strategic technical advisory session with architecture review and roadmap planning.',
+      description:
+        'Strategic technical advisory session with architecture review and roadmap planning.',
       durationMinutes: 45,
       bufferBeforeMinutes: 10,
       bufferAfterMinutes: 10,
@@ -219,7 +221,9 @@ async function main() {
   }
 
   console.log('Seed complete.');
-  console.log(`  Sign in at /login as admin@rooman.local (AdminPassword123!) or danesh@rooman.com (Danesh12@23)`);
+  console.log(
+    `  Sign in at /login as admin@rooman.local (AdminPassword123!) or danesh@rooman.com (Danesh12@23)`
+  );
   console.log(`  Public booking page: /book/${workspaceSlug}`);
 }
 

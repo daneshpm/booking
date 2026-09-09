@@ -51,11 +51,7 @@ describe('dynamic off-peak yield pricing', () => {
     });
 
     const testDate = upcomingWeekday();
-    const result = await getAvailableSlotsAction(
-      tenant.workspaceId,
-      tenant.serviceId,
-      testDate
-    );
+    const result = await getAvailableSlotsAction(tenant.workspaceId, tenant.serviceId, testDate);
 
     expect(result.success).toBe(true);
     expect(result.slots.length).toBeGreaterThan(0);

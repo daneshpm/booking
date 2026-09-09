@@ -485,7 +485,9 @@ export function FastPassModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Staff Member</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Staff Member
+                  </label>
                   <select
                     value={selectedStaffId}
                     onChange={(e) => setSelectedStaffId(e.target.value)}
@@ -535,7 +537,9 @@ export function FastPassModal({
                 {!immediate && (
                   <div className="grid grid-cols-2 gap-3 mt-3 animate-in fade-in duration-100">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Date
+                      </label>
                       <input
                         type="date"
                         value={date}
@@ -545,7 +549,9 @@ export function FastPassModal({
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Time</label>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Time
+                      </label>
                       <input
                         type="time"
                         value={time}
@@ -561,7 +567,8 @@ export function FastPassModal({
               {/* Notes */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Desk Notes / Special Request <span className="text-slate-400 font-normal">(Optional)</span>
+                  Desk Notes / Special Request{' '}
+                  <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"

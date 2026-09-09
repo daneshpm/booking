@@ -368,7 +368,12 @@ function validateSchedule(schedule: DayScheduleInput[]): string | null {
     if (day.dayOfWeek < 0 || day.dayOfWeek > 6) {
       return `${dayName}: Each shift must fall on a valid day of the week.`;
     }
-    if (!day.startTime || !day.endTime || !TIME_PATTERN.test(day.startTime) || !TIME_PATTERN.test(day.endTime)) {
+    if (
+      !day.startTime ||
+      !day.endTime ||
+      !TIME_PATTERN.test(day.startTime) ||
+      !TIME_PATTERN.test(day.endTime)
+    ) {
       return `${dayName}: Shift times must be valid and in HH:MM format (e.g. 09:00).`;
     }
 
