@@ -51,6 +51,11 @@ async function main() {
   const timezone = process.env.WORKSPACE_TIMEZONE?.trim() || 'Asia/Kolkata';
   const currency = (process.env.WORKSPACE_CURRENCY?.trim() || 'INR').toUpperCase();
 
+  const policy = validatePasswordPolicy(adminPassword);
+  if (!policy.valid) {
+    throw new Error(`ADMIN_PASSWORD is not strong enough:\n  - ${policy.errors.join('\n  - ')}`);
+  }
+
   console.log(`Seeding workspace "${workspaceName}" (${workspaceSlug})...`);
 
   const workspace = await prisma.workspace.upsert({
