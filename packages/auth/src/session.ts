@@ -22,6 +22,7 @@ export interface SessionWorkspace {
   id: string;
   name: string;
   slug: string;
+  logoUrl?: string | null;
   timezone: string;
   currency: string;
   role: Role;
@@ -120,6 +121,7 @@ export async function resolveSession(
       id: m.workspace.id,
       name: m.workspace.name,
       slug: m.workspace.slug,
+      logoUrl: m.workspace.logoUrl,
       timezone: m.workspace.timezone,
       currency: m.workspace.currency,
       role: m.role,

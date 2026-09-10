@@ -537,8 +537,12 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
 
     let chosen = eligibleMatches[0];
-    // Round-Robin team routing (Calendly & Microsoft Bookings benchmark)
-    if (service.routingStrategy === 'ROUND_ROBIN' && eligibleMatches.length > 1) {
+    if (data.staffId) {
+      const explicit = eligibleMatches.find((e) => e.staffId === data.staffId);
+      if (explicit) {
+        chosen = explicit;
+      }
+    } else if (service.routingStrategy === 'ROUND_ROBIN' && eligibleMatches.length > 1) {
       const staffIds = eligibleMatches.map((e) => e.staffId);
       const bookingCounts = await prisma.booking.groupBy({
         by: ['staffId'],
@@ -808,7 +812,7 @@ export async function claimPublicWaitlistSpotAction(token: string) {
 }
 
 // ----------------------------------------------------
-// CUSTOMER SELF-SERVICE RESCHEDULE & CANCEL ACTIONS (Calendly Signature)
+// CUSTOMER SELF-SERVICE RESCHEDULE & CANCEL ACTIONS
 // ----------------------------------------------------
 
 export async function getBookingByManageTokenAction(token: string) {

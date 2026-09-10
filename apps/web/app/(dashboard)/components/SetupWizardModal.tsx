@@ -216,7 +216,7 @@ export function SetupWizardModal({
         {/* Footer */}
         <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between text-xs">
           <span className="text-slate-500">
-            {completedCount === 4 ? '🎉 All steps completed!' : 'Click any step to configure'}
+            {completedCount === 4 ? 'All steps completed!' : 'Click any step to configure'}
           </span>
           <button
             type="button"

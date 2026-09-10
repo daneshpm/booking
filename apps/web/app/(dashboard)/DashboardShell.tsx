@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Calendar,
   Clock,
@@ -30,11 +30,13 @@ export interface ShellWorkspace {
   name: string;
   slug: string;
   role: string;
+  logoUrl?: string | null;
 }
 
 export interface ShellUser {
   name: string;
   email: string;
+  avatarUrl?: string | null;
 }
 
 export interface DashboardShellProps {
@@ -63,6 +65,7 @@ export function DashboardShell({
   children,
 }: DashboardShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [showWorkspaceMenu, setShowWorkspaceMenu] = React.useState(false);
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
   const [isSetupOpen, setIsSetupOpen] = React.useState(false);
@@ -94,12 +97,16 @@ export function DashboardShell({
     <div className="flex flex-col h-screen bg-white text-slate-800 font-sans overflow-hidden">
       {/* Top header bar */}
       <header className="h-12 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full border-2 border-[#5c34ad] flex items-center justify-center text-[#5c34ad]">
-            <CheckCircle2 className="h-4 w-4 fill-[#5c34ad] text-white" />
-          </div>
-          <span className="text-base font-bold text-slate-800 tracking-tight">Bookings</span>
-        </div>
+        <Link
+          href="/appointments"
+          className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+        >
+          <img
+            src="/rooman-logo.png"
+            alt="Rooman Technologies"
+            className="h-7 w-auto max-w-[150px] object-contain"
+          />
+        </Link>
 
         <div className="flex items-center gap-3 text-xs">
           {/* 10-Second Fast Pass Front-Desk Quick Booker Button */}
@@ -146,16 +153,49 @@ export function DashboardShell({
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               aria-haspopup="menu"
               aria-expanded={showProfileMenu}
-              className="h-7 w-7 rounded-full bg-purple-700 text-white font-bold text-xs flex items-center justify-center shadow-sm hover:ring-2 hover:ring-purple-400/40 transition-all"
+              className="h-7 w-7 rounded-full bg-purple-700 text-white font-bold text-xs flex items-center justify-center shadow-sm hover:ring-2 hover:ring-purple-400/40 transition-all overflow-hidden border border-purple-200/50"
             >
-              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="h-full w-full object-cover rounded-full"
+                />
+              ) : activeWorkspace.logoUrl ? (
+                <img
+                  src={activeWorkspace.logoUrl}
+                  alt={activeWorkspace.name}
+                  className="h-full w-full object-cover rounded-full"
+                />
+              ) : (
+                <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
+              )}
             </button>
 
             {showProfileMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 text-xs">
-                <div className="px-4 py-2 border-b border-slate-100">
-                  <span className="font-bold block text-slate-800 truncate">{user.name}</span>
-                  <span className="text-[11px] text-slate-400 block truncate">{user.email}</span>
+                <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2.5">
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
+                    />
+                  ) : activeWorkspace.logoUrl ? (
+                    <img
+                      src={activeWorkspace.logoUrl}
+                      alt={activeWorkspace.name}
+                      className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-purple-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold block text-slate-800 truncate">{user.name}</span>
+                    <span className="text-[11px] text-slate-400 block truncate">{user.email}</span>
+                  </div>
                 </div>
                 <Link
                   href="/settings"
@@ -179,6 +219,25 @@ export function DashboardShell({
                 >
                   Workspace Settings
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    setIsSetupOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 flex items-center justify-between cursor-pointer"
+                >
+                  <span>Onboarding Checklist</span>
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      doneCount === 4
+                        ? 'text-emerald-700 bg-emerald-50'
+                        : 'text-purple-700 bg-purple-50'
+                    }`}
+                  >
+                    {doneCount}/4
+                  </span>
+                </button>
                 <form action={logoutAction} className="border-t border-slate-100 mt-1 pt-1">
                   <button
                     type="submit"
@@ -207,9 +266,17 @@ export function DashboardShell({
                 className="w-full bg-[#f8f5ff] hover:bg-[#f1ebfc] border border-purple-100 rounded-xl p-2 flex items-center justify-between cursor-pointer transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="h-7 w-7 rounded-md bg-[#e05666] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm uppercase">
-                    {workspaceInitials}
-                  </div>
+                  {activeWorkspace.logoUrl ? (
+                    <img
+                      src={activeWorkspace.logoUrl}
+                      alt=""
+                      className="h-7 w-7 rounded-md object-cover shrink-0 shadow-sm border border-purple-100"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 rounded-md bg-[#e05666] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-sm uppercase">
+                      {workspaceInitials}
+                    </div>
+                  )}
                   <span className="text-xs font-bold text-slate-800 truncate">
                     {activeWorkspace.name}
                   </span>
@@ -272,45 +339,40 @@ export function DashboardShell({
             </nav>
           </div>
 
-          <div className="p-3">
-            <button
-              type="button"
-              onClick={() => setIsSetupOpen(true)}
-              className="w-full group bg-slate-50 hover:bg-slate-100/90 border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-xs space-y-2 cursor-pointer transition-all text-left"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-[#5c34ad]" />
-                  <span className="text-xs font-bold text-slate-800 tracking-tight">
-                    Onboarding Setup
+          {/* Onboarding setup card: only displayed when setup is not yet complete */}
+          {doneCount < 4 && (
+            <div className="p-3">
+              <button
+                type="button"
+                onClick={() => setIsSetupOpen(true)}
+                className="w-full group bg-slate-50 hover:bg-slate-100/90 border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-xs space-y-2 cursor-pointer transition-all text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-[#5c34ad]" />
+                    <span className="text-xs font-bold text-slate-800 tracking-tight">
+                      Onboarding Setup
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md text-[#5c34ad] bg-purple-50 border border-purple-100/80">
+                    {doneCount}/4 Done
                   </span>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                    doneCount === 4
-                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
-                      : 'text-[#5c34ad] bg-purple-50 border border-purple-100/80'
-                  }`}
-                >
-                  {doneCount}/4 Done
-                </span>
-              </div>
-              <div className="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    doneCount === 4 ? 'bg-emerald-600' : 'bg-[#5c34ad]'
-                  }`}
-                  style={{ width: `${(doneCount / 4) * 100}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
-                <span>{doneCount === 4 ? 'Setup fully complete' : 'Continue configuration'}</span>
-                <span className="text-[#5c34ad] font-semibold group-hover:translate-x-0.5 transition-transform">
-                  →
-                </span>
-              </div>
-            </button>
-          </div>
+                <div className="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-300 bg-[#5c34ad]"
+                    style={{ width: `${(doneCount / 4) * 100}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                  <span>Continue configuration</span>
+                  <span className="text-[#5c34ad] font-semibold group-hover:translate-x-0.5 transition-transform">
+                    →
+                  </span>
+                </div>
+              </button>
+            </div>
+          )}
         </aside>
 
         <SetupWizardModal
@@ -325,6 +387,9 @@ export function DashboardShell({
           workspaceId={activeWorkspace.id}
           isOpen={isFastPassOpen}
           onClose={() => setIsFastPassOpen(false)}
+          onSuccess={() => {
+            router.refresh();
+          }}
         />
 
         <main className="flex-1 min-w-0 bg-white overflow-y-auto">{children}</main>

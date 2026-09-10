@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   UserCheck,
   UserX,
+  Camera,
 } from 'lucide-react';
 import {
   Card,
@@ -44,6 +45,7 @@ export interface StaffItem {
   name: string;
   email: string;
   phone?: string | null;
+  avatarUrl?: string | null;
   timezone: string;
   isActive: boolean;
   serviceAssignments: Array<{
@@ -174,10 +176,43 @@ export function StaffManagementClient({
     name: '',
     email: '',
     phone: '',
+    avatarUrl: '',
     timezone: defaultTimezone || 'America/New_York',
     isActive: true,
     assignedServiceIds: [] as string[],
   });
+
+  const addFileInputRef = React.useRef<HTMLInputElement>(null);
+  const editFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handlePhotoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setFormError('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setFormError('Image size must be less than 3MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target?.result as string;
+      setFormData((prev) => ({ ...prev, avatarUrl: base64Url }));
+      setFormError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData((prev) => ({ ...prev, avatarUrl: '' }));
+    if (addFileInputRef.current) addFileInputRef.current.value = '';
+    if (editFileInputRef.current) editFileInputRef.current.value = '';
+  };
 
   // Working Hours State
   const [workingSchedule, setWorkingSchedule] = React.useState<DayScheduleInput[]>([]);
@@ -201,6 +236,7 @@ export function StaffManagementClient({
       name: '',
       email: '',
       phone: '',
+      avatarUrl: '',
       timezone: defaultTimezone || 'America/New_York',
       isActive: true,
       assignedServiceIds: availableServices.map((s) => s.id), // Assign all by default
@@ -216,6 +252,7 @@ export function StaffManagementClient({
       name: staff.name,
       email: staff.email,
       phone: staff.phone || '',
+      avatarUrl: staff.avatarUrl || '',
       timezone: staff.timezone || defaultTimezone || 'America/New_York',
       isActive: staff.isActive,
       assignedServiceIds: staff.serviceAssignments.map((sa) => sa.serviceId),
@@ -277,6 +314,7 @@ export function StaffManagementClient({
       name: formData.name,
       email: formData.email,
       phone: formData.phone || null,
+      avatarUrl: formData.avatarUrl || null,
       timezone: formData.timezone,
       isActive: formData.isActive,
       assignedServiceIds: formData.assignedServiceIds,
@@ -313,6 +351,7 @@ export function StaffManagementClient({
       name: formData.name,
       email: formData.email,
       phone: formData.phone || null,
+      avatarUrl: formData.avatarUrl || null,
       timezone: formData.timezone,
       isActive: formData.isActive,
       assignedServiceIds: formData.assignedServiceIds,
@@ -651,9 +690,17 @@ export function StaffManagementClient({
               <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/60">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/20 shrink-0">
-                      {staff.name.charAt(0).toUpperCase()}
-                    </div>
+                    {staff.avatarUrl ? (
+                      <img
+                        src={staff.avatarUrl}
+                        alt={staff.name}
+                        className="h-11 w-11 rounded-2xl object-cover shadow-md shadow-blue-500/20 shrink-0 border border-slate-200 dark:border-slate-700"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/20 shrink-0">
+                        {staff.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -780,6 +827,66 @@ export function StaffManagementClient({
               <span>{formError}</span>
             </div>
           )}
+
+          {/* Profile Photo Section */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center gap-4">
+            <div className="relative shrink-0">
+              {formData.avatarUrl ? (
+                <img
+                  src={formData.avatarUrl}
+                  alt=""
+                  className="h-14 w-14 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm"
+                />
+              ) : (
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
+                  {formData.name ? (
+                    formData.name.charAt(0).toUpperCase()
+                  ) : (
+                    <Users className="h-6 w-6" />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <span className="block font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                Profile Photo
+              </span>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Upload a staff avatar or headshot (JPG, PNG, or WebP under 3MB).
+              </p>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="file"
+                  ref={addFileInputRef}
+                  onChange={handlePhotoFile}
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addFileInputRef.current?.click()}
+                  className="h-7 text-[11px] gap-1.5"
+                >
+                  <Camera className="h-3 w-3" />
+                  {formData.avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                </Button>
+
+                {formData.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-[11px] text-rose-500 hover:text-rose-600 font-medium ml-1"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -913,6 +1020,66 @@ export function StaffManagementClient({
               <span>{formError}</span>
             </div>
           )}
+
+          {/* Profile Photo Section */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center gap-4">
+            <div className="relative shrink-0">
+              {formData.avatarUrl ? (
+                <img
+                  src={formData.avatarUrl}
+                  alt=""
+                  className="h-14 w-14 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm"
+                />
+              ) : (
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
+                  {formData.name ? (
+                    formData.name.charAt(0).toUpperCase()
+                  ) : (
+                    <Users className="h-6 w-6" />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <span className="block font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                Profile Photo
+              </span>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Upload a staff avatar or headshot (JPG, PNG, or WebP under 3MB).
+              </p>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="file"
+                  ref={editFileInputRef}
+                  onChange={handlePhotoFile}
+                  accept="image/png,image/jpeg,image/webp,image/jpg"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => editFileInputRef.current?.click()}
+                  className="h-7 text-[11px] gap-1.5"
+                >
+                  <Camera className="h-3 w-3" />
+                  {formData.avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                </Button>
+
+                {formData.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-[11px] text-rose-500 hover:text-rose-600 font-medium ml-1"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

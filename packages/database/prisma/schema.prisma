@@ -281,7 +281,7 @@ model Service {
   yieldEndTime         String?      @map("yield_end_time") // e.g. "15:00"
   yieldLabel           String?      @default("Off-Peak Special") @map("yield_label")
 
-  // Intake Form & Add-ons & Team Routing (Acuity, Calendly & SimplyBook.me)
+  // Intake Form, Add-ons & Team Routing Configuration
   intakeQuestions      Json?        @map("intake_questions")
   addons               Json?        @map("addons")
   routingStrategy      String?      @default("ANY_AVAILABLE") @map("routing_strategy")

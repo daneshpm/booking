@@ -170,6 +170,7 @@ export default async function SettingsPage() {
           id: workspace.id,
           name: workspace.name,
           slug: workspace.slug,
+          logoUrl: workspace.logoUrl,
           timezone: workspace.timezone,
           currency: workspace.currency,
         }}

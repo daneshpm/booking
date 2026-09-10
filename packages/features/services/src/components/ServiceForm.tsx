@@ -33,6 +33,9 @@ import {
   Trash2,
   ListPlus,
   Sliders,
+  Zap,
+  RotateCw,
+  UserCheck,
 } from 'lucide-react';
 import { createServiceAction, updateServiceAction } from '../api/service.actions';
 import type { ServiceFormData, IntakeQuestion, ServiceAddon } from '../api/service.schema';
@@ -731,7 +734,7 @@ export function ServiceForm({
             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
               <Label className="flex items-center gap-2 mb-1.5 font-bold text-xs text-slate-700 dark:text-slate-300">
                 <Sliders className="h-4 w-4 text-indigo-500" />
-                Team Assignment & Routing Strategy (Calendly / Microsoft Bookings)
+                Team Assignment & Routing Strategy
               </Label>
               <p className="text-xs text-slate-500 mb-3">
                 Determine how appointments are routed when multiple team members can perform this
@@ -741,20 +744,24 @@ export function ServiceForm({
                 {[
                   {
                     id: 'ANY_AVAILABLE',
-                    title: '⚡ First Available',
+                    title: 'First Available',
+                    icon: Zap,
                     desc: 'Prioritizes the fastest opening across all staff',
                   },
                   {
                     id: 'ROUND_ROBIN',
-                    title: '⚖️ Round-Robin',
+                    title: 'Round-Robin',
+                    icon: RotateCw,
                     desc: 'Distributes bookings evenly across team members',
                   },
                   {
                     id: 'CLIENT_CHOICE',
-                    title: '👤 Client Selection',
+                    title: 'Client Selection',
+                    icon: UserCheck,
                     desc: 'Allows client to choose their preferred staff',
                   },
                 ].map((strat) => {
+                  const StratIcon = strat.icon;
                   const isSelected = (formData.routingStrategy ?? 'ANY_AVAILABLE') === strat.id;
                   return (
                     <div
@@ -766,8 +773,9 @@ export function ServiceForm({
                           : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-0.5">
-                        {strat.title}
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100 mb-0.5">
+                        <StratIcon className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>{strat.title}</span>
                       </div>
                       <div className="text-[11px] text-slate-500 leading-snug">{strat.desc}</div>
                     </div>
@@ -779,7 +787,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      {/* Section 6: Custom Intake Form & Questionnaire (Acuity & SimplyBook.me Benchmark) */}
+      {/* Section 6: Custom Intake Form & Questionnaire */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -909,7 +917,7 @@ export function ServiceForm({
         </CardContent>
       </Card>
 
-      {/* Section 7: Service Add-ons & Upsell Extras (SimplyBook.me & Acuity Benchmark) */}
+      {/* Section 7: Service Add-ons & Upsell Extras */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

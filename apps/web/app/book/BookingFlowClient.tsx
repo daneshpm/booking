@@ -26,6 +26,8 @@ import {
   Share2,
   HelpCircle,
   ExternalLink,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { Button, Input, Textarea } from '@bookings/ui';
 import {
@@ -37,6 +39,13 @@ import {
 } from './actions';
 import type { ServiceOutputDTO } from '@bookings/feature-services';
 
+export interface BookingStaffMember {
+  id: string;
+  name: string;
+  headline?: string | null;
+  avatarUrl?: string | null;
+}
+
 interface BookingFlowClientProps {
   workspace: {
     id: string;
@@ -45,9 +54,14 @@ interface BookingFlowClientProps {
     timezone: string;
   };
   service: ServiceOutputDTO;
+  eligibleStaff?: BookingStaffMember[];
 }
 
-export function BookingFlowClient({ workspace, service }: BookingFlowClientProps) {
+export function BookingFlowClient({
+  workspace,
+  service,
+  eligibleStaff = [],
+}: BookingFlowClientProps) {
   // Generate next 14 days starting from tomorrow/today
   const availableDates = React.useMemo(() => {
     const dates = [];
@@ -185,7 +199,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
           workspace.id,
           service.id,
           selectedDate,
-          undefined,
+          selectedStaffId,
           selectedAddonIds
         );
         if (isMounted) {
@@ -214,12 +228,12 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     return () => {
       isMounted = false;
     };
-  }, [selectedDate, workspace.id, service.id, selectedAddonIds]);
+  }, [selectedDate, workspace.id, service.id, selectedStaffId, selectedAddonIds]);
 
   const handleSlotSelect = (slot: AvailableSlot) => {
     setSelectedTime(slot.time);
     setSelectedSlotLabel(slot.label);
-    setSelectedStaffId(slot.staffId);
+    setSelectedStaffId(selectedStaffId || slot.staffId);
     setSelectedSlot(slot);
     setErrorMsg(null);
     setStep('DETAILS');
@@ -525,6 +539,118 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 </div>
               )}
 
+              {/* Specialist Selection (Client Choice Routing Strategy) */}
+              {service.routingStrategy === 'CLIENT_CHOICE' &&
+                eligibleStaff &&
+                eligibleStaff.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                          Choose Your Preferred Specialist
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Select the specialist you would like to book with, or pick Any Specialist.
+                        </p>
+                      </div>
+                      {selectedStaffId ? (
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                          1 Specialist Selected
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
+                          Any Available Specialist
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                      {/* Option 1: Any Available Specialist */}
+                      <div
+                        onClick={() => {
+                          setSelectedStaffId(undefined);
+                          setSelectedTime(null);
+                          setSelectedSlot(null);
+                        }}
+                        className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-center gap-2.5 ${
+                          !selectedStaffId
+                            ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-xs'
+                            : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div
+                          className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                            !selectedStaffId
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <Users className="h-4 w-4" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <span className="text-xs font-bold text-slate-900 block leading-tight">
+                            Any Specialist
+                          </span>
+                          <span className="text-[10px] text-slate-500">Fastest opening</span>
+                        </div>
+                      </div>
+
+                      {/* Option 2..N: Individual Staff Members */}
+                      {eligibleStaff.map((st) => {
+                        const isChosen = selectedStaffId === st.id;
+                        const initials = st.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .substring(0, 2)
+                          .toUpperCase();
+                        return (
+                          <div
+                            key={st.id}
+                            onClick={() => {
+                              setSelectedStaffId(st.id);
+                              setSelectedTime(null);
+                              setSelectedSlot(null);
+                            }}
+                            className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-center gap-2.5 ${
+                              isChosen
+                                ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-xs'
+                                : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {st.avatarUrl ? (
+                              <img
+                                src={st.avatarUrl}
+                                alt={st.name}
+                                className="h-8 w-8 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div
+                                className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  isChosen
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'bg-purple-100 text-[#5c34ad]'
+                                }`}
+                              >
+                                {initials}
+                              </div>
+                            )}
+                            <div className="overflow-hidden">
+                              <span className="text-xs font-bold text-slate-900 block leading-tight truncate">
+                                {st.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 truncate block">
+                                {st.headline || 'Specialist'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
               {/* Horizontal Date Picker */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-2">
@@ -783,6 +909,22 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     {workspace.timezone}
                   </span>
                 </div>
+
+                {/* Specialist Confirmation Row */}
+                {(selectedStaffId || selectedSlot?.staffName) && (
+                  <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-indigo-600" />
+                      <span className="font-semibold">
+                        Specialist:{' '}
+                        {eligibleStaff.find((s) => s.id === selectedStaffId)?.name ||
+                          selectedSlot?.staffName ||
+                          'Assigned Specialist'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500">Confirmed Provider</span>
+                  </div>
+                )}
 
                 {selectedSlot?.isOffPeak ? (
                   <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-amber-50 via-white to-purple-50 border border-amber-300 text-xs flex items-center justify-between shadow-2xs">

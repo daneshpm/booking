@@ -1,6 +1,5 @@
 /**
  * Universal Calendar Export Utility (RFC 5545 Compliant)
- * Inspired by Calendly, Acuity Scheduling & Microsoft Bookings.
  */
 
 export interface CalendarEventDetails {

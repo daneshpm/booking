@@ -20,6 +20,7 @@ function isValidTimezone(value: string): boolean {
 
 const settingsSchema = z.object({
   name: z.string().trim().min(2, 'Organization name must be at least 2 characters'),
+  logoUrl: z.string().optional().nullable(),
   timezone: z
     .string()
     .trim()
@@ -34,7 +35,7 @@ const settingsSchema = z.object({
 
 export async function updateWorkspaceSettingsAction(
   workspaceId: string,
-  data: { name: string; timezone: string; currency: string }
+  data: { name: string; timezone: string; currency: string; logoUrl?: string | null }
 ) {
   try {
     // Only an administrator can change workspace-wide settings.
@@ -46,6 +47,7 @@ export async function updateWorkspaceSettingsAction(
       where: { id: workspaceId },
       data: {
         name: validated.name,
+        logoUrl: validated.logoUrl !== undefined ? validated.logoUrl || null : undefined,
         timezone: validated.timezone,
         currency: validated.currency,
       },
