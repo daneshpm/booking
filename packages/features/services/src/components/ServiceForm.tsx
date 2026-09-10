@@ -28,9 +28,14 @@ import {
   Users,
   Sparkles,
   Percent,
+  FileText,
+  Plus,
+  Trash2,
+  ListPlus,
+  Sliders,
 } from 'lucide-react';
 import { createServiceAction, updateServiceAction } from '../api/service.actions';
-import type { ServiceFormData } from '../api/service.schema';
+import type { ServiceFormData, IntakeQuestion, ServiceAddon } from '../api/service.schema';
 import type { ServiceOutputDTO } from '../application/create-service/CreateServiceDTO';
 
 interface ServiceFormProps {
@@ -82,8 +87,70 @@ export function ServiceForm({
     yieldStartTime: initialData?.yieldStartTime ?? '11:00',
     yieldEndTime: initialData?.yieldEndTime ?? '15:00',
     yieldLabel: initialData?.yieldLabel ?? 'Off-Peak Special',
+    intakeQuestions: initialData?.intakeQuestions ?? [],
+    addons: initialData?.addons ?? [],
+    routingStrategy: (initialData?.routingStrategy as any) ?? 'ANY_AVAILABLE',
     assignedStaffIds: initialAssignedStaffIds,
   });
+
+  const addIntakeQuestion = () => {
+    const newQuestion: IntakeQuestion = {
+      id: `q_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      label: '',
+      type: 'TEXT',
+      placeholder: '',
+      options: [],
+      required: false,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      intakeQuestions: [...(prev.intakeQuestions || []), newQuestion],
+    }));
+  };
+
+  const removeIntakeQuestion = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      intakeQuestions: (prev.intakeQuestions || []).filter((q) => q.id !== id),
+    }));
+  };
+
+  const updateIntakeQuestion = (id: string, patch: Partial<IntakeQuestion>) => {
+    setFormData((prev) => ({
+      ...prev,
+      intakeQuestions: (prev.intakeQuestions || []).map((q) =>
+        q.id === id ? { ...q, ...patch } : q
+      ),
+    }));
+  };
+
+  const addAddon = () => {
+    const newAddon: ServiceAddon = {
+      id: `addon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: '',
+      description: '',
+      durationMinutes: 15,
+      price: 0,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      addons: [...(prev.addons || []), newAddon],
+    }));
+  };
+
+  const removeAddon = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      addons: (prev.addons || []).filter((a) => a.id !== id),
+    }));
+  };
+
+  const updateAddon = (id: string, patch: Partial<ServiceAddon>) => {
+    setFormData((prev) => ({
+      ...prev,
+      addons: (prev.addons || []).map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    }));
+  };
 
   const toggleYieldDay = (day: number) => {
     const current = (formData.yieldDays || '')
@@ -657,6 +724,303 @@ export function ServiceForm({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {availableStaff.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Label className="flex items-center gap-2 mb-1.5 font-bold text-xs text-slate-700 dark:text-slate-300">
+                <Sliders className="h-4 w-4 text-indigo-500" />
+                Team Assignment & Routing Strategy (Calendly / Microsoft Bookings)
+              </Label>
+              <p className="text-xs text-slate-500 mb-3">
+                Determine how appointments are routed when multiple team members can perform this
+                service.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  {
+                    id: 'ANY_AVAILABLE',
+                    title: '⚡ First Available',
+                    desc: 'Prioritizes the fastest opening across all staff',
+                  },
+                  {
+                    id: 'ROUND_ROBIN',
+                    title: '⚖️ Round-Robin',
+                    desc: 'Distributes bookings evenly across team members',
+                  },
+                  {
+                    id: 'CLIENT_CHOICE',
+                    title: '👤 Client Selection',
+                    desc: 'Allows client to choose their preferred staff',
+                  },
+                ].map((strat) => {
+                  const isSelected = (formData.routingStrategy ?? 'ANY_AVAILABLE') === strat.id;
+                  return (
+                    <div
+                      key={strat.id}
+                      onClick={() => setFormData({ ...formData, routingStrategy: strat.id as any })}
+                      className={`p-3 rounded-xl border cursor-pointer select-none transition-all ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 shadow-xs ring-1 ring-indigo-500/20'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-0.5">
+                        {strat.title}
+                      </div>
+                      <div className="text-[11px] text-slate-500 leading-snug">{strat.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 6: Custom Intake Form & Questionnaire (Acuity & SimplyBook.me Benchmark) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600" />
+              <CardTitle>Custom Intake Questionnaire</CardTitle>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addIntakeQuestion}
+              className="gap-1.5 text-xs h-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900/50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Question
+            </Button>
+          </div>
+          <CardDescription>
+            Collect essential details, medical history, project briefs, or consent checkboxes from
+            clients before their appointment is booked.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!formData.intakeQuestions || formData.intakeQuestions.length === 0 ? (
+            <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/40">
+              <FileText className="h-8 w-8 text-slate-400 mx-auto mb-2 opacity-60" />
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                No intake questions added
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm mx-auto">
+                Clients will only be asked for standard name, email, and phone during checkout.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addIntakeQuestion}
+                className="mt-3 gap-1.5 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Your First Question
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {formData.intakeQuestions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Question #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeIntakeQuestion(q.id)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      title="Remove question"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs">Question Label / Prompt *</Label>
+                      <Input
+                        placeholder="e.g. Do you have any allergies or specific goals?"
+                        value={q.label}
+                        onChange={(e) => updateIntakeQuestion(q.id, { label: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Response Type</Label>
+                      <select
+                        value={q.type}
+                        onChange={(e) =>
+                          updateIntakeQuestion(q.id, { type: e.target.value as any })
+                        }
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                      >
+                        <option value="TEXT">Short Text Answer</option>
+                        <option value="TEXTAREA">Paragraph / Long Answer</option>
+                        <option value="DROPDOWN">Dropdown Menu</option>
+                        <option value="CHECKBOX">Agreement / Checkbox</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {q.type === 'DROPDOWN' && (
+                    <div>
+                      <Label className="text-xs">Dropdown Choices (comma-separated)</Label>
+                      <Input
+                        placeholder="e.g. Beginner, Intermediate, Advanced"
+                        value={(q.options || []).join(', ')}
+                        onChange={(e) =>
+                          updateIntakeQuestion(q.id, {
+                            options: e.target.value
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={q.required}
+                        onChange={(e) => updateIntakeQuestion(q.id, { required: e.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Mandatory / Required question
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 7: Service Add-ons & Upsell Extras (SimplyBook.me & Acuity Benchmark) */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListPlus className="h-5 w-5 text-indigo-600" />
+              <CardTitle>Service Add-ons & Upsells ("Extras")</CardTitle>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addAddon}
+              className="gap-1.5 text-xs h-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-900/50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Extra
+            </Button>
+          </div>
+          <CardDescription>
+            Offer high-margin enhancements (e.g. +15 mins beard trim, extended consultation, deep
+            scalp massage). The booking engine will automatically extend appointment time and adjust
+            pricing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!formData.addons || formData.addons.length === 0 ? (
+            <div className="text-center py-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-900/40">
+              <ListPlus className="h-8 w-8 text-slate-400 mx-auto mb-2 opacity-60" />
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                No service add-ons configured
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5 max-w-sm mx-auto">
+                Add optional upsells to boost average order value on your public booking page.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addAddon}
+                className="mt-3 gap-1.5 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Your First Add-on
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {formData.addons.map((addon, idx) => (
+                <div
+                  key={addon.id}
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Add-on #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAddon(addon.id)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      title="Remove add-on"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs">Add-on Name *</Label>
+                      <Input
+                        placeholder="e.g. Extended 15-Min Strategy Session"
+                        value={addon.name}
+                        onChange={(e) => updateAddon(addon.id, { name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Extra Duration (Mins)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="5"
+                        placeholder="15"
+                        value={addon.durationMinutes}
+                        onChange={(e) =>
+                          updateAddon(addon.id, { durationMinutes: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Extra Price ({formData.currency || 'USD'})</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        placeholder="25"
+                        value={addon.price}
+                        onChange={(e) => updateAddon(addon.id, { price: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Optional Short Description</Label>
+                    <Input
+                      placeholder="Brief summary shown to the customer during checkout"
+                      value={addon.description ?? ''}
+                      onChange={(e) => updateAddon(addon.id, { description: e.target.value })}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

@@ -20,6 +20,9 @@ export interface CreateServiceInputDTO {
   yieldStartTime?: string | null;
   yieldEndTime?: string | null;
   yieldLabel?: string | null;
+  intakeQuestions?: any[] | null;
+  addons?: any[] | null;
+  routingStrategy?: string | null;
 }
 
 export interface ServiceOutputDTO {
@@ -45,6 +48,9 @@ export interface ServiceOutputDTO {
   yieldStartTime?: string | null;
   yieldEndTime?: string | null;
   yieldLabel?: string | null;
+  intakeQuestions?: any[] | null;
+  addons?: any[] | null;
+  routingStrategy?: string | null;
   createdAt: string;
   updatedAt: string;
 }

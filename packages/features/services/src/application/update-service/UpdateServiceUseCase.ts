@@ -48,6 +48,9 @@ export class UpdateServiceUseCase {
         yieldStartTime: input.yieldStartTime,
         yieldEndTime: input.yieldEndTime,
         yieldLabel: input.yieldLabel,
+        intakeQuestions: input.intakeQuestions,
+        addons: input.addons,
+        routingStrategy: input.routingStrategy,
       });
 
       if (input.isActive !== undefined) {
@@ -80,6 +83,9 @@ export class UpdateServiceUseCase {
         yieldStartTime: service.yieldStartTime,
         yieldEndTime: service.yieldEndTime,
         yieldLabel: service.yieldLabel,
+        intakeQuestions: service.intakeQuestions,
+        addons: service.addons,
+        routingStrategy: service.routingStrategy,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

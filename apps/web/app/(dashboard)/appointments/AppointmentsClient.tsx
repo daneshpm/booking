@@ -58,6 +58,9 @@ export interface AppointmentItem {
     id?: string;
     name: string;
   };
+  selectedAddons?: Array<{ name: string; durationMinutes: number; price: number }> | null;
+  intakeResponses?: Record<string, any> | null;
+  manageToken?: string | null;
 }
 
 export interface WaitlistItem {
@@ -973,12 +976,36 @@ export function AppointmentsClient({
                             {app.customer.phone && (
                               <div className="text-[10px] text-slate-400">{app.customer.phone}</div>
                             )}
+                            {app.intakeResponses && Object.keys(app.intakeResponses).length > 0 && (
+                              <span
+                                title={Object.entries(app.intakeResponses)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join('\n')}
+                                className="inline-flex items-center gap-0.5 text-[10px] text-indigo-600 font-semibold cursor-help mt-0.5"
+                              >
+                                <HelpCircle className="h-3 w-3 text-indigo-500" />
+                                Intake Form ({Object.keys(app.intakeResponses).length})
+                              </span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="font-semibold text-slate-800">{app.service.name}</span>
-                            <span className="text-[10px] text-slate-400 block">
-                              {app.service.durationMinutes} mins
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-slate-400">
+                                {app.service.durationMinutes} mins
+                              </span>
+                              {app.selectedAddons && app.selectedAddons.length > 0 && (
+                                <span
+                                  title={app.selectedAddons
+                                    .map((a) => `${a.name} (+${a.durationMinutes}m)`)
+                                    .join(', ')}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                >
+                                  <Sparkles className="h-2.5 w-2.5" />+{app.selectedAddons.length}{' '}
+                                  extras
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-1.5">
@@ -1020,6 +1047,20 @@ export function AppointmentsClient({
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {app.manageToken && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/book/manage/${app.manageToken}`;
+                                    navigator.clipboard.writeText(url);
+                                    alert('Customer self-service portal link copied to clipboard!');
+                                  }}
+                                  title="Copy Customer Self-Service Link"
+                                  className="p-1 rounded text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </button>
+                              )}
                               {app.status !== 'COMPLETED' && (
                                 <button
                                   type="button"

@@ -22,6 +22,9 @@ export interface ServiceProps {
   yieldStartTime?: string | null;
   yieldEndTime?: string | null;
   yieldLabel?: string | null;
+  intakeQuestions?: any[] | null;
+  addons?: any[] | null;
+  routingStrategy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +48,9 @@ export class Service {
   private _yieldStartTime: string | null;
   private _yieldEndTime: string | null;
   private _yieldLabel: string | null;
+  private _intakeQuestions: any[] | null;
+  private _addons: any[] | null;
+  private _routingStrategy: string | null;
   private readonly _createdAt: Date;
   private _updatedAt: Date;
 
@@ -67,6 +73,9 @@ export class Service {
     this._yieldStartTime = props.yieldStartTime ?? null;
     this._yieldEndTime = props.yieldEndTime ?? null;
     this._yieldLabel = props.yieldLabel ?? 'Off-Peak Special';
+    this._intakeQuestions = props.intakeQuestions ?? null;
+    this._addons = props.addons ?? null;
+    this._routingStrategy = props.routingStrategy ?? 'ANY_AVAILABLE';
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
@@ -126,6 +135,15 @@ export class Service {
   public get yieldLabel(): string | null {
     return this._yieldLabel;
   }
+  public get intakeQuestions(): any[] | null {
+    return this._intakeQuestions;
+  }
+  public get addons(): any[] | null {
+    return this._addons;
+  }
+  public get routingStrategy(): string {
+    return this._routingStrategy ?? 'ANY_AVAILABLE';
+  }
   public get createdAt(): Date {
     return this._createdAt;
   }
@@ -155,6 +173,9 @@ export class Service {
     yieldStartTime?: string | null;
     yieldEndTime?: string | null;
     yieldLabel?: string | null;
+    intakeQuestions?: any[] | null;
+    addons?: any[] | null;
+    routingStrategy?: string | null;
     createdAt?: Date;
     updatedAt?: Date;
   }): Service {
@@ -199,6 +220,9 @@ export class Service {
       yieldStartTime: params.yieldStartTime ?? null,
       yieldEndTime: params.yieldEndTime ?? null,
       yieldLabel: params.yieldLabel ?? 'Off-Peak Special',
+      intakeQuestions: params.intakeQuestions ?? null,
+      addons: params.addons ?? null,
+      routingStrategy: params.routingStrategy ?? 'ANY_AVAILABLE',
       createdAt: params.createdAt ?? new Date(),
       updatedAt: params.updatedAt ?? new Date(),
     });
@@ -223,6 +247,9 @@ export class Service {
     yieldStartTime?: string | null;
     yieldEndTime?: string | null;
     yieldLabel?: string | null;
+    intakeQuestions?: any[] | null;
+    addons?: any[] | null;
+    routingStrategy?: string | null;
   }): void {
     if (!params.name || params.name.trim().length === 0) {
       throw new DomainError('Service name cannot be empty.');
@@ -252,6 +279,9 @@ export class Service {
     if (params.yieldStartTime !== undefined) this._yieldStartTime = params.yieldStartTime;
     if (params.yieldEndTime !== undefined) this._yieldEndTime = params.yieldEndTime;
     if (params.yieldLabel !== undefined) this._yieldLabel = params.yieldLabel;
+    if (params.intakeQuestions !== undefined) this._intakeQuestions = params.intakeQuestions;
+    if (params.addons !== undefined) this._addons = params.addons;
+    if (params.routingStrategy !== undefined) this._routingStrategy = params.routingStrategy;
     this._updatedAt = new Date();
   }
 

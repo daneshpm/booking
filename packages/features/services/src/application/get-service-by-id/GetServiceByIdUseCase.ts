@@ -45,6 +45,9 @@ export class GetServiceByIdUseCase {
         yieldStartTime: service.yieldStartTime,
         yieldEndTime: service.yieldEndTime,
         yieldLabel: service.yieldLabel,
+        intakeQuestions: service.intakeQuestions,
+        addons: service.addons,
+        routingStrategy: service.routingStrategy,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

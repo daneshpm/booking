@@ -281,6 +281,11 @@ model Service {
   yieldEndTime         String?      @map("yield_end_time") // e.g. "15:00"
   yieldLabel           String?      @default("Off-Peak Special") @map("yield_label")
 
+  // Intake Form & Add-ons & Team Routing (Acuity, Calendly & SimplyBook.me)
+  intakeQuestions      Json?        @map("intake_questions")
+  addons               Json?        @map("addons")
+  routingStrategy      String?      @default("ANY_AVAILABLE") @map("routing_strategy")
+
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
@@ -345,6 +350,9 @@ model Booking {
   paidPrice          Decimal?      @map("paid_price") @db.Decimal(10, 2)
   discountApplied    Int?          @default(0) @map("discount_applied")
   discountLabel      String?       @map("discount_label")
+  intakeResponses    Json?         @map("intake_responses")
+  selectedAddons     Json?         @map("selected_addons")
+  manageToken        String?       @unique @map("manage_token")
   cancellationReason String?       @map("cancellation_reason")
   rescheduledFromId  String?       @unique @map("rescheduled_from_id")
   meetingLink        String?       @map("meeting_link")
@@ -366,6 +374,7 @@ model Booking {
   @@index([staffId, startTime, endTime])
   @@index([customerId])
   @@index([workspaceId, source])
+  @@index([manageToken])
   @@map("bookings")
 }
 

@@ -70,6 +70,9 @@ export default async function AppointmentsPage() {
       name: b.staff.name,
     },
     source: b.source || 'ONLINE',
+    selectedAddons: (b.selectedAddons as any) || null,
+    intakeResponses: (b.intakeResponses as any) || null,
+    manageToken: b.manageToken || null,
   }));
 
   const formattedWaitlist = waitlistEntries.map((w) => ({

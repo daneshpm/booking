@@ -1,5 +1,26 @@
 import { z } from 'zod';
 
+export const intakeQuestionSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1, 'Question label is required.'),
+  type: z.enum(['TEXT', 'TEXTAREA', 'DROPDOWN', 'CHECKBOX']).default('TEXT'),
+  placeholder: z.string().optional().nullable(),
+  options: z.array(z.string()).optional().nullable(),
+  required: z.boolean().default(false),
+});
+
+export type IntakeQuestion = z.infer<typeof intakeQuestionSchema>;
+
+export const serviceAddonSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Add-on name is required.'),
+  description: z.string().optional().nullable(),
+  durationMinutes: z.coerce.number().int().min(0).default(0),
+  price: z.coerce.number().min(0).default(0),
+});
+
+export type ServiceAddon = z.infer<typeof serviceAddonSchema>;
+
 export const serviceFormSchema = z.object({
   name: z
     .string()
@@ -68,6 +89,11 @@ export const serviceFormSchema = z.object({
   yieldStartTime: z.string().optional().nullable(),
   yieldEndTime: z.string().optional().nullable(),
   yieldLabel: z.string().max(50, 'Label cannot exceed 50 characters').optional().nullable(),
+  intakeQuestions: z.array(intakeQuestionSchema).optional().nullable(),
+  addons: z.array(serviceAddonSchema).optional().nullable(),
+  routingStrategy: z
+    .enum(['ANY_AVAILABLE', 'ROUND_ROBIN', 'CLIENT_CHOICE'])
+    .default('ANY_AVAILABLE'),
   assignedStaffIds: z.array(z.string()).optional().default([]),
 });
 

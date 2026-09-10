@@ -46,6 +46,9 @@ export class CreateServiceUseCase {
         yieldStartTime: input.yieldStartTime,
         yieldEndTime: input.yieldEndTime,
         yieldLabel: input.yieldLabel,
+        intakeQuestions: input.intakeQuestions,
+        addons: input.addons,
+        routingStrategy: input.routingStrategy,
       });
 
       // 4. Persist
@@ -75,6 +78,9 @@ export class CreateServiceUseCase {
         yieldStartTime: service.yieldStartTime,
         yieldEndTime: service.yieldEndTime,
         yieldLabel: service.yieldLabel,
+        intakeQuestions: service.intakeQuestions,
+        addons: service.addons,
+        routingStrategy: service.routingStrategy,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

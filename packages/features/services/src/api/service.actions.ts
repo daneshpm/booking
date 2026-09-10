@@ -105,6 +105,9 @@ export async function createServiceAction(
     yieldStartTime: parsed.data.yieldStartTime,
     yieldEndTime: parsed.data.yieldEndTime,
     yieldLabel: parsed.data.yieldLabel,
+    intakeQuestions: parsed.data.intakeQuestions,
+    addons: parsed.data.addons,
+    routingStrategy: parsed.data.routingStrategy,
   });
 
   if (result.isFailure) {
@@ -187,6 +190,9 @@ export async function updateServiceAction(
     yieldStartTime: parsed.data.yieldStartTime,
     yieldEndTime: parsed.data.yieldEndTime,
     yieldLabel: parsed.data.yieldLabel,
+    intakeQuestions: parsed.data.intakeQuestions,
+    addons: parsed.data.addons,
+    routingStrategy: parsed.data.routingStrategy,
   });
 
   if (result.isFailure) {
