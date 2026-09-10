@@ -57,11 +57,13 @@ export default async function StaffPage() {
   }));
 
   return (
-    <StaffManagementClient
-      workspaceId={workspace.id}
-      initialStaff={serializedStaff as any}
-      availableServices={services}
-      defaultTimezone={workspace.timezone}
-    />
+    <div className="p-6">
+      <StaffManagementClient
+        workspaceId={workspace.id}
+        initialStaff={serializedStaff as any}
+        availableServices={services}
+        defaultTimezone={workspace.timezone}
+      />
+    </div>
   );
 }

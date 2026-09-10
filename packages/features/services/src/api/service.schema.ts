@@ -8,9 +8,22 @@ export const serviceFormSchema = z.object({
   slug: z
     .string()
     .regex(/^[a-z0-9-]*$/, 'Slug can only contain lowercase letters, numbers, and hyphens.')
-    .optional(),
-  description: z.string().max(1000, 'Description cannot exceed 1000 characters.').optional(),
-  categoryId: z.string().uuid('Invalid category selected.').optional().or(z.literal('')),
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  description: z
+    .string()
+    .max(1000, 'Description cannot exceed 1000 characters.')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  categoryId: z
+    .string()
+    .uuid('Invalid category selected.')
+    .optional()
+    .nullable()
+    .or(z.literal(''))
+    .transform((val) => (!val ? null : val)),
   durationMinutes: z.coerce
     .number()
     .int('Duration must be a whole number of minutes.')
@@ -33,8 +46,29 @@ export const serviceFormSchema = z.object({
   locationType: z
     .enum(['ONLINE_MEETING', 'IN_PERSON_BUSINESS', 'IN_PERSON_CUSTOMER', 'PHONE_CALL'])
     .default('ONLINE_MEETING'),
-  locationDetails: z.string().max(500, 'Location details cannot exceed 500 characters.').optional(),
+  locationDetails: z
+    .string()
+    .max(500, 'Location details cannot exceed 500 characters.')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   isActive: z.boolean().default(true),
+  hasYieldPricing: z.boolean().default(false),
+  yieldDiscountPercent: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z
+      .number()
+      .int()
+      .min(0, 'Discount must be at least 0%')
+      .max(99, 'Discount cannot exceed 99%')
+      .nullable()
+      .optional()
+  ),
+  yieldDays: z.string().optional().nullable(),
+  yieldStartTime: z.string().optional().nullable(),
+  yieldEndTime: z.string().optional().nullable(),
+  yieldLabel: z.string().max(50, 'Label cannot exceed 50 characters').optional().nullable(),
+  assignedStaffIds: z.array(z.string()).optional().default([]),
 });
 
 export type ServiceFormData = z.infer<typeof serviceFormSchema>;

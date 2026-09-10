@@ -99,6 +99,12 @@ export async function createServiceAction(
     locationType: parsed.data.locationType,
     locationDetails: parsed.data.locationDetails,
     isActive: parsed.data.isActive,
+    hasYieldPricing: parsed.data.hasYieldPricing,
+    yieldDiscountPercent: parsed.data.yieldDiscountPercent,
+    yieldDays: parsed.data.yieldDays,
+    yieldStartTime: parsed.data.yieldStartTime,
+    yieldEndTime: parsed.data.yieldEndTime,
+    yieldLabel: parsed.data.yieldLabel,
   });
 
   if (result.isFailure) {
@@ -111,10 +117,32 @@ export async function createServiceAction(
     };
   }
 
+  const createdService = result.getValue();
+
+  if (parsed.data.assignedStaffIds && parsed.data.assignedStaffIds.length > 0) {
+    const validStaff = await prisma.staff.findMany({
+      where: { id: { in: parsed.data.assignedStaffIds }, workspaceId, isActive: true },
+      select: { id: true },
+    });
+    if (validStaff.length > 0) {
+      await prisma.serviceStaff.createMany({
+        data: validStaff.map((s) => ({
+          serviceId: createdService.id,
+          staffId: s.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
   revalidatePath('/services');
+  revalidatePath('/staff');
+  revalidatePath('/users');
+  revalidatePath('/availability');
+  revalidatePath('/schedules');
   return {
     success: true,
-    data: result.getValue(),
+    data: createdService,
   };
 }
 
@@ -153,6 +181,12 @@ export async function updateServiceAction(
     locationType: parsed.data.locationType,
     locationDetails: parsed.data.locationDetails,
     isActive: parsed.data.isActive,
+    hasYieldPricing: parsed.data.hasYieldPricing,
+    yieldDiscountPercent: parsed.data.yieldDiscountPercent,
+    yieldDays: parsed.data.yieldDays,
+    yieldStartTime: parsed.data.yieldStartTime,
+    yieldEndTime: parsed.data.yieldEndTime,
+    yieldLabel: parsed.data.yieldLabel,
   });
 
   if (result.isFailure) {
@@ -165,7 +199,35 @@ export async function updateServiceAction(
     };
   }
 
+  if (parsed.data.assignedStaffIds !== undefined) {
+    const validStaff = await prisma.staff.findMany({
+      where: { id: { in: parsed.data.assignedStaffIds }, workspaceId, isActive: true },
+      select: { id: true },
+    });
+    const validIds = validStaff.map((s) => s.id);
+    await prisma.$transaction([
+      prisma.serviceStaff.deleteMany({
+        where: { serviceId: id, staffId: { notIn: validIds } },
+      }),
+      ...(validIds.length > 0
+        ? [
+            prisma.serviceStaff.createMany({
+              data: validIds.map((staffId) => ({
+                serviceId: id,
+                staffId,
+              })),
+              skipDuplicates: true,
+            }),
+          ]
+        : []),
+    ]);
+  }
+
   revalidatePath('/services');
+  revalidatePath('/staff');
+  revalidatePath('/users');
+  revalidatePath('/availability');
+  revalidatePath('/schedules');
   return {
     success: true,
     data: result.getValue(),

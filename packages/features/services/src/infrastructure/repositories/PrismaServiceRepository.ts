@@ -69,6 +69,12 @@ export class PrismaServiceRepository implements IServiceRepository {
         locationType: data.locationType,
         locationDetails: data.locationDetails,
         isActive: data.isActive,
+        hasYieldPricing: data.hasYieldPricing,
+        yieldDiscountPercent: data.yieldDiscountPercent,
+        yieldDays: data.yieldDays,
+        yieldStartTime: data.yieldStartTime,
+        yieldEndTime: data.yieldEndTime,
+        yieldLabel: data.yieldLabel,
       },
     });
   }

@@ -39,6 +39,23 @@ const staffSchema = z.object({
   assignedServiceIds: z.array(z.string()).default([]),
 });
 
+function serializeStaff<T extends { serviceAssignments?: any[] } | null | undefined>(staff: T): T {
+  if (!staff) return staff;
+  return {
+    ...staff,
+    serviceAssignments: staff.serviceAssignments?.map((sa: any) => ({
+      ...sa,
+      priceOverride: sa.priceOverride != null ? Number(sa.priceOverride) : null,
+      service: sa.service
+        ? {
+            ...sa.service,
+            price: sa.service.price != null ? Number(sa.service.price) : 0,
+          }
+        : sa.service,
+    })),
+  };
+}
+
 export async function createStaffAction(
   workspaceId: string,
   rawData: {
@@ -113,13 +130,15 @@ export async function createStaffAction(
     });
 
     revalidatePath('/staff');
+    revalidatePath('/users');
+    revalidatePath('/schedules');
     revalidatePath('/availability');
     revalidatePath('/services');
     revalidatePath('/calendar');
 
     return {
       success: true,
-      data: staff,
+      data: serializeStaff(staff),
     };
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -226,13 +245,15 @@ export async function updateStaffAction(
     });
 
     revalidatePath('/staff');
+    revalidatePath('/users');
+    revalidatePath('/schedules');
     revalidatePath('/availability');
     revalidatePath('/services');
     revalidatePath('/calendar');
 
     return {
       success: true,
-      data: updatedStaff,
+      data: serializeStaff(updatedStaff),
     };
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -255,6 +276,8 @@ export async function toggleStaffStatusAction(
     });
 
     revalidatePath('/staff');
+    revalidatePath('/users');
+    revalidatePath('/schedules');
     revalidatePath('/availability');
     return { success: true, data: updated };
   } catch (err) {
@@ -303,6 +326,8 @@ export async function deleteStaffAction(
     });
 
     revalidatePath('/staff');
+    revalidatePath('/users');
+    revalidatePath('/schedules');
     revalidatePath('/availability');
     revalidatePath('/services');
     revalidatePath('/calendar');
@@ -332,37 +357,46 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
  * silently produce zero bookable slots rather than an error the operator can
  * see and fix.
  */
+const DAYS_LIST = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 function validateSchedule(schedule: DayScheduleInput[]): string | null {
   for (const day of schedule) {
     if (!day.enabled) continue;
 
+    const dayName = DAYS_LIST[day.dayOfWeek] || `Day ${day.dayOfWeek}`;
+
     if (day.dayOfWeek < 0 || day.dayOfWeek > 6) {
-      return 'Each shift must fall on a valid day of the week.';
+      return `${dayName}: Each shift must fall on a valid day of the week.`;
     }
-    if (!TIME_PATTERN.test(day.startTime) || !TIME_PATTERN.test(day.endTime)) {
-      return 'Shift times must be in HH:MM format.';
+    if (
+      !day.startTime ||
+      !day.endTime ||
+      !TIME_PATTERN.test(day.startTime) ||
+      !TIME_PATTERN.test(day.endTime)
+    ) {
+      return `${dayName}: Shift times must be valid and in HH:MM format (e.g. 09:00).`;
     }
 
     const start = toMinutes(day.startTime);
     const end = toMinutes(day.endTime);
     if (end <= start) {
-      return 'A shift must end after it starts.';
+      return `${dayName}: Shift end time (${day.endTime}) must be after start time (${day.startTime}).`;
     }
 
     if (day.hasBreak) {
       if (!day.breakStartTime || !day.breakEndTime) {
-        return 'A break needs both a start and an end time.';
+        return `${dayName}: A break needs both a start and an end time.`;
       }
       if (!TIME_PATTERN.test(day.breakStartTime) || !TIME_PATTERN.test(day.breakEndTime)) {
-        return 'Break times must be in HH:MM format.';
+        return `${dayName}: Break times must be in HH:MM format (e.g. 13:00).`;
       }
       const breakStart = toMinutes(day.breakStartTime);
       const breakEnd = toMinutes(day.breakEndTime);
       if (breakEnd <= breakStart) {
-        return 'A break must end after it starts.';
+        return `${dayName}: Break end time (${day.breakEndTime}) must be after break start (${day.breakStartTime}).`;
       }
       if (breakStart < start || breakEnd > end) {
-        return 'A break must fall inside its shift.';
+        return `${dayName}: Break (${day.breakStartTime}–${day.breakEndTime}) must fall inside shift hours (${day.startTime}–${day.endTime}).`;
       }
     }
   }
@@ -370,8 +404,9 @@ function validateSchedule(schedule: DayScheduleInput[]): string | null {
 }
 
 function toMinutes(value: string): number {
+  if (!value || !value.includes(':')) return 0;
   const [hours, minutes] = value.split(':');
-  return Number(hours) * 60 + Number(minutes);
+  return (Number(hours) || 0) * 60 + (Number(minutes) || 0);
 }
 
 export async function updateStaffWorkingHoursAction(
@@ -397,6 +432,11 @@ export async function updateStaffWorkingHoursAction(
 
     await prisma.$transaction(async (tx) => {
       // 1. Clear existing working hours & breaks
+      await tx.staffBreak.deleteMany({
+        where: {
+          workingHours: { staffId },
+        },
+      });
       await tx.staffWorkingHours.deleteMany({
         where: { staffId },
       });
@@ -427,7 +467,10 @@ export async function updateStaffWorkingHoursAction(
     });
 
     revalidatePath('/staff');
+    revalidatePath('/users');
+    revalidatePath('/schedules');
     revalidatePath('/availability');
+    revalidatePath('/calendar');
 
     return { success: true };
   } catch (err) {

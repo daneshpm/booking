@@ -29,9 +29,10 @@ import type { ServiceOutputDTO } from '../application/create-service/CreateServi
 interface ServiceCardProps {
   service: ServiceOutputDTO;
   onDelete?: (id: string) => void;
+  workspaceSlug?: string;
 }
 
-export function ServiceCard({ service, onDelete }: ServiceCardProps) {
+export function ServiceCard({ service, onDelete, workspaceSlug }: ServiceCardProps) {
   const getLocationIcon = (type: string) => {
     switch (type) {
       case 'ONLINE_MEETING':
@@ -117,7 +118,11 @@ export function ServiceCard({ service, onDelete }: ServiceCardProps) {
 
       <CardFooter className="pt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80">
         <Link
-          href={`/book/service/${service.slug}`}
+          href={
+            workspaceSlug
+              ? `/book/${workspaceSlug}/${service.slug}`
+              : `/book/service/${service.slug}`
+          }
           target="_blank"
           className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400"
         >

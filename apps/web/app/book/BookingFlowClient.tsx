@@ -18,11 +18,13 @@ import {
   FileText,
   ExternalLink,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { Button, Input, Textarea } from '@bookings/ui';
 import {
   createPublicBookingAction,
   getAvailableSlotsAction,
+  joinPublicWaitlistAction,
   type BookingResult,
   type AvailableSlot,
 } from './actions';
@@ -65,6 +67,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
   const [selectedTime, setSelectedTime] = React.useState<string | null>(null);
   const [selectedSlotLabel, setSelectedSlotLabel] = React.useState<string | null>(null);
   const [selectedStaffId, setSelectedStaffId] = React.useState<string | undefined>(undefined);
+  const [selectedSlot, setSelectedSlot] = React.useState<AvailableSlot | null>(null);
   const [step, setStep] = React.useState<'SLOT' | 'DETAILS' | 'CONFIRMED'>('SLOT');
 
   // Dynamic available slots state
@@ -79,6 +82,48 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [bookingResult, setBookingResult] = React.useState<BookingResult | null>(null);
+
+  // Waitlist state
+  const [isWaitlistOpen, setIsWaitlistOpen] = React.useState(false);
+  const [waitlistSuccess, setWaitlistSuccess] = React.useState(false);
+  const [waitlistSubmitting, setWaitlistSubmitting] = React.useState(false);
+  const [waitlistError, setWaitlistError] = React.useState<string | null>(null);
+  const [waitlistName, setWaitlistName] = React.useState('');
+  const [waitlistEmail, setWaitlistEmail] = React.useState('');
+  const [waitlistPhone, setWaitlistPhone] = React.useState('');
+  const [waitlistNotes, setWaitlistNotes] = React.useState('');
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWaitlistError(null);
+    if (!waitlistName.trim() || !waitlistEmail.trim()) {
+      setWaitlistError('Please provide your name and email.');
+      return;
+    }
+
+    setWaitlistSubmitting(true);
+    try {
+      const res = await joinPublicWaitlistAction({
+        workspaceId: workspace.id,
+        serviceId: service.id,
+        preferredDate: selectedDate,
+        customerName: waitlistName.trim(),
+        customerEmail: waitlistEmail.trim(),
+        customerPhone: waitlistPhone.trim() || undefined,
+        notes: waitlistNotes.trim() || undefined,
+      });
+
+      if (!res.success) {
+        setWaitlistError((res as any).error || 'Failed to join waitlist.');
+      } else {
+        setWaitlistSuccess(true);
+      }
+    } catch (err: any) {
+      setWaitlistError(err.message || 'An error occurred.');
+    } finally {
+      setWaitlistSubmitting(false);
+    }
+  };
 
   // Fetch real available slots when date changes
   React.useEffect(() => {
@@ -121,6 +166,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     setSelectedTime(slot.time);
     setSelectedSlotLabel(slot.label);
     setSelectedStaffId(slot.staffId);
+    setSelectedSlot(slot);
     setErrorMsg(null);
     setStep('DETAILS');
   };
@@ -218,6 +264,26 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                 </span>
               </div>
             )}
+
+            {service.hasYieldPricing && service.yieldDiscountPercent ? (
+              <div className="mt-4 p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-purple-500/10 border border-amber-300/70 text-amber-950 flex items-start gap-2.5">
+                <div className="h-6 w-6 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold block text-amber-950">
+                    {service.yieldLabel || 'Off-Peak Special'} • {service.yieldDiscountPercent}% OFF
+                  </span>
+                  <span className="text-[11px] text-amber-900 leading-tight block mt-0.5">
+                    Select an off-peak slot{' '}
+                    {service.yieldStartTime && service.yieldEndTime
+                      ? `(${service.yieldStartTime} - ${service.yieldEndTime})`
+                      : ''}{' '}
+                    for instant promotional savings!
+                  </span>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="pt-6 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
@@ -303,27 +369,169 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     ))}
                   </div>
                 ) : availableSlots.length === 0 ? (
-                  <div className="p-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                    <Clock className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-                    <p className="text-xs font-semibold text-slate-900">No Available Slots</p>
-                    <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
-                      Staff are either fully booked or scheduled off on this date. Please choose
-                      another date above.
-                    </p>
+                  <div className="p-6 rounded-2xl border border-purple-200/80 bg-gradient-to-br from-purple-50/50 via-white to-amber-50/30 text-center space-y-4 shadow-2xs">
+                    <div className="h-11 w-11 rounded-2xl bg-[#5c34ad]/10 text-[#5c34ad] flex items-center justify-center mx-auto">
+                      <Sparkles className="h-5 w-5 fill-current text-[#5c34ad]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        All Slots Booked for {selectedDate}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                        Don't miss out! Join our priority waitlist. If any client cancels or
+                        reschedules, we'll notify you instantly.
+                      </p>
+                    </div>
+
+                    {waitlistSuccess ? (
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-center gap-2 font-bold animate-in fade-in">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>
+                          You are on the priority waitlist! We will alert you immediately if a spot
+                          opens.
+                        </span>
+                      </div>
+                    ) : isWaitlistOpen ? (
+                      <form
+                        onSubmit={handleWaitlistSubmit}
+                        className="text-left space-y-3 pt-2 animate-in fade-in"
+                      >
+                        {waitlistError && (
+                          <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                            {waitlistError}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              Your Name *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Jane Doe"
+                              value={waitlistName}
+                              onChange={(e) => setWaitlistName(e.target.value)}
+                              required
+                              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                              Your Email *
+                            </label>
+                            <input
+                              type="email"
+                              placeholder="jane@example.com"
+                              value={waitlistEmail}
+                              onChange={(e) => setWaitlistEmail(e.target.value)}
+                              required
+                              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad]"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Phone Number (Optional)
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="+1 555-0199"
+                            value={waitlistPhone}
+                            onChange={(e) => setWaitlistPhone(e.target.value)}
+                            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                            Preferred Time Window (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Afternoon between 2pm - 5pm"
+                            value={waitlistNotes}
+                            onChange={(e) => setWaitlistNotes(e.target.value)}
+                            className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad]"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsWaitlistOpen(false)}
+                            className="py-2 px-3 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={waitlistSubmitting}
+                            className="flex-1 py-2 px-4 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-[#5c34ad] hover:from-amber-600 hover:to-[#4d2994] rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            {waitlistSubmitting ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+                                <span>Join Priority Waitlist</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsWaitlistOpen(true)}
+                        className="inline-flex items-center gap-1.5 py-2.5 px-5 rounded-xl bg-[#5c34ad] hover:bg-[#4d2994] text-white font-bold text-xs shadow-sm hover:shadow-purple-600/20 transition-all cursor-pointer"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                        <span>Join Priority Waitlist for This Day</span>
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {availableSlots.map((slot) => (
-                      <button
-                        key={slot.time}
-                        type="button"
-                        onClick={() => handleSlotSelect(slot)}
-                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-indigo-600 hover:border-indigo-600 text-slate-800 hover:text-white transition-all group font-semibold text-xs shadow-2xs hover:shadow-indigo-600/20 active:scale-[0.98]"
-                      >
-                        <span>{slot.label}</span>
-                        <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    ))}
+                    {availableSlots.map((slot) => {
+                      const isOffPeak = slot.isOffPeak;
+                      return (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          onClick={() => handleSlotSelect(slot)}
+                          className={`flex flex-col p-3 rounded-2xl border transition-all text-left group shadow-2xs active:scale-[0.98] ${
+                            isOffPeak
+                              ? 'bg-gradient-to-br from-amber-50/80 via-white to-amber-50/30 border-amber-300 hover:border-amber-400 hover:bg-amber-100/50 hover:shadow-md hover:shadow-amber-500/10'
+                              : 'bg-slate-50 border-slate-200 hover:bg-indigo-600 hover:border-indigo-600 hover:text-white text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span
+                              className={`text-xs font-bold ${isOffPeak ? 'text-slate-900 group-hover:text-amber-950' : 'group-hover:text-white'}`}
+                            >
+                              {slot.label}
+                            </span>
+                            {isOffPeak ? (
+                              <span className="text-[10px] font-black uppercase tracking-tight bg-amber-500 text-white px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                {slot.discountPercent}% OFF
+                              </span>
+                            ) : (
+                              <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            )}
+                          </div>
+
+                          {isOffPeak && slot.discountedPrice !== undefined && (
+                            <div className="flex items-center gap-1.5 mt-1.5 text-[11px]">
+                              <span className="line-through text-slate-400 font-medium">
+                                ${slot.originalPrice?.toFixed(2)}
+                              </span>
+                              <span className="font-bold text-amber-700">
+                                ${slot.discountedPrice.toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -366,6 +574,32 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     {workspace.timezone}
                   </span>
                 </div>
+
+                {selectedSlot?.isOffPeak ? (
+                  <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-amber-50 via-white to-purple-50 border border-amber-300 text-xs flex items-center justify-between shadow-2xs">
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 rounded-lg bg-amber-500 text-white flex items-center justify-center">
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-amber-950 block">
+                          {selectedSlot.discountLabel || 'Off-Peak Promotion'} Applied!
+                        </span>
+                        <span className="text-[11px] text-amber-800">
+                          {selectedSlot.discountPercent}% OFF regular session fee
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="line-through text-slate-400 text-xs mr-1.5">
+                        ${selectedSlot.originalPrice?.toFixed(2)}
+                      </span>
+                      <span className="font-black text-amber-700 text-sm">
+                        ${selectedSlot.discountedPrice?.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {errorMsg && (
@@ -484,6 +718,21 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                   <span className="text-slate-500 font-medium">Assigned Advisor:</span>
                   <span className="font-bold text-slate-900">{bookingResult.staffName}</span>
                 </div>
+
+                {selectedSlot?.isOffPeak && (
+                  <div className="flex justify-between items-center border-b border-slate-200/80 pb-2.5">
+                    <span className="text-slate-500 font-medium">Rate Paid:</span>
+                    <span className="font-bold text-amber-700 flex items-center gap-1.5">
+                      <span className="line-through text-slate-400 font-normal">
+                        ${selectedSlot.originalPrice?.toFixed(2)}
+                      </span>
+                      <span>${selectedSlot.discountedPrice?.toFixed(2)}</span>
+                      <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                        {selectedSlot.discountPercent}% OFF
+                      </span>
+                    </span>
+                  </div>
+                )}
 
                 {bookingResult.meetingLink && (
                   <div className="flex justify-between items-center pt-1">

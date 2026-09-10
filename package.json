@@ -153,5 +153,10 @@
     "lightningcss-win32-x64-msvc": "^1.33.0",
     "pg-cloudflare": "^1.4.0",
     "sharp": "^0.35.4"
+  },
+  "dependencies": {
+    "framer-motion": "^13.2.0",
+    "motion-dom": "^13.2.0",
+    "motion-utils": "^13.0.0"
   }
 }

@@ -19,6 +19,12 @@ export class ServiceMapper {
       locationType: raw.locationType as LocationType,
       locationDetails: raw.locationDetails,
       isActive: raw.isActive,
+      hasYieldPricing: raw.hasYieldPricing ?? false,
+      yieldDiscountPercent: raw.yieldDiscountPercent,
+      yieldDays: raw.yieldDays,
+      yieldStartTime: raw.yieldStartTime,
+      yieldEndTime: raw.yieldEndTime,
+      yieldLabel: raw.yieldLabel,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });
@@ -40,6 +46,12 @@ export class ServiceMapper {
       locationType: service.locationType,
       locationDetails: service.locationDetails,
       isActive: service.isActive,
+      hasYieldPricing: service.hasYieldPricing,
+      yieldDiscountPercent: service.yieldDiscountPercent,
+      yieldDays: service.yieldDays,
+      yieldStartTime: service.yieldStartTime,
+      yieldEndTime: service.yieldEndTime,
+      yieldLabel: service.yieldLabel,
     };
   }
 }

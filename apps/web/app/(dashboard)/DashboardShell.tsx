@@ -19,8 +19,10 @@ import {
   BookOpen,
   CalendarCheck,
   LogOut,
+  Zap,
 } from 'lucide-react';
 import { SetupWizardModal } from './components/SetupWizardModal';
+import { FastPassModal } from './components/FastPassModal';
 import { logoutAction } from '../signup/actions';
 
 export interface ShellWorkspace {
@@ -64,6 +66,19 @@ export function DashboardShell({
   const [showWorkspaceMenu, setShowWorkspaceMenu] = React.useState(false);
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
   const [isSetupOpen, setIsSetupOpen] = React.useState(false);
+  const [isFastPassOpen, setIsFastPassOpen] = React.useState(false);
+
+  // Global Alt+W shortcut to open Fast Pass
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        setIsFastPassOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const workspaceInitials =
     activeWorkspace.name
@@ -86,7 +101,21 @@ export function DashboardShell({
           <span className="text-base font-bold text-slate-800 tracking-tight">Bookings</span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-3 text-xs">
+          {/* 10-Second Fast Pass Front-Desk Quick Booker Button */}
+          <button
+            type="button"
+            onClick={() => setIsFastPassOpen(true)}
+            className="h-7 px-2.5 rounded-md bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            title="10-Sec Fast Pass (Alt+W)"
+          >
+            <Zap className="h-3.5 w-3.5 fill-current" />
+            <span>Fast Pass</span>
+            <span className="hidden sm:inline-block px-1 py-0.5 rounded bg-black/20 text-[9px] font-mono font-medium">
+              Alt+W
+            </span>
+          </button>
+
           <Link
             href="/appointments?new=true"
             className="h-7 w-7 rounded-md bg-[#5c34ad] hover:bg-[#4d2994] text-white flex items-center justify-center shadow-sm transition-all"
@@ -117,9 +146,9 @@ export function DashboardShell({
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               aria-haspopup="menu"
               aria-expanded={showProfileMenu}
-              className="h-7 w-7 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-700 font-bold text-xs hover:ring-2 hover:ring-[#5c34ad]/20 transition-all"
+              className="h-7 w-7 rounded-full bg-purple-700 text-white font-bold text-xs flex items-center justify-center shadow-sm hover:ring-2 hover:ring-purple-400/40 transition-all"
             >
-              <User className="h-4 w-4 text-slate-600" />
+              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </button>
 
             {showProfileMenu && (
@@ -129,13 +158,25 @@ export function DashboardShell({
                   <span className="text-[11px] text-slate-400 block truncate">{user.email}</span>
                 </div>
                 <Link
+                  href="/settings"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="block px-4 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                >
+                  My Profile & Account
+                </Link>
+                <Link
                   href={`/book/${activeWorkspace.slug}`}
                   target="_blank"
+                  onClick={() => setShowProfileMenu(false)}
                   className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
                 >
                   Preview Client Booker
                 </Link>
-                <Link href="/settings" className="block px-4 py-2 hover:bg-slate-50 text-slate-700">
+                <Link
+                  href="/settings"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
+                >
                   Workspace Settings
                 </Link>
                 <form action={logoutAction} className="border-t border-slate-100 mt-1 pt-1">
@@ -278,6 +319,12 @@ export function DashboardShell({
           workspaceName={activeWorkspace.name}
           workspaceSlug={activeWorkspace.slug}
           completedSteps={completedSteps}
+        />
+
+        <FastPassModal
+          workspaceId={activeWorkspace.id}
+          isOpen={isFastPassOpen}
+          onClose={() => setIsFastPassOpen(false)}
         />
 
         <main className="flex-1 min-w-0 bg-white overflow-y-auto">{children}</main>

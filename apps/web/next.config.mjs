@@ -42,9 +42,7 @@ const nextConfig = {
     '@bookings/ui',
     '@bookings/feature-services',
   ],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   async headers() {
     const headers = [{ source: '/:path*', headers: securityHeaders }];
 

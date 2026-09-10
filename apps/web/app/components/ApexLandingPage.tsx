@@ -24,19 +24,24 @@ import {
   ArrowUpRight,
   CheckCircle,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@bookings/ui';
 
-/**
- * Workspace the marketing page links to.
- *
- * With no slug configured the links fall back to /book, the directory of
- * published booking pages, so a fresh deployment never points at a workspace
- * that does not exist.
- */
-const DEFAULT_SLUG = process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG?.trim() || '';
-const BOOK_BASE = DEFAULT_SLUG ? `/book/${DEFAULT_SLUG}` : '/book';
+interface ApexLandingPageProps {
+  defaultWorkspaceSlug?: string;
+}
 
-export function ApexLandingPage() {
+export function ApexLandingPage({ defaultWorkspaceSlug }: ApexLandingPageProps = {}) {
+  const targetSlug =
+    defaultWorkspaceSlug ||
+    process.env.NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG?.trim() ||
+    'rooman-technologies';
+  const BOOK_BASE = `/book/${targetSlug}`;
+
+  // Selection & hover state for Floating Pricing Cards
+  const [selectedTier, setSelectedTier] = React.useState<'career' | 'mock' | 'coe'>('mock');
+  const [hoveredTier, setHoveredTier] = React.useState<'career' | 'mock' | 'coe' | null>(null);
+
   // Tabs for "Here's How It Works"
   const [activeTab, setActiveTab] = React.useState<'STUDENTS' | 'INSTITUTIONAL'>('STUDENTS');
 
@@ -594,132 +599,327 @@ export function ApexLandingPage() {
       </section>
 
       {/* ---------------------------------------------------- */}
-      {/* 6. TRANSPARENT PRICING & TIERS                      */}
+      {/* 6. TRANSPARENT PRICING & TIERS (FLOATING SELECTION CARDS) */}
       {/* ---------------------------------------------------- */}
-      <section id="pricing" className="py-20 px-6 sm:px-12 max-w-7xl mx-auto">
-        <div className="max-w-3xl mb-12">
-          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
-            Transparent Options
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight mt-2">
+      <section id="pricing" className="py-24 px-6 sm:px-12 max-w-7xl mx-auto relative">
+        <div className="max-w-3xl mb-14">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 mb-3">
+            <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+              Transparent Options
+            </span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-950 tracking-tight">
             Clear, accessible consultation options
           </h2>
-          <p className="text-base text-slate-600 mt-2">
+          <p className="text-base text-slate-600 mt-3 leading-relaxed">
             Zero hidden costs. 100% free guidance for all students exploring IT certification paths.
+            Hover over and select an option below to proceed directly to booking.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {/* Tier 1 */}
-          <div className="p-8 rounded-2xl border border-slate-200 bg-white space-y-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Career Guidance</h3>
-              <p className="text-xs text-slate-500 mt-1">For fresh graduates and students</p>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-slate-900">₹0</span>
-              <span className="text-xs font-bold text-emerald-600 ml-1">FREE</span>
-            </div>
-            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>30-minute 1-on-1 counseling</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>AI, Cloud & Cybersecurity roadmap</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Google Meet video call</span>
-              </li>
-            </ul>
-            <Link href={`${BOOK_BASE}/career-guidance`} className="block w-full">
-              <Button
-                variant="outline"
-                className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
-              >
-                Book Free Guidance
-              </Button>
-            </Link>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-4">
+          {/* Card 1: Career Guidance */}
+          <motion.div
+            layout
+            onHoverStart={() => setHoveredTier('career')}
+            onHoverEnd={() => setHoveredTier(null)}
+            onClick={() => setSelectedTier('career')}
+            whileHover={{
+              y: -12,
+              transition: { type: 'spring', stiffness: 400, damping: 22 },
+            }}
+            whileTap={{ scale: 0.985 }}
+            className={`group rounded-3xl p-8 transition-all duration-300 flex flex-col justify-between relative bg-white border-2 ${
+              selectedTier === 'career'
+                ? 'border-emerald-500 shadow-[0_20px_45px_-12px_rgba(16,185,129,0.22)] ring-4 ring-emerald-500/10'
+                : 'border-slate-200 hover:border-emerald-400 hover:shadow-[0_20px_45px_-12px_rgba(16,185,129,0.16)]'
+            }`}
+          >
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold tracking-wide border border-emerald-100">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  100% Free
+                </span>
+                <AnimatePresence>
+                  {selectedTier === 'career' ? (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      Selected
+                    </motion.span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-400 group-hover:text-emerald-600 transition-colors">
+                      Click to select
+                    </span>
+                  )}
+                </AnimatePresence>
+              </div>
 
-          {/* Tier 2: Featured Pro */}
-          <div className="p-8 rounded-2xl border-2 border-indigo-600 bg-white space-y-6 shadow-lg shadow-indigo-600/5 relative">
-            <span className="absolute -top-3 left-6 px-2.5 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-950 transition-colors">
+                  Career Guidance
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">For fresh graduates and students</p>
+              </div>
+
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                  ₹0
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  FREE
+                </span>
+              </div>
+
+              <ul className="space-y-3.5 text-xs text-slate-600 pt-4 border-t border-slate-100">
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  </div>
+                  <span className="font-medium text-slate-700">30-minute 1-on-1 counseling</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  </div>
+                  <span>AI, Cloud & Cybersecurity roadmap</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  </div>
+                  <span>Google Meet instant video link</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="pt-8">
+              <Link href={`${BOOK_BASE}/career-guidance`} className="block w-full">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className={`w-full py-3 text-xs font-bold transition-all flex items-center justify-center gap-2 rounded-xl ${
+                      selectedTier === 'career'
+                        ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20'
+                        : 'border-slate-200 text-slate-800 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-900'
+                    }`}
+                  >
+                    <span>Book Free Guidance</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </motion.div>
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Card 2: Featured Pro - Mock Interview */}
+          <motion.div
+            layout
+            onHoverStart={() => setHoveredTier('mock')}
+            onHoverEnd={() => setHoveredTier(null)}
+            onClick={() => setSelectedTier('mock')}
+            whileHover={{
+              y: -14,
+              transition: { type: 'spring', stiffness: 400, damping: 22 },
+            }}
+            whileTap={{ scale: 0.985 }}
+            className={`group rounded-3xl p-8 transition-all duration-300 flex flex-col justify-between relative bg-gradient-to-b from-indigo-50/40 via-white to-white border-2 ${
+              selectedTier === 'mock'
+                ? 'border-indigo-600 shadow-[0_25px_50px_-12px_rgba(79,70,229,0.28)] ring-4 ring-indigo-600/10'
+                : 'border-indigo-500/70 shadow-lg shadow-indigo-600/5 hover:border-indigo-600 hover:shadow-[0_25px_50px_-12px_rgba(79,70,229,0.22)]'
+            }`}
+          >
+            <span className="absolute -top-3.5 left-8 px-3 py-1 rounded-full bg-indigo-600 text-white text-[11px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3" />
               Most Popular
             </span>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Mock Interview & Assessment</h3>
-              <p className="text-xs text-slate-500 mt-1">For placement-ready candidates</p>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-slate-900">₹499</span>
-              <span className="text-xs text-slate-400">/ session</span>
-            </div>
-            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>45-minute live technical interview</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>Written evaluation scorecard</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>Coding, cloud or networking drill</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>Resume & profile recommendations</span>
-              </li>
-            </ul>
-            <Link href={`${BOOK_BASE}/mock-interview-assessment`} className="block w-full">
-              <Button
-                variant="primary"
-                className="w-full py-2.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                Schedule Mock Interview
-              </Button>
-            </Link>
-          </div>
 
-          {/* Tier 3 */}
-          <div className="p-8 rounded-2xl border border-slate-200 bg-white space-y-6">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">
-                Center of Excellence & Enterprise
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">For universities & corporations</p>
+            <div className="space-y-6 pt-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold tracking-wide">
+                  Placement Ready
+                </span>
+                <AnimatePresence>
+                  {selectedTier === 'mock' ? (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-full"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-indigo-600" />
+                      Selected
+                    </motion.span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-400 group-hover:text-indigo-600 transition-colors">
+                      Click to select
+                    </span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-950 transition-colors">
+                  Mock Interview & Assessment
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">For placement-ready candidates</p>
+              </div>
+
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                  ₹499
+                </span>
+                <span className="text-xs font-semibold text-slate-500">/ session</span>
+              </div>
+
+              <ul className="space-y-3.5 text-xs text-slate-600 pt-4 border-t border-slate-100">
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Check className="h-3.5 w-3.5 text-indigo-600" />
+                  </div>
+                  <span className="font-medium text-slate-700">
+                    45-minute live technical interview
+                  </span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Check className="h-3.5 w-3.5 text-indigo-600" />
+                  </div>
+                  <span>Written evaluation scorecard</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Check className="h-3.5 w-3.5 text-indigo-600" />
+                  </div>
+                  <span>Coding, cloud or networking drill</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
+                    <Check className="h-3.5 w-3.5 text-indigo-600" />
+                  </div>
+                  <span>Resume & profile recommendations</span>
+                </li>
+              </ul>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-black text-slate-900">Custom</span>
-              <span className="text-xs text-slate-400">MOU Based</span>
+
+            <div className="pt-8">
+              <Link href={`${BOOK_BASE}/mock-interview-assessment`} className="block w-full">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="primary"
+                    className="w-full py-3 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 rounded-xl"
+                  >
+                    <span>Schedule Mock Interview</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </motion.div>
+              </Link>
             </div>
-            <ul className="space-y-3 text-xs text-slate-600 pt-2 border-t border-slate-100">
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>60-minute executive briefing</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>On-campus CoE lab setup framework</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Custom corporate cohort syllabus</span>
-              </li>
-            </ul>
-            <Link href={`${BOOK_BASE}/university-coe-consultation`} className="block w-full">
-              <Button
-                variant="outline"
-                className="w-full py-2.5 text-xs font-semibold border-slate-200 hover:bg-slate-50"
-              >
-                Schedule Partnership Call
-              </Button>
-            </Link>
-          </div>
+          </motion.div>
+
+          {/* Card 3: Enterprise & CoE */}
+          <motion.div
+            layout
+            onHoverStart={() => setHoveredTier('coe')}
+            onHoverEnd={() => setHoveredTier(null)}
+            onClick={() => setSelectedTier('coe')}
+            whileHover={{
+              y: -12,
+              transition: { type: 'spring', stiffness: 400, damping: 22 },
+            }}
+            whileTap={{ scale: 0.985 }}
+            className={`group rounded-3xl p-8 transition-all duration-300 flex flex-col justify-between relative bg-white border-2 ${
+              selectedTier === 'coe'
+                ? 'border-blue-600 shadow-[0_20px_45px_-12px_rgba(37,99,235,0.22)] ring-4 ring-blue-600/10'
+                : 'border-slate-200 hover:border-blue-400 hover:shadow-[0_20px_45px_-12px_rgba(37,99,235,0.16)]'
+            }`}
+          >
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold tracking-wide border border-blue-100">
+                  Institutional
+                </span>
+                <AnimatePresence>
+                  {selectedTier === 'coe' ? (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-100/70 px-2.5 py-0.5 rounded-full"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-blue-600" />
+                      Selected
+                    </motion.span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-slate-400 group-hover:text-blue-600 transition-colors">
+                      Click to select
+                    </span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-950 transition-colors">
+                  Center of Excellence & Enterprise
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">For universities & corporations</p>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                  Custom
+                </span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  MOU Based
+                </span>
+              </div>
+
+              <ul className="space-y-3.5 text-xs text-slate-600 pt-4 border-t border-slate-100">
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                    <Check className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <span className="font-medium text-slate-700">60-minute executive briefing</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                    <Check className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <span>On-campus CoE lab setup framework</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100">
+                    <Check className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <span>Custom corporate cohort syllabus</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="pt-8">
+              <Link href={`${BOOK_BASE}/university-coe-consultation`} className="block w-full">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className={`w-full py-3 text-xs font-bold transition-all flex items-center justify-center gap-2 rounded-xl ${
+                      selectedTier === 'coe'
+                        ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md shadow-blue-600/20'
+                        : 'border-slate-200 text-slate-800 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-900'
+                    }`}
+                  >
+                    <span>Schedule Partnership Call</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </motion.div>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 

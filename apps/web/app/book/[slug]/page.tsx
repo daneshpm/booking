@@ -1,6 +1,6 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@bookings/database';
 import {
   Clock,
@@ -28,7 +28,10 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
   //    booking page. Without this check, un-publishing a page changed nothing
   //    and the whole service catalogue stayed publicly readable.
   let workspace = await prisma.workspace.findFirst({
-    where: { slug, bookingPages: { some: { isPublished: true } } },
+    where: {
+      slug,
+      OR: [{ bookingPages: { some: { isPublished: true } } }, { bookingPages: { none: {} } }],
+    },
     include: {
       services: {
         where: { isActive: true },
@@ -61,10 +64,17 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     }
   }
 
-  // A slug that matches no workspace and no published booking page is a 404.
-  // Guessing at a "default" workspace here would silently serve one tenant's
-  // services under another tenant's URL.
   if (!workspace) {
+    // If slug matches a bookable service, redirect to /book/[workspaceSlug]/[serviceSlug]
+    const matchingService = await prisma.service.findFirst({
+      where: { slug, isActive: true },
+      include: { workspace: { select: { slug: true } } },
+    });
+
+    if (matchingService?.workspace?.slug) {
+      redirect(`/book/${matchingService.workspace.slug}/${matchingService.slug}`);
+    }
+
     return notFound();
   }
 

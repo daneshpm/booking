@@ -11,7 +11,11 @@ export class CreateServiceUseCase {
     try {
       // 1. Compute slug if not provided
       const rawSlug = input.slug?.trim() || slugify(input.name, { lower: true, strict: true });
-      const slug = rawSlug.toLowerCase();
+      const slug =
+        (rawSlug || `service-${Date.now().toString(36)}`)
+          .toLowerCase()
+          .replace(/[^a-z0-9-]+/g, '-')
+          .replace(/(^-+|-+$)/g, '') || `service-${Date.now().toString(36)}`;
 
       // 2. Check slug collision in tenant workspace
       const slugExists = await this.serviceRepo.existsWithSlug(input.workspaceId, slug);
@@ -36,6 +40,12 @@ export class CreateServiceUseCase {
         locationType: input.locationType,
         locationDetails: input.locationDetails,
         isActive: input.isActive,
+        hasYieldPricing: input.hasYieldPricing,
+        yieldDiscountPercent: input.yieldDiscountPercent,
+        yieldDays: input.yieldDays,
+        yieldStartTime: input.yieldStartTime,
+        yieldEndTime: input.yieldEndTime,
+        yieldLabel: input.yieldLabel,
       });
 
       // 4. Persist
@@ -59,6 +69,12 @@ export class CreateServiceUseCase {
         locationType: service.locationType,
         locationDetails: service.locationDetails,
         isActive: service.isActive,
+        hasYieldPricing: service.hasYieldPricing,
+        yieldDiscountPercent: service.yieldDiscountPercent,
+        yieldDays: service.yieldDays,
+        yieldStartTime: service.yieldStartTime,
+        yieldEndTime: service.yieldEndTime,
+        yieldLabel: service.yieldLabel,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };
