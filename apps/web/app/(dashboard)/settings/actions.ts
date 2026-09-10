@@ -112,10 +112,13 @@ export async function updateUserProfileAction(input: ProfileInput) {
       },
     });
 
-    // Sync to staff profile in any active workspaces for this user
+    // Sync to staff profile in any active workspaces for this user.
+    // Matching on email alone would also rewrite a different tenant's staff
+    // row that happens to use the same address, so the email fallback is
+    // limited to rows that are not yet linked to any user account.
     await prisma.staff.updateMany({
       where: {
-        OR: [{ userId: session.user.id }, { email: session.user.email }],
+        OR: [{ userId: session.user.id }, { email: session.user.email, userId: null }],
       },
       data: {
         name: validated.name,

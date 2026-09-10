@@ -296,7 +296,7 @@ export function AppointmentsClient({
   const handleNotifyWaitlist = async (entryId: string) => {
     setActionLoadingWaitlistId(entryId);
     try {
-      const res = await notifyWaitlistEntryAction(entryId);
+      const res = await notifyWaitlistEntryAction(workspaceId, entryId);
       if (res.success) {
         setWaitlistEntries((prev) =>
           prev.map((w) =>
@@ -316,7 +316,7 @@ export function AppointmentsClient({
   const handleCancelWaitlist = async (entryId: string) => {
     setActionLoadingWaitlistId(entryId);
     try {
-      const res = await cancelWaitlistEntryAction(entryId);
+      const res = await cancelWaitlistEntryAction(workspaceId, entryId);
       if (res.success) {
         setWaitlistEntries((prev) =>
           prev.map((w) => (w.id === entryId ? { ...w, status: 'CANCELLED' } : w))

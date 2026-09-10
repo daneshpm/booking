@@ -90,6 +90,9 @@ async function callerKey(scope: string): Promise<string> {
   return `${scope}:${address}`;
 }
 
+/** Calendar date as the booking UI submits it. */
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 /** Day of week in the schema's convention: 0 = Sunday through 6 = Saturday. */
 function dayOfWeekFor(date: string): number {
   // Anchored at noon so the value cannot slip a day through a timezone offset.
@@ -615,9 +618,46 @@ export async function joinPublicWaitlistAction(data: JoinWaitlistInput) {
     if (!data.customerName?.trim() || !data.customerEmail?.trim()) {
       return { success: false, error: 'Please enter your name and email address.' };
     }
-    return await addToWaitlist(data);
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to join waitlist.' };
+    if (!DATE_ONLY_PATTERN.test(data.preferredDate)) {
+      return { success: false, error: 'Please choose a valid date.' };
+    }
+
+    // Unauthenticated write, so it is throttled like the other public actions.
+    // Without a limit anyone can fill a workspace's waitlist from a script.
+    const throttle = await checkRateLimit(await callerKey('waitlist'), PUBLIC_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      return {
+        success: false,
+        error: 'Too many requests. Please wait a moment and try again.',
+      };
+    }
+
+    // workspaceId and serviceId both arrive from the browser. Resolving the
+    // service inside the workspace stops one tenant's service being attached to
+    // another tenant's waitlist by editing the request.
+    const service = await prisma.service.findFirst({
+      where: { id: data.serviceId, workspaceId: data.workspaceId, isActive: true },
+      select: { id: true },
+    });
+    if (!service) {
+      return { success: false, error: 'That service is not available for booking.' };
+    }
+
+    const staffId = data.staffId && data.staffId !== 'ANY' ? data.staffId : null;
+    if (staffId) {
+      const staff = await prisma.staff.findFirst({
+        where: { id: staffId, workspaceId: data.workspaceId, isActive: true },
+        select: { id: true },
+      });
+      if (!staff) {
+        return { success: false, error: 'That team member is not available.' };
+      }
+    }
+
+    return await addToWaitlist({ ...data, staffId });
+  } catch (err) {
+    console.error('Join waitlist failed:', err);
+    return { success: false, error: 'Failed to join the waitlist. Please try again.' };
   }
 }
 
@@ -642,8 +682,9 @@ export async function getClaimSpotDetailsAction(token: string) {
         workspaceName: entry.workspace.name,
       },
     };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to load spot details.' };
+  } catch (err) {
+    console.error('Claim spot lookup failed:', err);
+    return { success: false, error: 'Failed to load spot details.' };
   }
 }
 
@@ -655,7 +696,8 @@ export async function claimPublicWaitlistSpotAction(token: string) {
       revalidatePath('/appointments');
     }
     return res;
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Could not claim appointment slot.' };
+  } catch (err) {
+    console.error('Claim waitlist spot failed:', err);
+    return { success: false, error: 'Could not claim the appointment slot. Please try again.' };
   }
 }

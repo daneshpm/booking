@@ -607,23 +607,28 @@ export async function getWorkspaceWaitlistAction(workspaceId: string, statusFilt
   }
 }
 
-export async function notifyWaitlistEntryAction(entryId: string) {
+export async function notifyWaitlistEntryAction(workspaceId: string, entryId: string) {
   try {
-    const res = await notifyWaitlistEntry(entryId);
+    // Minting a claim token books an appointment, so this needs the same tenant
+    // guard as every other write. Without it the entry id alone was enough for
+    // an unauthenticated caller to issue a working claim link.
+    await requireWorkspace(workspaceId, 'STAFF');
+    const res = await notifyWaitlistEntry(entryId, workspaceId);
     revalidatePath('/appointments');
     return res;
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to notify waitlist client.' };
+  } catch (err) {
+    return toActionError(err);
   }
 }
 
-export async function cancelWaitlistEntryAction(entryId: string) {
+export async function cancelWaitlistEntryAction(workspaceId: string, entryId: string) {
   try {
-    const res = await cancelWaitlistEntry(entryId);
+    await requireWorkspace(workspaceId, 'STAFF');
+    const res = await cancelWaitlistEntry(entryId, workspaceId);
     revalidatePath('/appointments');
     return res;
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to cancel waitlist entry.' };
+  } catch (err) {
+    return toActionError(err);
   }
 }
 
@@ -639,10 +644,32 @@ export async function addToWaitlistDashboardAction(data: {
 }) {
   try {
     await requireWorkspace(data.workspaceId, 'STAFF');
-    const res = await addToWaitlist(data);
+
+    // addToWaitlist trusts its caller for tenancy, so the service and staff a
+    // client supplied are resolved inside this workspace before it is reached.
+    const service = await prisma.service.findFirst({
+      where: { id: data.serviceId, workspaceId: data.workspaceId, isActive: true },
+      select: { id: true },
+    });
+    if (!service) {
+      return { success: false, error: 'Service not found in this workspace.' };
+    }
+
+    const staffId = data.staffId && data.staffId !== 'ANY' ? data.staffId : null;
+    if (staffId) {
+      const staff = await prisma.staff.findFirst({
+        where: { id: staffId, workspaceId: data.workspaceId, isActive: true },
+        select: { id: true },
+      });
+      if (!staff) {
+        return { success: false, error: 'Staff member not found in this workspace.' };
+      }
+    }
+
+    const res = await addToWaitlist({ ...data, staffId });
     revalidatePath('/appointments');
     return res;
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to add to waitlist.' };
+  } catch (err) {
+    return toActionError(err);
   }
 }

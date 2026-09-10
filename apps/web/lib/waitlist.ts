@@ -1,8 +1,21 @@
 import { prisma, type WaitlistStatus } from '@bookings/database';
-import { startOfDay, addMinutes } from 'date-fns';
+import { addMinutes } from 'date-fns';
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { generateMeetingLink } from './meeting-link';
 import { dispatchBookingNotifications } from '@bookings/notifications';
+
+/**
+ * How long a claim link stays usable after the customer was notified.
+ *
+ * Without a window a token minted months ago still books a slot, and the
+ * "expired" wording the claim page already shows would never be true.
+ */
+export const CLAIM_WINDOW_HOURS = 24;
+
+/** Hour of the workspace day a claimed spot is placed at, in 24h form. */
+const CLAIM_DEFAULT_HOUR = '10:00';
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface WaitlistRecoveryResult {
   recovered: boolean;
@@ -27,17 +40,52 @@ export interface AddToWaitlistInput {
 }
 
 /**
+ * preferredDate is a Postgres DATE. Prisma reads and writes those as a Date
+ * pinned to UTC midnight, so every conversion in this file has to use the UTC
+ * accessors. Local ones silently shift the calendar day for any server that is
+ * not running on UTC.
+ */
+function utcDateFromKey(key: string): Date {
+  return new Date(`${key}T00:00:00.000Z`);
+}
+
+function utcDateKey(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function isExpiredClaim(notifiedAt: Date | null): boolean {
+  if (!notifiedAt) return false;
+  return Date.now() - notifiedAt.getTime() > CLAIM_WINDOW_HOURS * 60 * 60 * 1000;
+}
+
+function newClaimToken(): string {
+  return `clm_${crypto.randomUUID().replace(/-/g, '')}`;
+}
+
+/**
  * Adds a customer to the priority waitlist for a specific service and date.
+ *
+ * The caller is responsible for having verified that serviceId and staffId
+ * belong to workspaceId; this helper is reached from both a public action and
+ * a dashboard action and does not re-derive the tenant.
  */
 export async function addToWaitlist(data: AddToWaitlistInput) {
   const { workspaceId, serviceId, preferredDate } = data;
+
+  if (!DATE_PATTERN.test(preferredDate)) {
+    return { success: false as const, error: 'Please choose a valid date.' };
+  }
+
   const cleanName = data.customerName.trim();
   const cleanEmail = data.customerEmail.toLowerCase().trim();
   const cleanPhone = data.customerPhone?.trim() || null;
   const cleanNotes = data.notes?.trim() || null;
   const staffId = data.staffId && data.staffId !== 'ANY' ? data.staffId : null;
 
-  const dateObj = new Date(`${preferredDate}T00:00:00.000Z`);
+  const dateObj = utcDateFromKey(preferredDate);
+  if (Number.isNaN(dateObj.getTime())) {
+    return { success: false as const, error: 'Please choose a valid date.' };
+  }
 
   // Check if active waitlist entry already exists for this email, service, and date
   const existing = await prisma.waitlistEntry.findFirst({
@@ -52,7 +100,7 @@ export async function addToWaitlist(data: AddToWaitlistInput) {
 
   if (existing) {
     return {
-      success: true,
+      success: true as const,
       alreadyWaitlisted: true,
       entryId: existing.id,
       message: "You're already on the priority waitlist for this date!",
@@ -78,7 +126,7 @@ export async function addToWaitlist(data: AddToWaitlistInput) {
   });
 
   return {
-    success: true,
+    success: true as const,
     entryId: entry.id,
     serviceName: entry.service.name,
   };
@@ -99,6 +147,7 @@ export async function triggerWaitlistRecovery(
       include: {
         service: true,
         staff: true,
+        workspace: true,
       },
     });
 
@@ -106,7 +155,11 @@ export async function triggerWaitlistRecovery(
       return { recovered: false, notifiedCount: 0 };
     }
 
-    const bookingDate = startOfDay(booking.startTime);
+    // The waitlist stores the calendar day the customer asked for, read in the
+    // workspace's timezone. Deriving it from the server's local day would miss
+    // every entry whenever the two disagree, which silently disables recovery.
+    const timezone = booking.workspace.timezone || 'UTC';
+    const bookingDate = utcDateFromKey(formatInTimeZone(booking.startTime, timezone, 'yyyy-MM-dd'));
 
     // Find the oldest waiting customer for this service & date
     const waitingEntry = await prisma.waitlistEntry.findFirst({
@@ -125,7 +178,7 @@ export async function triggerWaitlistRecovery(
     }
 
     // Generate unique claim token
-    const claimToken = `clm_${crypto.randomUUID().replace(/-/g, '')}`;
+    const claimToken = newClaimToken();
 
     const updated = await prisma.waitlistEntry.update({
       where: { id: waitingEntry.id },
@@ -195,18 +248,34 @@ export async function getWorkspaceWaitlistEntries(
 
 /**
  * Manually trigger notification for a specific waitlist entry.
+ *
+ * workspaceId is required and scopes the lookup: this mints a claim token that
+ * books an appointment, so an unscoped entry id would let one tenant issue
+ * tokens against another tenant's waitlist.
  */
-export async function notifyWaitlistEntry(entryId: string) {
-  const entry = await prisma.waitlistEntry.findUnique({
-    where: { id: entryId },
+export async function notifyWaitlistEntry(entryId: string, workspaceId: string) {
+  const entry = await prisma.waitlistEntry.findFirst({
+    where: { id: entryId, workspaceId },
     include: { service: true, staff: true, workspace: true },
   });
 
   if (!entry) {
-    return { success: false, error: 'Waitlist entry not found.' };
+    return { success: false as const, error: 'Waitlist entry not found.' };
   }
 
-  const claimToken = entry.claimToken || `clm_${crypto.randomUUID().replace(/-/g, '')}`;
+  // Re-notifying a settled entry would hand out a second live token for a spot
+  // that is already booked, cancelled or gone.
+  if (entry.status === 'CLAIMED') {
+    return { success: false as const, error: 'This entry has already been claimed.' };
+  }
+  if (entry.status === 'CANCELLED' || entry.status === 'EXPIRED') {
+    return { success: false as const, error: 'This entry is no longer active.' };
+  }
+
+  // A fresh notification restarts the claim window, so it needs a fresh token
+  // whenever the previous one has already aged out.
+  const claimToken =
+    entry.claimToken && !isExpiredClaim(entry.notifiedAt) ? entry.claimToken : newClaimToken();
 
   const updated = await prisma.waitlistEntry.update({
     where: { id: entryId },
@@ -233,21 +302,26 @@ export async function notifyWaitlistEntry(entryId: string) {
     });
 
   return {
-    success: true,
+    success: true as const,
     claimToken,
     entry: updated,
   };
 }
 
 /**
- * Cancel a waitlist entry.
+ * Cancel a waitlist entry. Scoped to the workspace for the same reason as
+ * notifyWaitlistEntry: the id alone must not be enough to reach across tenants.
  */
-export async function cancelWaitlistEntry(entryId: string) {
-  await prisma.waitlistEntry.update({
-    where: { id: entryId },
-    data: { status: 'CANCELLED' },
+export async function cancelWaitlistEntry(entryId: string, workspaceId: string) {
+  const { count } = await prisma.waitlistEntry.updateMany({
+    where: { id: entryId, workspaceId },
+    data: { status: 'CANCELLED', claimToken: null },
   });
-  return { success: true };
+
+  if (count === 0) {
+    return { success: false as const, error: 'Waitlist entry not found.' };
+  }
+  return { success: true as const };
 }
 
 /**
@@ -278,123 +352,200 @@ export async function claimWaitlistSpot(token: string) {
   });
 
   if (!entry) {
-    return { success: false, error: 'Invalid or expired claim link.' };
+    return { success: false as const, error: 'Invalid or expired claim link.' };
   }
 
   if (entry.status === 'CLAIMED') {
     return {
-      success: false,
+      success: false as const,
       error: 'This appointment spot has already been claimed.',
     };
   }
 
   if (entry.status === 'CANCELLED' || entry.status === 'EXPIRED') {
     return {
-      success: false,
+      success: false as const,
       error: 'This waitlist claim has expired or was cancelled.',
+    };
+  }
+
+  if (isExpiredClaim(entry.notifiedAt)) {
+    await prisma.waitlistEntry.updateMany({
+      where: { id: entry.id, status: 'NOTIFIED' },
+      data: { status: 'EXPIRED', claimToken: null },
+    });
+    return {
+      success: false as const,
+      error: 'This claim link has expired. Please book a new time or rejoin the waitlist.',
     };
   }
 
   const timezone = entry.workspace.timezone || 'UTC';
   const service = entry.service;
 
-  // Resolve staff
-  let staffId = entry.staffId;
-  if (!staffId) {
-    // Pick first available staff
+  // preferredDate is a DATE column, so it arrives at UTC midnight. Reading it
+  // with the local accessors moves it a day back on any server west of UTC.
+  const dateKey = utcDateKey(entry.preferredDate);
+  const startUtc = fromZonedTime(`${dateKey}T${CLAIM_DEFAULT_HOUR}:00`, timezone);
+  const endUtc = addMinutes(startUtc, service.durationMinutes);
+
+  if (Number.isNaN(startUtc.getTime())) {
+    return { success: false as const, error: 'This waitlist entry has an invalid date.' };
+  }
+
+  if (startUtc.getTime() <= Date.now()) {
+    await prisma.waitlistEntry.updateMany({
+      where: { id: entry.id, status: 'NOTIFIED' },
+      data: { status: 'EXPIRED', claimToken: null },
+    });
+    return {
+      success: false as const,
+      error: 'The date this spot was held for has already passed.',
+    };
+  }
+
+  // Resolve staff, skipping anyone already busy in the window. Picking the
+  // first active member without checking would hand the booking to someone who
+  // cannot take it, and the overlap constraint would then reject the insert.
+  const candidates: { id: string }[] = [];
+  if (entry.staffId) {
+    candidates.push({ id: entry.staffId });
+  } else {
     const assignedStaff = await prisma.serviceStaff.findMany({
       where: { serviceId: service.id },
       include: { staff: true },
     });
-    const activeStaff = assignedStaff.map((s) => s.staff).filter((s) => s.isActive);
-    if (activeStaff.length > 0) {
-      staffId = activeStaff[0].id;
-    } else {
-      const anyStaff = await prisma.staff.findFirst({
+    for (const s of assignedStaff) {
+      if (s.staff.isActive) candidates.push({ id: s.staff.id });
+    }
+    if (candidates.length === 0) {
+      const anyStaff = await prisma.staff.findMany({
         where: { workspaceId: entry.workspaceId, isActive: true },
+        select: { id: true },
       });
-      if (anyStaff) staffId = anyStaff.id;
+      candidates.push(...anyStaff);
+    }
+  }
+
+  let staffId: string | null = null;
+  for (const candidate of candidates) {
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        staffId: candidate.id,
+        status: { notIn: ['CANCELLED'] },
+        AND: [{ startTime: { lt: endUtc } }, { endTime: { gt: startUtc } }],
+      },
+      select: { id: true },
+    });
+    if (!conflict) {
+      staffId = candidate.id;
+      break;
     }
   }
 
   if (!staffId) {
-    return { success: false, error: 'No staff available to fulfill this booking.' };
+    return {
+      success: false as const,
+      error: 'That spot has just been taken. Please pick another time on the booking page.',
+    };
   }
 
-  // Calculate start and end time (default to 10:00 AM on preferred date if not specified)
-  const yyyy = entry.preferredDate.getFullYear();
-  const mm = String(entry.preferredDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(entry.preferredDate.getDate()).padStart(2, '0');
-  const startUtc = fromZonedTime(`${yyyy}-${mm}-${dd}T10:00:00`, timezone);
-  const endUtc = addMinutes(startUtc, service.durationMinutes);
-
-  // Upsert customer
-  const customer = await prisma.customer.upsert({
-    where: {
-      workspaceId_email: {
-        workspaceId: entry.workspaceId,
-        email: entry.customerEmail,
-      },
-    },
-    update: {
-      name: entry.customerName,
-      phone: entry.customerPhone || undefined,
-    },
-    create: {
-      workspaceId: entry.workspaceId,
-      name: entry.customerName,
-      email: entry.customerEmail,
-      phone: entry.customerPhone || undefined,
-    },
+  // Take the entry first, conditioned on it still being NOTIFIED. Two clicks on
+  // the same link land here concurrently; without this only one of them may go
+  // on to create a booking.
+  const claimed = await prisma.waitlistEntry.updateMany({
+    where: { id: entry.id, status: 'NOTIFIED' },
+    data: { status: 'CLAIMED', claimToken: null },
   });
 
-  // Create booking
-  const booking = await prisma.booking.create({
-    data: {
-      workspaceId: entry.workspaceId,
-      serviceId: service.id,
-      staffId,
-      customerId: customer.id,
-      startTime: startUtc,
-      endTime: endUtc,
-      customerTimezone: timezone,
-      status: 'CONFIRMED',
-      source: 'ONLINE',
-      meetingLink: service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
-      auditLogs: {
-        create: {
-          action: 'CREATED',
-          actorType: 'CUSTOMER',
-          details: {
-            createdVia: 'WAITLIST_CLAIM',
-            waitlistEntryId: entry.id,
-            claimToken: token,
-            createdAt: new Date().toISOString(),
+  if (claimed.count === 0) {
+    return {
+      success: false as const,
+      error: 'This appointment spot has already been claimed.',
+    };
+  }
+
+  try {
+    // Upsert customer
+    const customer = await prisma.customer.upsert({
+      where: {
+        workspaceId_email: {
+          workspaceId: entry.workspaceId,
+          email: entry.customerEmail,
+        },
+      },
+      update: {
+        name: entry.customerName,
+        phone: entry.customerPhone || undefined,
+      },
+      create: {
+        workspaceId: entry.workspaceId,
+        name: entry.customerName,
+        email: entry.customerEmail,
+        phone: entry.customerPhone || undefined,
+      },
+    });
+
+    // Create booking
+    const booking = await prisma.booking.create({
+      data: {
+        workspaceId: entry.workspaceId,
+        serviceId: service.id,
+        staffId,
+        customerId: customer.id,
+        startTime: startUtc,
+        endTime: endUtc,
+        customerTimezone: timezone,
+        status: 'CONFIRMED',
+        source: 'ONLINE',
+        meetingLink: service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
+        auditLogs: {
+          create: {
+            action: 'CREATED',
+            actorType: 'CUSTOMER',
+            details: {
+              createdVia: 'WAITLIST_CLAIM',
+              waitlistEntryId: entry.id,
+              createdAt: new Date().toISOString(),
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  // Mark waitlist entry CLAIMED
-  await prisma.waitlistEntry.update({
-    where: { id: entry.id },
-    data: {
-      status: 'CLAIMED',
-      claimedBookingId: booking.id,
-    },
-  });
+    await prisma.waitlistEntry.update({
+      where: { id: entry.id },
+      data: { claimedBookingId: booking.id },
+    });
 
-  // Send booking confirmation notification
-  await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-    console.error('Waitlist claim booking notification failed:', err)
-  );
+    // Send booking confirmation notification
+    await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
+      console.error('Waitlist claim booking notification failed:', err)
+    );
 
-  return {
-    success: true,
-    bookingId: booking.id,
-    customerName: customer.name,
-    serviceName: service.name,
-    startTime: formatInTimeZone(startUtc, timezone, 'MMMM d, yyyy h:mm a'),
-  };
+    return {
+      success: true as const,
+      bookingId: booking.id,
+      customerName: customer.name,
+      serviceName: service.name,
+      startTime: formatInTimeZone(startUtc, timezone, 'MMMM d, yyyy h:mm a'),
+    };
+  } catch (err) {
+    // The entry was already marked CLAIMED above. Nothing was booked, so put it
+    // back rather than stranding the customer with a dead link.
+    await prisma.waitlistEntry
+      .updateMany({
+        where: { id: entry.id, status: 'CLAIMED' },
+        data: { status: 'NOTIFIED', claimToken: token },
+      })
+      .catch((restoreErr) =>
+        console.error('Failed to restore waitlist entry after claim failure:', restoreErr)
+      );
+
+    console.error('Waitlist claim failed:', err);
+    return {
+      success: false as const,
+      error: 'We could not confirm that spot. Please try again or book another time.',
+    };
+  }
 }

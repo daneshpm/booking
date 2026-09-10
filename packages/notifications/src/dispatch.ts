@@ -83,6 +83,9 @@ async function deliver(job: Job, booking: BookingWithRelations): Promise<Deliver
   }
 }
 
+/** Unique index that makes a notification delivery claimable by one worker. */
+const CLAIM_CONSTRAINT = 'notification_logs_workflow_id_booking_id_recipient_key';
+
 /**
  * Record a delivery, claiming it first when it must happen exactly once.
  *
@@ -112,20 +115,28 @@ async function claimJob(job: Job, booking: BookingWithRelations): Promise<string
     });
     return row.id;
   } catch (err) {
-    // Handle both Prisma error codes (P2002) and raw database unique constraint violations
+    // A unique violation on this insert is the only error that means another
+    // worker holds this delivery. Treating every failure that way would let a
+    // database outage look like healthy operation in the sweep summary, so the
+    // match stays pinned to the unique-violation codes (P2002 from Prisma,
+    // 23505 when the driver surfaces the raw Postgres error) and to this
+    // constraint by name -- never to a bare "duplicate key" anywhere in the
+    // message, which any other constraint would also produce.
     const code = (err as { code?: string })?.code;
     const causeCode = (err as { cause?: { code?: string } })?.cause?.code;
-    const message =
-      ((err as { message?: string })?.message || '') +
-      ((err as { cause?: { message?: string } })?.cause?.message || '');
+    const message = [
+      (err as { message?: string })?.message,
+      (err as { cause?: { message?: string } })?.cause?.message,
+      (err as { meta?: { message?: string } })?.meta?.message,
+    ]
+      .filter((value): value is string => typeof value === 'string')
+      .join(' ');
 
     if (
       code === 'P2002' ||
       code === '23505' ||
       causeCode === '23505' ||
-      message.includes('notification_logs_workflow_id_booking_id_recipient_key') ||
-      message.includes('Unique constraint failed') ||
-      message.includes('duplicate key value violates unique constraint')
+      message.includes(CLAIM_CONSTRAINT)
     ) {
       return null; // Another worker already owns this delivery
     }
