@@ -606,43 +606,47 @@ export function StaffManagementClient({
     <div className="space-y-6">
       {/* Top Banner / Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-            <Users className="h-7 w-7 text-blue-600" />
-            Staff & Team
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage consultants, service assignments, working shifts, and scheduling availability.
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-purple-50 border border-purple-100/80 flex items-center justify-center shadow-xs shrink-0">
+            <Users className="h-5 w-5 text-[#5c34ad]" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
+              Staff & Team
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+              Manage consultants, service assignments, working shifts, and scheduling availability.
+            </p>
+          </div>
         </div>
 
-        <Button
-          variant="primary"
+        <button
+          type="button"
           onClick={openAddModal}
-          className="gap-2 shadow-lg shadow-blue-500/20"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold shadow-sm shadow-[#5c34ad]/25 hover:shadow-md transition-all cursor-pointer"
         >
-          <Plus className="h-4 w-4" />
-          Add Staff Member
-        </Button>
+          <Plus className="h-4 w-4 stroke-[2.5]" />
+          <span>Add Staff Member</span>
+        </button>
       </div>
 
       {/* Success Notification Alert */}
       {actionSuccessMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 shadow-2xs">
           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>{actionSuccessMessage}</span>
         </div>
       )}
 
       {/* Search & Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search team members by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 border-0 bg-slate-50 dark:bg-slate-800/50 shadow-none text-xs"
+            className="pl-10 border border-slate-200/70 bg-slate-50/70 focus:bg-white rounded-xl shadow-none text-xs h-9.5"
           />
         </div>
 
@@ -650,7 +654,7 @@ export function StaffManagementClient({
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="w-full sm:w-36 text-xs h-9 bg-slate-50 dark:bg-slate-800/50"
+            className="w-full sm:w-36 text-xs h-9.5 bg-slate-50/70 border border-slate-200/70 rounded-xl"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active Staff</option>
@@ -694,10 +698,10 @@ export function StaffManagementClient({
                       <img
                         src={staff.avatarUrl}
                         alt={staff.name}
-                        className="h-11 w-11 rounded-2xl object-cover shadow-md shadow-blue-500/20 shrink-0 border border-slate-200 dark:border-slate-700"
+                        className="h-11 w-11 rounded-2xl object-cover shadow-sm shrink-0 border border-slate-200 dark:border-slate-700"
                       />
                     ) : (
-                      <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/20 shrink-0">
+                      <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-[#5c34ad] to-[#7b4bd6] flex items-center justify-center text-white font-black text-base shadow-sm shrink-0">
                         {staff.name.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -726,7 +730,7 @@ export function StaffManagementClient({
                     </Badge>
                     <button
                       onClick={() => handleToggleStatus(staff)}
-                      className="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 underline font-medium"
+                      className="text-[11px] text-[#5c34ad] hover:text-[#4d2994] underline font-medium cursor-pointer"
                     >
                       {staff.isActive ? 'Mark Inactive' : 'Activate'}
                     </button>
