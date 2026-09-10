@@ -994,7 +994,7 @@ export async function rescheduleBookingByManageTokenAction(
     );
 
     // Trigger waitlist recovery for the vacated slot
-    await triggerWaitlistRecovery(booking.id).catch((e) =>
+    await triggerWaitlistRecovery(booking.id, previousStartTime).catch((e) =>
       console.error('Waitlist recovery check failed:', e)
     );
 
@@ -1004,10 +1004,10 @@ export async function rescheduleBookingByManageTokenAction(
     return {
       success: true,
       message: 'Appointment rescheduled successfully.',
-      startTime: formatTz(toZonedTime(matchedSlot.startUtc, tz), 'EEEE, MMMM d, yyyy - h:mm a', {
+      formattedDate: formatTz(toZonedTime(matchedSlot.startUtc, tz), 'EEEE, MMMM d, yyyy', {
         timeZone: tz,
       }),
-      endTime: formatTz(toZonedTime(matchedSlot.endUtc, tz), 'h:mm a', { timeZone: tz }),
+      formattedTime: `${formatTz(toZonedTime(matchedSlot.startUtc, tz), 'h:mm a', { timeZone: tz })} - ${formatTz(toZonedTime(matchedSlot.endUtc, tz), 'h:mm a', { timeZone: tz })}`,
     };
   } catch (err: any) {
     if (isOverlapConstraintViolation(err)) {

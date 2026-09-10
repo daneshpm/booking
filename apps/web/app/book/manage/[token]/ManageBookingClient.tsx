@@ -70,7 +70,7 @@ interface ManageBookingClientProps {
       name: string;
       slug: string;
     };
-    selectedAddons?: Array<{ name: string; durationMinutes: number; price: number }>;
+    selectedAddons?: Array<{ id: string; name: string; durationMinutes: number; price: number }>;
     intakeResponses?: Record<string, any> | null;
     googleCalendarUrl?: string;
     outlookCalendarUrl?: string;
@@ -130,7 +130,9 @@ export function ManageBookingClient({ token, initialBooking }: ManageBookingClie
         const res = await getAvailableSlotsAction(
           booking.workspace.id,
           booking.service.id,
-          rescheduleDate
+          rescheduleDate,
+          booking.staff.id,
+          booking.selectedAddons?.map((a) => a.id) || []
         );
         if (isMounted) {
           if (res.success) {
@@ -167,8 +169,8 @@ export function ManageBookingClient({ token, initialBooking }: ManageBookingClie
         setRescheduleSuccess('Your appointment has been successfully rescheduled!');
         setBooking((prev) => ({
           ...prev,
-          formattedDate: res.startTime || prev.formattedDate,
-          formattedTime: res.endTime ? `${res.endTime}` : prev.formattedTime,
+          formattedDate: res.formattedDate || prev.formattedDate,
+          formattedTime: res.formattedTime || prev.formattedTime,
         }));
         setIsRescheduling(false);
         setRescheduleTime(null);

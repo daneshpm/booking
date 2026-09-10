@@ -254,10 +254,11 @@ export function BookingFlowClient({
           if (
             ans === undefined ||
             ans === null ||
+            ans === false ||
             (typeof ans === 'string' && ans.trim() === '') ||
             (Array.isArray(ans) && ans.length === 0)
           ) {
-            setErrorMsg(`Please answer required question: "${q.question}"`);
+            setErrorMsg(`Please answer required question: "${q.label}"`);
             return;
           }
         }
@@ -1039,7 +1040,7 @@ export function BookingFlowClient({
                       {(service.intakeQuestions as any[]).map((q) => (
                         <div key={q.id}>
                           <label className="block text-xs font-semibold text-slate-700 mb-1">
-                            {q.question} {q.required && <span className="text-rose-500">*</span>}
+                            {q.label} {q.required && <span className="text-rose-500">*</span>}
                           </label>
 
                           {q.type === 'TEXT' && (
