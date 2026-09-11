@@ -25,6 +25,9 @@ export class ServiceMapper {
       yieldStartTime: raw.yieldStartTime,
       yieldEndTime: raw.yieldEndTime,
       yieldLabel: raw.yieldLabel,
+      intakeQuestions: raw.intakeQuestions as any[] | null,
+      addons: raw.addons as any[] | null,
+      routingStrategy: raw.routingStrategy ?? 'ANY_AVAILABLE',
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });
@@ -52,6 +55,9 @@ export class ServiceMapper {
       yieldStartTime: service.yieldStartTime,
       yieldEndTime: service.yieldEndTime,
       yieldLabel: service.yieldLabel,
+      intakeQuestions: (service.intakeQuestions ?? null) as any,
+      addons: (service.addons ?? null) as any,
+      routingStrategy: service.routingStrategy,
     };
   }
 }

@@ -493,7 +493,7 @@ export function FastPassModal({
                     onChange={(e) => setSelectedStaffId(e.target.value)}
                     className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:border-[#5c34ad] font-medium"
                   >
-                    <option value="ANY">⚡ Any Available Staff (Fastest)</option>
+                    <option value="ANY">Any Available Staff (Fastest)</option>
                     {staff.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}

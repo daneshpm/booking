@@ -16,13 +16,24 @@ import { isOverlapConstraintViolation } from '@/lib/booking-errors';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications } from '@/lib/notifications';
 import { checkRateLimit, PUBLIC_BOOKING_LIMIT, PUBLIC_AVAILABILITY_LIMIT } from '@/lib/rate-limit';
-import { addToWaitlist, getWaitlistEntryByClaimToken, claimWaitlistSpot } from '@/lib/waitlist';
+import {
+  addToWaitlist,
+  getWaitlistEntryByClaimToken,
+  claimWaitlistSpot,
+  triggerWaitlistRecovery,
+} from '@/lib/waitlist';
+import {
+  generateICSContent,
+  generateGoogleCalendarUrl,
+  generateOutlook365Url,
+} from '@/lib/calendar';
 
 export interface AvailableSlot {
   time: string; // "09:00"
   label: string; // "09:00 AM"
   staffId: string;
   staffName?: string;
+  durationMinutes?: number;
   isOffPeak?: boolean;
   discountPercent?: number;
   discountLabel?: string;
@@ -41,22 +52,27 @@ export interface BookingFormData {
   customerPhone?: string;
   customerNotes?: string;
   customerTimezone?: string;
-  /**
-   * Optional client-supplied key. Re-submitting the same key returns the
-   * original booking instead of creating a duplicate, which protects against a
-   * double-clicked confirm button or an automatically retried request.
-   */
+  selectedAddonIds?: string[];
+  intakeResponses?: Record<string, any>;
   idempotencyKey?: string;
 }
 
 export interface BookingResult {
   success: boolean;
   bookingId?: string;
+  manageToken?: string;
+  manageUrl?: string;
   meetingLink?: string;
   startTime?: string;
   endTime?: string;
   serviceName?: string;
   staffName?: string;
+  paidPrice?: number;
+  selectedAddons?: Array<{ name: string; durationMinutes: number; price: number }>;
+  intakeResponses?: Record<string, any>;
+  googleCalendarUrl?: string;
+  outlookCalendarUrl?: string;
+  icsContent?: string;
   error?: string;
 }
 
@@ -225,7 +241,8 @@ export async function getAvailableSlotsAction(
   workspaceId: string,
   serviceId: string,
   date: string,
-  preferredStaffId?: string
+  preferredStaffId?: string,
+  selectedAddonIds?: string[]
 ): Promise<{ success: boolean; slots: AvailableSlot[]; error?: string }> {
   try {
     if (!workspaceId || !serviceId || !date) {
@@ -269,6 +286,26 @@ export async function getAvailableSlotsAction(
 
     const schedules = await loadSchedules(candidates, date, timezone);
 
+    // Calculate effective duration and price including any selected add-ons
+    const rawAddons =
+      (service.addons as Array<{
+        id: string;
+        name: string;
+        durationMinutes: number;
+        price: number;
+      }>) || [];
+    const activeAddons =
+      selectedAddonIds && selectedAddonIds.length > 0
+        ? rawAddons.filter((a) => selectedAddonIds.includes(a.id))
+        : [];
+    const extraDuration = activeAddons.reduce(
+      (sum, a) => sum + (Number(a.durationMinutes) || 0),
+      0
+    );
+    const extraPrice = activeAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+    const effectiveDuration = (service.durationMinutes || 30) + extraDuration;
+    const baseCombinedPrice = Number(service.price) + extraPrice;
+
     // Dynamic Off-Peak Yield Pricing evaluation setup
     const slotDayOfWeek = dayOfWeekFor(date);
     const hasYield = Boolean(
@@ -291,7 +328,7 @@ export async function getAvailableSlotsAction(
         date,
         timezone,
         window: schedule.window,
-        durationMinutes: service.durationMinutes || 30,
+        durationMinutes: effectiveDuration,
         bufferBeforeMinutes: service.bufferBeforeMinutes || 0,
         bufferAfterMinutes: service.bufferAfterMinutes || 0,
         busy: schedule.busy,
@@ -310,14 +347,13 @@ export async function getAvailableSlotsAction(
         let isOffPeak = false;
         let discountPercent: number | undefined;
         let discountLabel: string | undefined;
-        let originalPrice: number | undefined;
+        let originalPrice: number = baseCombinedPrice;
         let discountedPrice: number | undefined;
 
         if (isTimeEligible && service.yieldDiscountPercent) {
           isOffPeak = true;
           discountPercent = service.yieldDiscountPercent;
           discountLabel = service.yieldLabel || 'Off-Peak Special';
-          originalPrice = Number(service.price);
           discountedPrice = Math.round(originalPrice * (1 - discountPercent / 100) * 100) / 100;
         }
 
@@ -326,6 +362,7 @@ export async function getAvailableSlotsAction(
           label: slot.label,
           staffId: schedule.staffId,
           staffName: schedule.staffName,
+          durationMinutes: effectiveDuration,
           isOffPeak,
           discountPercent,
           discountLabel,
@@ -450,31 +487,73 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
 
     const schedules = await loadSchedules(candidates, date, timezone);
 
-    // Re-run the same engine that produced the page and take the first staff
-    // member for whom this exact start time is genuinely bookable.
-    let chosen: { staffId: string; staffName: string; slot: Slot } | null = null;
+    // Calculate effective duration and price including any selected add-ons
+    const rawAddons =
+      (service.addons as Array<{
+        id: string;
+        name: string;
+        durationMinutes: number;
+        price: number;
+      }>) || [];
+    const activeAddons =
+      data.selectedAddonIds && data.selectedAddonIds.length > 0
+        ? rawAddons.filter((a) => data.selectedAddonIds!.includes(a.id))
+        : [];
+    const extraDuration = activeAddons.reduce(
+      (sum, a) => sum + (Number(a.durationMinutes) || 0),
+      0
+    );
+    const extraPrice = activeAddons.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+    const effectiveDuration = (service.durationMinutes || 30) + extraDuration;
+    const baseCombinedPrice = Number(service.price) + extraPrice;
+
+    // Re-run the same engine that produced the page and match available staff
+    const eligibleMatches: Array<{ staffId: string; staffName: string; slot: Slot }> = [];
     for (const schedule of schedules) {
       const match = generateSlots({
         date,
         timezone,
         window: schedule.window,
-        durationMinutes: service.durationMinutes || 30,
+        durationMinutes: effectiveDuration,
         bufferBeforeMinutes: service.bufferBeforeMinutes || 0,
         bufferAfterMinutes: service.bufferAfterMinutes || 0,
         busy: schedule.busy,
       }).find((slot) => slot.startUtc.getTime() === requestedStart.getTime());
 
       if (match) {
-        chosen = { staffId: schedule.staffId, staffName: schedule.staffName, slot: match };
-        break;
+        eligibleMatches.push({
+          staffId: schedule.staffId,
+          staffName: schedule.staffName,
+          slot: match,
+        });
       }
     }
 
-    if (!chosen) {
+    if (eligibleMatches.length === 0) {
       return {
         success: false,
         error: 'That time is no longer available. Please choose another slot.',
       };
+    }
+
+    let chosen = eligibleMatches[0];
+    if (data.staffId) {
+      const explicit = eligibleMatches.find((e) => e.staffId === data.staffId);
+      if (explicit) {
+        chosen = explicit;
+      }
+    } else if (service.routingStrategy === 'ROUND_ROBIN' && eligibleMatches.length > 1) {
+      const staffIds = eligibleMatches.map((e) => e.staffId);
+      const bookingCounts = await prisma.booking.groupBy({
+        by: ['staffId'],
+        where: { staffId: { in: staffIds }, status: { in: ['CONFIRMED'] } },
+        _count: { id: true },
+      });
+      const countMap = new Map(bookingCounts.map((b) => [b.staffId, b._count.id]));
+      eligibleMatches.sort(
+        (a, b) => (countMap.get(a.staffId) || 0) - (countMap.get(b.staffId) || 0)
+      );
+      chosen = eligibleMatches[0];
     }
 
     const customer = await prisma.customer.upsert({
@@ -498,7 +577,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     const meetingLink = service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
 
     // Dynamic Off-Peak Yield Pricing calculation for persisted booking
-    let paidPrice: number = Number(service.price);
+    let paidPrice: number = baseCombinedPrice;
     let discountApplied = 0;
     let discountLabel: string | null = null;
 
@@ -524,9 +603,11 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
       if (isTimeEligible) {
         discountApplied = service.yieldDiscountPercent;
         discountLabel = service.yieldLabel || 'Off-Peak Special';
-        paidPrice = Math.round(Number(service.price) * (1 - discountApplied / 100) * 100) / 100;
+        paidPrice = Math.round(baseCombinedPrice * (1 - discountApplied / 100) * 100) / 100;
       }
     }
+
+    const manageToken = `mng_${crypto.randomUUID().replace(/-/g, '')}`;
 
     const booking = await prisma.booking.create({
       data: {
@@ -542,6 +623,9 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
         paidPrice,
         discountApplied,
         discountLabel,
+        selectedAddons: (activeAddons.length > 0 ? activeAddons : null) as any,
+        intakeResponses: (data.intakeResponses ? data.intakeResponses : null) as any,
+        manageToken,
         meetingLink,
         idempotencyKey: data.idempotencyKey || null,
         auditLogs: {
@@ -553,6 +637,8 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
               customerEmail: customer.email,
               serviceName: service.name,
               bookedAt: new Date().toISOString(),
+              addons: activeAddons,
+              intakeResponses: data.intakeResponses,
             },
           },
         },
@@ -568,9 +654,26 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     revalidatePath('/appointments');
     revalidatePath('/customers');
 
+    const calendarEvent = {
+      title: `${service.name} with ${chosen.staffName}`,
+      description: `Appointment for ${service.name} at ${workspace.name}.\n${meetingLink ? `Video Meeting Link: ${meetingLink}\n` : ''}${customerName ? `Client: ${customerName}\n` : ''}`,
+      location: meetingLink || (service.locationDetails ?? workspace.name),
+      startTime: chosen.slot.startUtc,
+      endTime: chosen.slot.endUtc,
+      organizerName: workspace.name,
+      uid: booking.id,
+    };
+
+    const googleCalendarUrl = generateGoogleCalendarUrl(calendarEvent);
+    const outlookCalendarUrl = generateOutlook365Url(calendarEvent);
+    const icsContent = generateICSContent(calendarEvent);
+    const manageUrl = `/book/manage/${manageToken}`;
+
     return {
       success: true,
       bookingId: booking.id,
+      manageToken,
+      manageUrl,
       meetingLink: meetingLink ?? undefined,
       startTime: formatTz(
         toZonedTime(chosen.slot.startUtc, timezone),
@@ -582,6 +685,12 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
       }),
       serviceName: service.name,
       staffName: chosen.staffName,
+      paidPrice,
+      selectedAddons: activeAddons,
+      intakeResponses: data.intakeResponses,
+      googleCalendarUrl,
+      outlookCalendarUrl,
+      icsContent,
     };
   } catch (error) {
     if (isOverlapConstraintViolation(error)) {
@@ -699,5 +808,268 @@ export async function claimPublicWaitlistSpotAction(token: string) {
   } catch (err) {
     console.error('Claim waitlist spot failed:', err);
     return { success: false, error: 'Could not claim the appointment slot. Please try again.' };
+  }
+}
+
+// ----------------------------------------------------
+// CUSTOMER SELF-SERVICE RESCHEDULE & CANCEL ACTIONS
+// ----------------------------------------------------
+
+export async function getBookingByManageTokenAction(token: string) {
+  try {
+    if (!token) {
+      return { success: false, error: 'Manage token is required.' };
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { manageToken: token },
+      include: {
+        workspace: true,
+        service: true,
+        staff: true,
+        customer: true,
+      },
+    });
+
+    if (!booking) {
+      return { success: false, error: 'Appointment not found or link has expired.' };
+    }
+
+    const tz = booking.customerTimezone || booking.workspace.timezone || 'UTC';
+
+    const calendarEvent = {
+      title: `${booking.service.name} with ${booking.staff.name}`,
+      description: `Appointment for ${booking.service.name} at ${booking.workspace.name}.\n${booking.meetingLink ? `Video Link: ${booking.meetingLink}\n` : ''}`,
+      location: booking.meetingLink || (booking.service.locationDetails ?? booking.workspace.name),
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      organizerName: booking.workspace.name,
+      uid: booking.id,
+    };
+
+    return {
+      success: true,
+      booking: {
+        id: booking.id,
+        manageToken: booking.manageToken,
+        status: booking.status,
+        startTimeIso: booking.startTime.toISOString(),
+        endTimeIso: booking.endTime.toISOString(),
+        formattedDate: formatTz(toZonedTime(booking.startTime, tz), 'EEEE, MMMM d, yyyy', {
+          timeZone: tz,
+        }),
+        formattedTime: `${formatTz(toZonedTime(booking.startTime, tz), 'h:mm a', { timeZone: tz })} - ${formatTz(toZonedTime(booking.endTime, tz), 'h:mm a', { timeZone: tz })}`,
+        timezone: tz,
+        meetingLink: booking.meetingLink,
+        paidPrice: booking.paidPrice ? Number(booking.paidPrice) : Number(booking.service.price),
+        currency: booking.service.currency || 'USD',
+        discountApplied: booking.discountApplied,
+        discountLabel: booking.discountLabel,
+        selectedAddons: (booking.selectedAddons as any) || [],
+        intakeResponses: (booking.intakeResponses as any) || null,
+        cancellationReason: booking.cancellationReason,
+        service: {
+          id: booking.service.id,
+          name: booking.service.name,
+          slug: booking.service.slug,
+          description: booking.service.description,
+          durationMinutes: booking.service.durationMinutes,
+          locationType: booking.service.locationType,
+          locationDetails: booking.service.locationDetails,
+        },
+        staff: {
+          id: booking.staff.id,
+          name: booking.staff.name,
+          email: booking.staff.email,
+        },
+        customer: {
+          name: booking.customer.name,
+          email: booking.customer.email,
+          phone: booking.customer.phone,
+        },
+        workspace: {
+          id: booking.workspace.id,
+          name: booking.workspace.name,
+          slug: booking.workspace.slug,
+        },
+        googleCalendarUrl: generateGoogleCalendarUrl(calendarEvent),
+        outlookCalendarUrl: generateOutlook365Url(calendarEvent),
+        icsContent: generateICSContent(calendarEvent),
+      },
+    };
+  } catch (err: any) {
+    console.error('Error fetching booking by manage token:', err);
+    return { success: false, error: 'Could not load appointment details.' };
+  }
+}
+
+export async function rescheduleBookingByManageTokenAction(
+  token: string,
+  newDate: string,
+  newTime: string
+) {
+  try {
+    if (!token || !newDate || !newTime) {
+      return { success: false, error: 'Missing reschedule parameters.' };
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { manageToken: token },
+      include: {
+        workspace: true,
+        service: { include: { staffAssignments: { include: { staff: true } } } },
+        staff: true,
+      },
+    });
+
+    if (!booking) {
+      return { success: false, error: 'Appointment not found.' };
+    }
+
+    if (booking.status === 'CANCELLED') {
+      return { success: false, error: 'Cannot reschedule a cancelled appointment.' };
+    }
+
+    const tz = booking.customerTimezone || booking.workspace.timezone || 'UTC';
+    const requestedStart = localTimeToUtc(newDate, newTime, tz);
+    if (!requestedStart) {
+      return { success: false, error: 'Invalid date or time selected.' };
+    }
+
+    // Effective duration with any existing selected add-ons
+    const rawAddons = (booking.selectedAddons as Array<{ durationMinutes: number }>) || [];
+    const extraDuration = rawAddons.reduce((sum, a) => sum + (Number(a.durationMinutes) || 0), 0);
+    const effectiveDuration = (booking.service.durationMinutes || 30) + extraDuration;
+
+    // Check staff schedules for the new date
+    const candidates = [{ id: booking.staff.id, name: booking.staff.name }];
+    const schedules = await loadSchedules(candidates, newDate, tz);
+
+    let matchedSlot: Slot | null = null;
+    for (const schedule of schedules) {
+      const match = generateSlots({
+        date: newDate,
+        timezone: tz,
+        window: schedule.window,
+        durationMinutes: effectiveDuration,
+        bufferBeforeMinutes: booking.service.bufferBeforeMinutes || 0,
+        bufferAfterMinutes: booking.service.bufferAfterMinutes || 0,
+        busy: schedule.busy.filter((b) => b.start.getTime() !== booking.startTime.getTime()),
+      }).find((slot) => slot.startUtc.getTime() === requestedStart.getTime());
+
+      if (match) {
+        matchedSlot = match;
+        break;
+      }
+    }
+
+    if (!matchedSlot) {
+      return { success: false, error: 'The selected time slot is no longer available.' };
+    }
+
+    const previousStartTime = booking.startTime;
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        startTime: matchedSlot.startUtc,
+        endTime: matchedSlot.endUtc,
+        auditLogs: {
+          create: {
+            action: 'RESCHEDULED',
+            actorType: 'CUSTOMER',
+            details: {
+              previousStartTime: previousStartTime.toISOString(),
+              newStartTime: matchedSlot.startUtc.toISOString(),
+              rescheduledAt: new Date().toISOString(),
+            },
+          },
+        },
+      },
+    });
+
+    // Notify of reschedule
+    await dispatchBookingNotifications(updated.id, 'BOOKING_RESCHEDULED').catch((e) =>
+      console.error('Notification failed:', e)
+    );
+
+    // Trigger waitlist recovery for the vacated slot
+    await triggerWaitlistRecovery(booking.id, previousStartTime).catch((e) =>
+      console.error('Waitlist recovery check failed:', e)
+    );
+
+    revalidatePath('/calendar');
+    revalidatePath('/appointments');
+
+    return {
+      success: true,
+      message: 'Appointment rescheduled successfully.',
+      formattedDate: formatTz(toZonedTime(matchedSlot.startUtc, tz), 'EEEE, MMMM d, yyyy', {
+        timeZone: tz,
+      }),
+      formattedTime: `${formatTz(toZonedTime(matchedSlot.startUtc, tz), 'h:mm a', { timeZone: tz })} - ${formatTz(toZonedTime(matchedSlot.endUtc, tz), 'h:mm a', { timeZone: tz })}`,
+    };
+  } catch (err: any) {
+    if (isOverlapConstraintViolation(err)) {
+      return { success: false, error: 'That slot was just booked by someone else.' };
+    }
+    console.error('Error rescheduling booking:', err);
+    return { success: false, error: 'Failed to reschedule appointment. Please try again.' };
+  }
+}
+
+export async function cancelBookingByManageTokenAction(token: string, reason?: string) {
+  try {
+    if (!token) {
+      return { success: false, error: 'Manage token is required.' };
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { manageToken: token },
+    });
+
+    if (!booking) {
+      return { success: false, error: 'Appointment not found.' };
+    }
+
+    if (booking.status === 'CANCELLED') {
+      return { success: true, message: 'Appointment was already cancelled.' };
+    }
+
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: 'CANCELLED',
+        cancellationReason: reason?.trim() || 'Cancelled by customer via self-service portal',
+        auditLogs: {
+          create: {
+            action: 'CANCELLED',
+            actorType: 'CUSTOMER',
+            details: {
+              reason: reason?.trim() || null,
+              cancelledAt: new Date().toISOString(),
+            },
+          },
+        },
+      },
+    });
+
+    // Dispatch cancellation notifications
+    await dispatchBookingNotifications(booking.id, 'BOOKING_CANCELLED').catch((e) =>
+      console.error('Cancel notification error:', e)
+    );
+
+    // Immediately trigger priority waitlist recovery!
+    await triggerWaitlistRecovery(booking.id).catch((e) =>
+      console.error('Waitlist recovery error on cancel:', e)
+    );
+
+    revalidatePath('/calendar');
+    revalidatePath('/appointments');
+
+    return { success: true, message: 'Your appointment has been cancelled.' };
+  } catch (err: any) {
+    console.error('Error cancelling booking:', err);
+    return { success: false, error: 'Failed to cancel appointment. Please try again.' };
   }
 }

@@ -139,7 +139,8 @@ export async function addToWaitlist(data: AddToWaitlistInput) {
  * and records notification.
  */
 export async function triggerWaitlistRecovery(
-  cancelledBookingId: string
+  cancelledBookingId: string,
+  vacatedStartTime?: Date
 ): Promise<WaitlistRecoveryResult> {
   try {
     const booking = await prisma.booking.findUnique({
@@ -155,11 +156,16 @@ export async function triggerWaitlistRecovery(
       return { recovered: false, notifiedCount: 0 };
     }
 
+    // A reschedule updates the booking's startTime before calling this, so the
+    // freshly re-fetched row reflects the NEW time rather than the vacated one.
+    // Callers that moved a booking must pass the time that was actually freed.
+    const referenceStart = vacatedStartTime ?? booking.startTime;
+
     // The waitlist stores the calendar day the customer asked for, read in the
     // workspace's timezone. Deriving it from the server's local day would miss
     // every entry whenever the two disagree, which silently disables recovery.
     const timezone = booking.workspace.timezone || 'UTC';
-    const bookingDate = utcDateFromKey(formatInTimeZone(booking.startTime, timezone, 'yyyy-MM-dd'));
+    const bookingDate = utcDateFromKey(formatInTimeZone(referenceStart, timezone, 'yyyy-MM-dd'));
 
     // Find the oldest waiting customer for this service & date
     const waitingEntry = await prisma.waitlistEntry.findFirst({

@@ -49,27 +49,30 @@ export default async function AppointmentsPage() {
 
   const formattedAppointments: AppointmentItem[] = bookings.map((b) => ({
     id: b.id,
-    startTime: b.startTime,
-    endTime: b.endTime,
+    startTime: b.startTime.toISOString(),
+    endTime: b.endTime.toISOString(),
     status: b.status as AppointmentItem['status'],
     meetingLink: b.meetingLink,
     customer: {
-      id: b.customer.id,
-      name: b.customer.name,
-      email: b.customer.email,
-      phone: b.customer.phone,
+      id: b.customer?.id || '',
+      name: b.customer?.name || 'Unknown Client',
+      email: b.customer?.email || '',
+      phone: b.customer?.phone || null,
     },
     service: {
-      id: b.service.id,
-      name: b.service.name,
-      durationMinutes: b.service.durationMinutes,
-      price: b.service.price ? Number(b.service.price) : 0,
+      id: b.service?.id || '',
+      name: b.service?.name || 'General Service',
+      durationMinutes: b.service?.durationMinutes || 30,
+      price: b.service?.price ? Number(b.service.price) : 0,
     },
     staff: {
-      id: b.staff.id,
-      name: b.staff.name,
+      id: b.staff?.id || '',
+      name: b.staff?.name || 'Staff Specialist',
     },
     source: b.source || 'ONLINE',
+    selectedAddons: (b.selectedAddons as any) || null,
+    intakeResponses: (b.intakeResponses as any) || null,
+    manageToken: b.manageToken || null,
   }));
 
   const formattedWaitlist = waitlistEntries.map((w) => ({

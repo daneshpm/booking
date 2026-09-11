@@ -70,6 +70,7 @@ interface SettingsClientProps {
     id: string;
     name: string;
     slug: string;
+    logoUrl?: string | null;
     timezone: string;
     currency: string;
   };
@@ -135,15 +136,15 @@ const CURRENCIES = [
 ];
 
 const COUNTRIES = [
-  { name: 'India', flag: '🇮🇳' },
-  { name: 'United States', flag: '🇺🇸' },
-  { name: 'United Kingdom', flag: '🇬🇧' },
-  { name: 'United Arab Emirates', flag: '🇦🇪' },
-  { name: 'Canada', flag: '🇨🇦' },
-  { name: 'Australia', flag: '🇦🇺' },
-  { name: 'Singapore', flag: '🇸🇬' },
-  { name: 'Germany', flag: '🇩🇪' },
-  { name: 'France', flag: '🇫🇷' },
+  'India',
+  'United States',
+  'United Kingdom',
+  'United Arab Emirates',
+  'Canada',
+  'Australia',
+  'Singapore',
+  'Germany',
+  'France',
 ];
 
 const GENDERS = ["I'd prefer not to say", 'Male', 'Female', 'Non-binary', 'Custom'];
@@ -219,9 +220,41 @@ export function SettingsClient({
   // Workspace form state
   const [workspaceData, setWorkspaceData] = React.useState({
     name: workspace.name,
+    logoUrl: workspace.logoUrl || '',
     timezone: workspace.timezone,
     currency: workspace.currency,
   });
+
+  const workspaceLogoInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleWorkspaceLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setErrorMessage('Logo size must be less than 3MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target?.result as string;
+      setWorkspaceData((prev) => ({ ...prev, logoUrl: base64Url }));
+      setSuccessMessage('Organization logo selected! Click "Save Changes" to apply.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveWorkspaceLogo = () => {
+    setWorkspaceData((prev) => ({ ...prev, logoUrl: '' }));
+    if (workspaceLogoInputRef.current) workspaceLogoInputRef.current.value = '';
+    setSuccessMessage('Organization logo removed. Click "Save Changes" to apply.');
+  };
 
   // Password form state
   const [passwordData, setPasswordData] = React.useState({
@@ -733,6 +766,27 @@ export function SettingsClient({
 
                         <div>
                           <div className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1">
+                            User ID
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <code className="text-slate-900 dark:text-slate-100 font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 select-all">
+                              {user.id}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(user.id);
+                                alert('User ID copied to clipboard');
+                              }}
+                              className="text-xs font-semibold text-[#5c34ad] hover:text-[#4a2694] transition-colors cursor-pointer"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1">
                             Gender
                           </div>
                           <div className="text-slate-900 dark:text-slate-100 font-semibold text-sm">
@@ -744,9 +798,8 @@ export function SettingsClient({
                           <div className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1">
                             Country/Region
                           </div>
-                          <div className="text-slate-900 dark:text-slate-100 font-semibold text-sm flex items-center gap-1.5">
-                            <span>🇮🇳</span>
-                            <span>{profileData.country || 'India'}</span>
+                          <div className="text-slate-900 dark:text-slate-100 font-semibold text-sm">
+                            {profileData.country || 'India'}
                           </div>
                         </div>
 
@@ -800,22 +853,22 @@ export function SettingsClient({
                             <div className="flex flex-wrap gap-2.5">
                               {profileData.instagram && (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-400 border border-pink-200 dark:border-pink-800 font-semibold text-xs">
-                                  📸 @{profileData.instagram}
+                                  <span>@{profileData.instagram}</span>
                                 </span>
                               )}
                               {profileData.linkedin && (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-semibold text-xs">
-                                  💼 LinkedIn
+                                  <span>LinkedIn</span>
                                 </span>
                               )}
                               {profileData.twitter && (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs">
-                                  𝕏 @{profileData.twitter}
+                                  <span>X @{profileData.twitter}</span>
                                 </span>
                               )}
                               {profileData.website && (
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-[#5c34ad] dark:text-purple-400 border border-purple-200 dark:border-purple-800 font-semibold text-xs">
-                                  🌐 {profileData.website}
+                                  <span>{profileData.website}</span>
                                 </span>
                               )}
                             </div>
@@ -948,8 +1001,8 @@ export function SettingsClient({
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           >
                             {COUNTRIES.map((c) => (
-                              <option key={c.name} value={c.name}>
-                                {c.flag} {c.name}
+                              <option key={c} value={c}>
+                                {c}
                               </option>
                             ))}
                           </select>
@@ -1021,7 +1074,7 @@ export function SettingsClient({
                             onChange={(e) =>
                               setProfileData({ ...profileData, bio: e.target.value })
                             }
-                            placeholder="e.g. Helping professionals master cloud tech 🚀 | 1-on-1 career guidance"
+                            placeholder="e.g. Helping professionals master technical skilling | 1-on-1 career guidance"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none resize-none"
                           />
                         </div>
@@ -1033,7 +1086,7 @@ export function SettingsClient({
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                📸 Instagram Username
+                                Instagram Username
                               </label>
                               <div className="relative">
                                 <span className="absolute left-3 top-2 text-slate-400 text-xs">
@@ -1053,7 +1106,7 @@ export function SettingsClient({
 
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                💼 LinkedIn Profile URL
+                                LinkedIn Profile URL
                               </label>
                               <input
                                 type="url"
@@ -1068,7 +1121,7 @@ export function SettingsClient({
 
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                𝕏 Twitter / X Handle
+                                Twitter / X Handle
                               </label>
                               <div className="relative">
                                 <span className="absolute left-3 top-2 text-slate-400 text-xs">
@@ -1088,7 +1141,7 @@ export function SettingsClient({
 
                             <div>
                               <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                                🌐 Personal Website / Portfolio
+                                Personal Website / Portfolio
                               </label>
                               <input
                                 type="url"
@@ -1359,6 +1412,68 @@ export function SettingsClient({
 
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                 <form onSubmit={handleWorkspaceSubmit} className="space-y-4 text-xs">
+                  {/* Organization Profile Photo / Logo */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center gap-4">
+                    <div className="relative shrink-0">
+                      {workspaceData.logoUrl ? (
+                        <img
+                          src={workspaceData.logoUrl}
+                          alt={workspaceData.name}
+                          className="h-16 w-16 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-sm">
+                          {workspaceData.name
+                            ? workspaceData.name
+                                .split(/\s+/)
+                                .map((w) => w[0])
+                                .join('')
+                                .substring(0, 2)
+                                .toUpperCase()
+                            : 'WS'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <span className="block font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        Organization Profile Photo & Logo
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        This photo appears on your public booking pages, dashboard header, and
+                        organization cards.
+                      </p>
+
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          type="file"
+                          ref={workspaceLogoInputRef}
+                          onChange={handleWorkspaceLogoSelect}
+                          accept="image/png,image/jpeg,image/webp,image/jpg"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => workspaceLogoInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                          {workspaceData.logoUrl ? 'Change Logo' : 'Upload Logo'}
+                        </button>
+
+                        {workspaceData.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveWorkspaceLogo}
+                            className="text-xs text-rose-500 hover:text-rose-600 font-medium ml-1"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Organization Name

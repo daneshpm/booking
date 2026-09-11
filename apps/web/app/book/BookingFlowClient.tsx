@@ -16,9 +16,18 @@ import {
   Mail,
   Phone,
   FileText,
-  ExternalLink,
   Loader2,
   Sparkles,
+  Plus,
+  Check,
+  Download,
+  CalendarPlus,
+  Copy,
+  Share2,
+  HelpCircle,
+  ExternalLink,
+  Users,
+  UserCheck,
 } from 'lucide-react';
 import { Button, Input, Textarea } from '@bookings/ui';
 import {
@@ -30,6 +39,13 @@ import {
 } from './actions';
 import type { ServiceOutputDTO } from '@bookings/feature-services';
 
+export interface BookingStaffMember {
+  id: string;
+  name: string;
+  headline?: string | null;
+  avatarUrl?: string | null;
+}
+
 interface BookingFlowClientProps {
   workspace: {
     id: string;
@@ -38,9 +54,14 @@ interface BookingFlowClientProps {
     timezone: string;
   };
   service: ServiceOutputDTO;
+  eligibleStaff?: BookingStaffMember[];
 }
 
-export function BookingFlowClient({ workspace, service }: BookingFlowClientProps) {
+export function BookingFlowClient({
+  workspace,
+  service,
+  eligibleStaff = [],
+}: BookingFlowClientProps) {
   // Generate next 14 days starting from tomorrow/today
   const availableDates = React.useMemo(() => {
     const dates = [];
@@ -74,6 +95,18 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
   const [availableSlots, setAvailableSlots] = React.useState<AvailableSlot[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = React.useState(true);
 
+  // Add-ons selection state
+  const [selectedAddonIds, setSelectedAddonIds] = React.useState<string[]>(() => {
+    if (service.addons && Array.isArray(service.addons)) {
+      return (service.addons as any[]).filter((a) => a.isDefault).map((a) => a.id);
+    }
+    return [];
+  });
+
+  // Intake Questionnaire state
+  const [intakeResponses, setIntakeResponses] = React.useState<Record<string, any>>({});
+  const [copiedLink, setCopiedLink] = React.useState(false);
+
   // Customer Form state
   const [customerName, setCustomerName] = React.useState('');
   const [customerEmail, setCustomerEmail] = React.useState('');
@@ -82,6 +115,35 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [bookingResult, setBookingResult] = React.useState<BookingResult | null>(null);
+
+  // Calculated Add-ons & Totals
+  const selectedAddonsList = React.useMemo(() => {
+    if (!service.addons || !Array.isArray(service.addons)) return [];
+    return (service.addons as any[]).filter((a) => selectedAddonIds.includes(a.id));
+  }, [service.addons, selectedAddonIds]);
+
+  const extraDurationMinutes = React.useMemo(() => {
+    return selectedAddonsList.reduce((acc, a) => acc + (Number(a.durationMinutes) || 0), 0);
+  }, [selectedAddonsList]);
+
+  const extraPrice = React.useMemo(() => {
+    return selectedAddonsList.reduce((acc, a) => acc + (Number(a.price) || 0), 0);
+  }, [selectedAddonsList]);
+
+  const effectiveDurationMinutes = (service.durationMinutes || 30) + extraDurationMinutes;
+  const effectiveBasePrice = Number(service.price) + extraPrice;
+
+  const toggleAddon = (addonId: string) => {
+    setSelectedAddonIds((prev) =>
+      prev.includes(addonId) ? prev.filter((id) => id !== addonId) : [...prev, addonId]
+    );
+    setSelectedTime(null);
+    setSelectedSlot(null);
+  };
+
+  const handleIntakeChange = (questionId: string, val: any) => {
+    setIntakeResponses((prev) => ({ ...prev, [questionId]: val }));
+  };
 
   // Waitlist state
   const [isWaitlistOpen, setIsWaitlistOpen] = React.useState(false);
@@ -125,7 +187,7 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     }
   };
 
-  // Fetch real available slots when date changes
+  // Fetch real available slots when date or selected add-ons change
   React.useEffect(() => {
     let isMounted = true;
     async function loadSlots() {
@@ -133,7 +195,13 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
       setIsLoadingSlots(true);
       setErrorMsg(null);
       try {
-        const result = await getAvailableSlotsAction(workspace.id, service.id, selectedDate);
+        const result = await getAvailableSlotsAction(
+          workspace.id,
+          service.id,
+          selectedDate,
+          selectedStaffId,
+          selectedAddonIds
+        );
         if (isMounted) {
           if (result.success) {
             setAvailableSlots(result.slots);
@@ -160,12 +228,12 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     return () => {
       isMounted = false;
     };
-  }, [selectedDate, workspace.id, service.id]);
+  }, [selectedDate, workspace.id, service.id, selectedStaffId, selectedAddonIds]);
 
   const handleSlotSelect = (slot: AvailableSlot) => {
     setSelectedTime(slot.time);
     setSelectedSlotLabel(slot.label);
-    setSelectedStaffId(slot.staffId);
+    setSelectedStaffId(selectedStaffId || slot.staffId);
     setSelectedSlot(slot);
     setErrorMsg(null);
     setStep('DETAILS');
@@ -176,6 +244,25 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     if (!customerName || !customerEmail || !selectedDate || !selectedTime) {
       setErrorMsg('Please provide your name and email to confirm the booking.');
       return;
+    }
+
+    // Validate required intake questions
+    if (service.intakeQuestions && Array.isArray(service.intakeQuestions)) {
+      for (const q of service.intakeQuestions as any[]) {
+        if (q.required) {
+          const ans = intakeResponses[q.id];
+          if (
+            ans === undefined ||
+            ans === null ||
+            ans === false ||
+            (typeof ans === 'string' && ans.trim() === '') ||
+            (Array.isArray(ans) && ans.length === 0)
+          ) {
+            setErrorMsg(`Please answer required question: "${q.label}"`);
+            return;
+          }
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -192,6 +279,8 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
       customerPhone,
       customerNotes,
       customerTimezone: workspace.timezone,
+      selectedAddonIds,
+      intakeResponses,
     });
 
     setIsSubmitting(false);
@@ -202,6 +291,28 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
     } else {
       setErrorMsg(result.error || 'Failed to complete booking. Please try again.');
     }
+  };
+
+  const handleDownloadICS = () => {
+    if (!bookingResult?.icsContent) return;
+    const blob = new Blob([bookingResult.icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${service.name.replace(/[^a-zA-Z0-9]/g, '_')}_appointment.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopyManageLink = () => {
+    if (!bookingResult?.manageToken) return;
+    const manageUrl = `${window.location.origin}/book/manage/${bookingResult.manageToken}`;
+    navigator.clipboard.writeText(manageUrl).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    });
   };
 
   return (
@@ -229,11 +340,25 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
             <div className="mt-5 space-y-3 text-xs text-slate-700">
               <div className="flex items-center gap-2.5">
                 <Clock className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span className="font-semibold">{service.formattedDuration}</span>
+                <span className="font-semibold">
+                  {effectiveDurationMinutes} mins
+                  {extraDurationMinutes > 0 && (
+                    <span className="text-[10px] text-indigo-600 font-bold ml-1.5 px-1.5 py-0.5 bg-indigo-50 border border-indigo-200 rounded">
+                      +{extraDurationMinutes}m extras
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="flex items-center gap-2.5">
                 <DollarSign className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span className="font-semibold">{service.formattedPrice}</span>
+                <span className="font-semibold">
+                  {effectiveBasePrice > 0 ? `$${effectiveBasePrice.toFixed(2)}` : 'Free'}
+                  {extraPrice > 0 && (
+                    <span className="text-[10px] text-emerald-700 font-bold ml-1.5 px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded">
+                      +${extraPrice.toFixed(2)} extras
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="flex items-center gap-2.5">
                 {service.locationType === 'ONLINE_MEETING' ? (
@@ -253,6 +378,28 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
               <p className="mt-6 text-xs leading-relaxed text-slate-600 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
                 {service.description}
               </p>
+            )}
+
+            {selectedAddonsList.length > 0 && (
+              <div className="mt-4 p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                  Included Extras ({selectedAddonsList.length})
+                </span>
+                <div className="space-y-1.5">
+                  {selectedAddonsList.map((addon: any) => (
+                    <div
+                      key={addon.id}
+                      className="flex justify-between items-center text-[11px] text-slate-700"
+                    >
+                      <span className="font-medium">• {addon.name}</span>
+                      <span className="font-bold text-slate-900">
+                        {addon.durationMinutes ? `+${addon.durationMinutes}m` : ''}{' '}
+                        {addon.price ? `+$${Number(addon.price).toFixed(2)}` : 'Free'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {(service.bufferBeforeMinutes > 0 || service.bufferAfterMinutes > 0) && (
@@ -315,6 +462,195 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                   <strong className="text-slate-800 font-semibold">{workspace.timezone}</strong>.
                 </p>
               </div>
+
+              {/* Optional Add-Ons / Extras Selection */}
+              {service.addons && (service.addons as any[]).length > 0 && (
+                <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
+                        Optional Add-ons & Extras
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Select optional add-ons to customize your session. Slot durations adjust
+                        automatically.
+                      </p>
+                    </div>
+                    {selectedAddonIds.length > 0 && (
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                        {selectedAddonIds.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {(service.addons as any[]).map((addon) => {
+                      const isChecked = selectedAddonIds.includes(addon.id);
+                      return (
+                        <div
+                          key={addon.id}
+                          onClick={() => toggleAddon(addon.id)}
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-2.5 ${
+                            isChecked
+                              ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-xs'
+                              : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div
+                              className={`h-4 w-4 rounded mt-0.5 flex items-center justify-center transition-colors border ${
+                                isChecked
+                                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                                  : 'border-slate-300 bg-white'
+                              }`}
+                            >
+                              {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-slate-900 block leading-tight">
+                                {addon.name}
+                              </span>
+                              {addon.description && (
+                                <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                                  {addon.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-600">
+                                {addon.durationMinutes > 0 && (
+                                  <span className="font-semibold text-indigo-600">
+                                    +{addon.durationMinutes} min
+                                  </span>
+                                )}
+                                {addon.price > 0 && (
+                                  <span className="font-bold text-emerald-700">
+                                    +${Number(addon.price).toFixed(2)}
+                                  </span>
+                                )}
+                                {Number(addon.price) === 0 && (
+                                  <span className="font-semibold text-slate-500">Free</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Specialist Selection (Client Choice Routing Strategy) */}
+              {service.routingStrategy === 'CLIENT_CHOICE' &&
+                eligibleStaff &&
+                eligibleStaff.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                          Choose Your Preferred Specialist
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Select the specialist you would like to book with, or pick Any Specialist.
+                        </p>
+                      </div>
+                      {selectedStaffId ? (
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                          1 Specialist Selected
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-600 bg-slate-200/70 px-2 py-0.5 rounded-full">
+                          Any Available Specialist
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+                      {/* Option 1: Any Available Specialist */}
+                      <div
+                        onClick={() => {
+                          setSelectedStaffId(undefined);
+                          setSelectedTime(null);
+                          setSelectedSlot(null);
+                        }}
+                        className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-center gap-2.5 ${
+                          !selectedStaffId
+                            ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-xs'
+                            : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div
+                          className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                            !selectedStaffId
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <Users className="h-4 w-4" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <span className="text-xs font-bold text-slate-900 block leading-tight">
+                            Any Specialist
+                          </span>
+                          <span className="text-[10px] text-slate-500">Fastest opening</span>
+                        </div>
+                      </div>
+
+                      {/* Option 2..N: Individual Staff Members */}
+                      {eligibleStaff.map((st) => {
+                        const isChosen = selectedStaffId === st.id;
+                        const initials = st.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .substring(0, 2)
+                          .toUpperCase();
+                        return (
+                          <div
+                            key={st.id}
+                            onClick={() => {
+                              setSelectedStaffId(st.id);
+                              setSelectedTime(null);
+                              setSelectedSlot(null);
+                            }}
+                            className={`p-3 rounded-xl border cursor-pointer select-none transition-all flex items-center gap-2.5 ${
+                              isChosen
+                                ? 'bg-white border-indigo-600 ring-2 ring-indigo-600/10 shadow-xs'
+                                : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {st.avatarUrl ? (
+                              <img
+                                src={st.avatarUrl}
+                                alt={st.name}
+                                className="h-8 w-8 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div
+                                className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  isChosen
+                                    ? 'bg-indigo-600 text-white shadow-xs'
+                                    : 'bg-purple-100 text-[#5c34ad]'
+                                }`}
+                              >
+                                {initials}
+                              </div>
+                            )}
+                            <div className="overflow-hidden">
+                              <span className="text-xs font-bold text-slate-900 block leading-tight truncate">
+                                {st.name}
+                              </span>
+                              <span className="text-[10px] text-slate-500 truncate block">
+                                {st.headline || 'Specialist'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
               {/* Horizontal Date Picker */}
               <div>
@@ -575,6 +911,22 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                   </span>
                 </div>
 
+                {/* Specialist Confirmation Row */}
+                {(selectedStaffId || selectedSlot?.staffName) && (
+                  <div className="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-indigo-600" />
+                      <span className="font-semibold">
+                        Specialist:{' '}
+                        {eligibleStaff.find((s) => s.id === selectedStaffId)?.name ||
+                          selectedSlot?.staffName ||
+                          'Assigned Specialist'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500">Confirmed Provider</span>
+                  </div>
+                )}
+
                 {selectedSlot?.isOffPeak ? (
                   <div className="mt-2 p-3 rounded-xl bg-gradient-to-r from-amber-50 via-white to-purple-50 border border-amber-300 text-xs flex items-center justify-between shadow-2xs">
                     <div className="flex items-center gap-2">
@@ -670,6 +1022,82 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 text-xs shadow-2xs"
                   />
                 </div>
+
+                {/* Intake Form Questions */}
+                {service.intakeQuestions && (service.intakeQuestions as any[]).length > 0 && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3.5">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-indigo-600" />
+                        Pre-Appointment Questionnaire
+                      </h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Please answer these questions so we can best prepare for your session.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(service.intakeQuestions as any[]).map((q) => (
+                        <div key={q.id}>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            {q.label} {q.required && <span className="text-rose-500">*</span>}
+                          </label>
+
+                          {q.type === 'TEXT' && (
+                            <Input
+                              required={q.required}
+                              placeholder={q.placeholder || 'Your answer'}
+                              value={intakeResponses[q.id] || ''}
+                              onChange={(e) => handleIntakeChange(q.id, e.target.value)}
+                              className="bg-white border-slate-200 text-slate-900 text-xs shadow-2xs"
+                            />
+                          )}
+
+                          {q.type === 'TEXTAREA' && (
+                            <Textarea
+                              required={q.required}
+                              placeholder={q.placeholder || 'Your answer'}
+                              value={intakeResponses[q.id] || ''}
+                              onChange={(e) => handleIntakeChange(q.id, e.target.value)}
+                              rows={2}
+                              className="bg-white border-slate-200 text-slate-900 text-xs shadow-2xs"
+                            />
+                          )}
+
+                          {q.type === 'DROPDOWN' && (
+                            <select
+                              required={q.required}
+                              value={intakeResponses[q.id] || ''}
+                              onChange={(e) => handleIntakeChange(q.id, e.target.value)}
+                              className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                            >
+                              <option value="">-- Select an option --</option>
+                              {Array.isArray(q.options) &&
+                                q.options.map((opt: string) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
+
+                          {q.type === 'CHECKBOX' && (
+                            <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer pt-1">
+                              <input
+                                type="checkbox"
+                                required={q.required}
+                                checked={!!intakeResponses[q.id]}
+                                onChange={(e) => handleIntakeChange(q.id, e.target.checked)}
+                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span>Yes, I agree / confirm</span>
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2">
@@ -749,7 +1177,105 @@ export function BookingFlowClient({ workspace, service }: BookingFlowClientProps
                     </a>
                   </div>
                 )}
+
+                {bookingResult.selectedAddons && bookingResult.selectedAddons.length > 0 && (
+                  <div className="flex justify-between items-start border-t border-slate-200/80 pt-2.5">
+                    <span className="text-slate-500 font-medium">Included Extras:</span>
+                    <div className="text-right space-y-0.5">
+                      {bookingResult.selectedAddons.map((addon, idx) => (
+                        <div key={idx} className="font-semibold text-slate-900">
+                          {addon.name}{' '}
+                          <span className="text-indigo-600 font-normal">
+                            (+{addon.durationMinutes}m)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* 1-Click Universal Calendar Exports */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200/80 space-y-2.5 text-left">
+                <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <CalendarPlus className="h-4 w-4 text-indigo-600" />
+                  1-Click Add to Calendar
+                </span>
+                <p className="text-[11px] text-slate-500">
+                  Add this event directly to your personal or work calendar so you stay on schedule.
+                </p>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {bookingResult.googleCalendarUrl && (
+                    <a
+                      href={bookingResult.googleCalendarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-xs font-semibold text-slate-700 hover:text-indigo-600 shadow-2xs transition-all"
+                    >
+                      Google
+                    </a>
+                  )}
+                  {bookingResult.outlookCalendarUrl && (
+                    <a
+                      href={bookingResult.outlookCalendarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-xs font-semibold text-slate-700 hover:text-indigo-600 shadow-2xs transition-all"
+                    >
+                      Outlook
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleDownloadICS}
+                    className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-xs font-semibold text-slate-700 hover:text-indigo-600 shadow-2xs transition-all cursor-pointer"
+                  >
+                    <Download className="h-3 w-3" />
+                    iCal (.ics)
+                  </button>
+                </div>
+              </div>
+
+              {/* Customer Self-Service Portal */}
+              {bookingResult.manageToken && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-50/70 via-indigo-50/50 to-white border border-indigo-200/80 text-left space-y-2.5 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">
+                        Customer Self-Service Portal
+                      </span>
+                      <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                        Need to reschedule or cancel later? Bookmark your private manage link.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Link
+                      href={`/book/manage/${bookingResult.manageToken}`}
+                      className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs text-center transition-all"
+                    >
+                      Open Manage Portal
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleCopyManageLink}
+                      className="py-2 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5 text-slate-500" />
+                          <span>Copy Link</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button

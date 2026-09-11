@@ -65,7 +65,7 @@ export function BookingPagesClient({
 ></script>`;
 
   const signatureSnippet = `<a href="${mainPortalUrl}" style="color: #5c34ad; font-weight: bold; text-decoration: underline;">
-  📅 Click here to schedule a meeting with ${workspaceName}
+  Click here to schedule a meeting with ${workspaceName}
 </a>`;
 
   return (

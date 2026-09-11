@@ -35,6 +35,35 @@ export default async function ServiceBookerPage({ params }: ServiceBookerProps) 
 
   const service = result.getValue();
 
+  // Fetch staff assigned to this service, or fall back to all active staff in the workspace
+  const serviceStaffRelations = await prisma.serviceStaff.findMany({
+    where: { serviceId: service.id, staff: { isActive: true } },
+    include: {
+      staff: {
+        select: {
+          id: true,
+          name: true,
+          headline: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+
+  let eligibleStaff = serviceStaffRelations.map((r) => r.staff);
+  if (eligibleStaff.length === 0) {
+    eligibleStaff = await prisma.staff.findMany({
+      where: { workspaceId: workspace.id, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        headline: true,
+        avatarUrl: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   return (
     <BookingFlowClient
       workspace={{
@@ -44,6 +73,7 @@ export default async function ServiceBookerPage({ params }: ServiceBookerProps) 
         timezone: workspace.timezone,
       }}
       service={service}
+      eligibleStaff={eligibleStaff}
     />
   );
 }

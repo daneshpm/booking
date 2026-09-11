@@ -22,4 +22,7 @@ export interface UpdateServiceInputDTO {
   yieldStartTime?: string | null;
   yieldEndTime?: string | null;
   yieldLabel?: string | null;
+  intakeQuestions?: any[] | null;
+  addons?: any[] | null;
+  routingStrategy?: string | null;
 }

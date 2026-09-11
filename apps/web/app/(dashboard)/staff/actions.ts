@@ -34,6 +34,7 @@ const staffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional().nullable(),
+  avatarUrl: z.string().optional().nullable(),
   timezone: z.string().default('UTC'),
   isActive: z.boolean().default(true),
   assignedServiceIds: z.array(z.string()).default([]),
@@ -62,6 +63,7 @@ export async function createStaffAction(
     name: string;
     email: string;
     phone?: string | null;
+    avatarUrl?: string | null;
     timezone?: string;
     isActive?: boolean;
     assignedServiceIds?: string[];
@@ -98,6 +100,7 @@ export async function createStaffAction(
         name: validated.name.trim(),
         email: validated.email.toLowerCase().trim(),
         phone: validated.phone?.trim() || null,
+        avatarUrl: validated.avatarUrl || null,
         timezone: validated.timezone || 'UTC',
         isActive: validated.isActive,
         serviceAssignments: {
@@ -155,6 +158,7 @@ export async function updateStaffAction(
     name: string;
     email: string;
     phone?: string | null;
+    avatarUrl?: string | null;
     timezone?: string;
     isActive?: boolean;
     assignedServiceIds?: string[];
@@ -201,10 +205,26 @@ export async function updateStaffAction(
           name: validated.name.trim(),
           email: validated.email.toLowerCase().trim(),
           phone: validated.phone?.trim() || null,
+          avatarUrl:
+            validated.avatarUrl !== undefined ? validated.avatarUrl || null : existing.avatarUrl,
           timezone: validated.timezone,
           isActive: validated.isActive,
         },
       });
+
+      // Sync avatar to User record if user avatar is currently empty
+      if (validated.avatarUrl) {
+        await tx.user.updateMany({
+          where: {
+            OR: [
+              ...(existing.userId ? [{ id: existing.userId }] : []),
+              { email: validated.email.toLowerCase().trim() },
+            ],
+            avatarUrl: null,
+          },
+          data: { avatarUrl: validated.avatarUrl },
+        });
+      }
 
       // 2. Remove obsolete service assignments
       await tx.serviceStaff.deleteMany({

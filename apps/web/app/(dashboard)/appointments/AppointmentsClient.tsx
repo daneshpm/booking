@@ -58,6 +58,9 @@ export interface AppointmentItem {
     id?: string;
     name: string;
   };
+  selectedAddons?: Array<{ name: string; durationMinutes: number; price: number }> | null;
+  intakeResponses?: Record<string, any> | null;
+  manageToken?: string | null;
 }
 
 export interface WaitlistItem {
@@ -103,6 +106,33 @@ interface AppointmentsClientProps {
   staffMembers: AvailableStaff[];
 }
 
+export type AppointmentTab = 'upcoming' | 'today' | 'all' | 'past' | 'custom' | 'waitlist';
+
+export function getLocalDateString(d: Date | string, tz?: string): string {
+  try {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    return dateObj.toLocaleDateString('en-CA', { timeZone: tz || undefined });
+  } catch {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    return dateObj.toISOString().split('T')[0];
+  }
+}
+
+export function getLocalDateHour(d: Date | string, tz?: string): number {
+  try {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    const hourStr = dateObj.toLocaleTimeString('en-US', {
+      timeZone: tz || undefined,
+      hour: '2-digit',
+      hour12: false,
+    });
+    return parseInt(hourStr, 10);
+  } catch {
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    return dateObj.getHours();
+  }
+}
+
 export function AppointmentsClient({
   workspaceId,
   workspaceTimezone,
@@ -114,9 +144,10 @@ export function AppointmentsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = React.useState<'upcoming' | 'past' | 'custom' | 'waitlist'>(
-    'upcoming'
-  );
+  const [activeTab, setActiveTab] = React.useState<AppointmentTab>('upcoming');
+  const [customFilterDate, setCustomFilterDate] = React.useState<string>(() => {
+    return getLocalDateString(new Date(), workspaceTimezone);
+  });
   const [waitlistEntries, setWaitlistEntries] = React.useState<WaitlistItem[]>(initialWaitlist);
   const [isAddWaitlistOpen, setIsAddWaitlistOpen] = React.useState(false);
   const [waitlistStatusFilter, setWaitlistStatusFilter] = React.useState<string>('ALL');
@@ -196,16 +227,50 @@ export function AppointmentsClient({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
 
+  // Tab counts
+  const tabCounts = React.useMemo(() => {
+    const todayStr = getLocalDateString(new Date(), workspaceTimezone);
+    const now = new Date();
+    let upcoming = 0;
+    let today = 0;
+    let past = 0;
+    const all = initialAppointments.length;
+
+    for (const app of initialAppointments) {
+      const appDate = new Date(app.startTime);
+      const appDayStr = getLocalDateString(appDate, workspaceTimezone);
+      const isAppToday = appDayStr === todayStr;
+      const isUpcoming =
+        (appDate >= now || isAppToday) && app.status !== 'CANCELLED' && app.status !== 'COMPLETED';
+      const isPast =
+        app.status === 'COMPLETED' || app.status === 'CANCELLED' || (!isAppToday && appDate < now);
+
+      if (isUpcoming) upcoming++;
+      if (isAppToday) today++;
+      if (isPast) past++;
+    }
+
+    return { upcoming, today, all, past };
+  }, [initialAppointments, workspaceTimezone]);
+
   // Filter appointments
-  const now = new Date();
   const filteredAppointments = React.useMemo(() => {
+    const todayStr = getLocalDateString(new Date(), workspaceTimezone);
+    const now = new Date();
+
     return initialAppointments.filter((app) => {
       const appDate = new Date(app.startTime);
-      const isUpcoming = appDate >= now && app.status !== 'CANCELLED';
-      const isPast = appDate < now || app.status === 'COMPLETED' || app.status === 'CANCELLED';
+      const appDayStr = getLocalDateString(appDate, workspaceTimezone);
+      const isAppToday = appDayStr === todayStr;
+      const isUpcoming =
+        (appDate >= now || isAppToday) && app.status !== 'CANCELLED' && app.status !== 'COMPLETED';
+      const isPast =
+        app.status === 'COMPLETED' || app.status === 'CANCELLED' || (!isAppToday && appDate < now);
 
       if (activeTab === 'upcoming' && !isUpcoming) return false;
+      if (activeTab === 'today' && !isAppToday) return false;
       if (activeTab === 'past' && !isPast) return false;
+      if (activeTab === 'custom' && appDayStr !== customFilterDate) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -218,7 +283,7 @@ export function AppointmentsClient({
 
       return true;
     });
-  }, [initialAppointments, activeTab, searchQuery, now]);
+  }, [initialAppointments, activeTab, customFilterDate, searchQuery, workspaceTimezone]);
 
   // Handle appointment creation
   const handleCreateAppointment = async (e: React.FormEvent) => {
@@ -350,44 +415,75 @@ export function AppointmentsClient({
         {/* Tabs & Search row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
-          <div className="flex items-center gap-6 text-sm font-medium">
+          <div className="flex items-center gap-4 sm:gap-6 text-sm font-medium overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('upcoming')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'upcoming'
                   ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              Upcoming
+              <span>Upcoming</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  activeTab === 'upcoming'
+                    ? 'bg-purple-100 text-[#5c34ad]'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {tabCounts.upcoming}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('today')}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'today'
+                  ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>Today</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('all')}
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'all'
+                  ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span>All</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('past')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'past'
                   ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              Past
+              <span>Past</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('custom')}
-              className={`pb-3 border-b-2 transition-all ${
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'custom'
                   ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              Custom Date
+              <span>Custom Date</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('waitlist')}
-              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 ${
+              className={`pb-3 border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'waitlist'
                   ? 'border-[#5c34ad] text-[#5c34ad] font-bold'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -407,8 +503,19 @@ export function AppointmentsClient({
             </button>
           </div>
 
-          {/* Controls: Search and View Mode Switcher */}
-          <div className="flex items-center gap-2 pb-2">
+          {/* Controls: Search, Custom Date Selector, and View Mode Switcher */}
+          <div className="flex items-center flex-wrap gap-2 pb-2">
+            {activeTab === 'custom' && (
+              <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg">
+                <CalendarIcon className="h-3.5 w-3.5 text-[#5c34ad]" />
+                <input
+                  type="date"
+                  value={customFilterDate}
+                  onChange={(e) => setCustomFilterDate(e.target.value)}
+                  className="text-xs bg-transparent text-slate-800 font-semibold focus:outline-none"
+                />
+              </div>
+            )}
             <div className="relative">
               <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -781,11 +888,12 @@ export function AppointmentsClient({
                     </div>
 
                     {weekDays.map((day) => {
-                      const dayStr = day.toISOString().split('T')[0];
+                      const dayStr = getLocalDateString(day, workspaceTimezone);
                       const slotBookings = initialAppointments.filter((app) => {
                         const appDate = new Date(app.startTime);
-                        const appDayStr = appDate.toISOString().split('T')[0];
-                        return appDayStr === dayStr && appDate.getHours() === slotHour;
+                        const appDayStr = getLocalDateString(appDate, workspaceTimezone);
+                        const appHour = getLocalDateHour(appDate, workspaceTimezone);
+                        return appDayStr === dayStr && appHour === slotHour;
                       });
 
                       return (
@@ -855,14 +963,24 @@ export function AppointmentsClient({
               <h2 className="text-base font-bold text-slate-900 tracking-tight">
                 {activeTab === 'upcoming'
                   ? 'No Upcoming Appointments'
-                  : activeTab === 'past'
-                    ? 'No Past Appointments'
-                    : 'No Appointments Found'}
+                  : activeTab === 'today'
+                    ? 'No Appointments Scheduled Today'
+                    : activeTab === 'all'
+                      ? 'No Appointments Found'
+                      : activeTab === 'past'
+                        ? 'No Past Appointments'
+                        : `No Appointments on ${customFilterDate}`}
               </h2>
               <p className="text-xs text-slate-500 mt-1.5 max-w-sm leading-relaxed">
                 {activeTab === 'upcoming'
                   ? 'Your scheduled client bookings and video consultations will appear here in chronological order.'
-                  : 'All completed or past client meetings will be archived in this section.'}
+                  : activeTab === 'today'
+                    ? "You don't have any client appointments scheduled for today yet."
+                    : activeTab === 'all'
+                      ? 'No client bookings found in this workspace yet. Create one above or share your booking link.'
+                      : activeTab === 'past'
+                        ? 'All completed or past client meetings will be archived in this section.'
+                        : `No bookings match ${customFilterDate}. Choose another date above.`}
               </p>
 
               {/* Action Buttons */}
@@ -937,13 +1055,16 @@ export function AppointmentsClient({
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
+                        timeZone: workspaceTimezone || undefined,
                       });
                       const timeStr = `${start.toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: workspaceTimezone || undefined,
                       })} - ${end.toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
+                        timeZone: workspaceTimezone || undefined,
                       })}`;
 
                       return (
@@ -973,12 +1094,36 @@ export function AppointmentsClient({
                             {app.customer.phone && (
                               <div className="text-[10px] text-slate-400">{app.customer.phone}</div>
                             )}
+                            {app.intakeResponses && Object.keys(app.intakeResponses).length > 0 && (
+                              <span
+                                title={Object.entries(app.intakeResponses)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join('\n')}
+                                className="inline-flex items-center gap-0.5 text-[10px] text-indigo-600 font-semibold cursor-help mt-0.5"
+                              >
+                                <HelpCircle className="h-3 w-3 text-indigo-500" />
+                                Intake Form ({Object.keys(app.intakeResponses).length})
+                              </span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="font-semibold text-slate-800">{app.service.name}</span>
-                            <span className="text-[10px] text-slate-400 block">
-                              {app.service.durationMinutes} mins
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-slate-400">
+                                {app.service.durationMinutes} mins
+                              </span>
+                              {app.selectedAddons && app.selectedAddons.length > 0 && (
+                                <span
+                                  title={app.selectedAddons
+                                    .map((a) => `${a.name} (+${a.durationMinutes}m)`)
+                                    .join(', ')}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                >
+                                  <Sparkles className="h-2.5 w-2.5" />+{app.selectedAddons.length}{' '}
+                                  extras
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-1.5">
@@ -1020,6 +1165,20 @@ export function AppointmentsClient({
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {app.manageToken && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = `${window.location.origin}/book/manage/${app.manageToken}`;
+                                    navigator.clipboard.writeText(url);
+                                    alert('Customer self-service portal link copied to clipboard!');
+                                  }}
+                                  title="Copy Customer Self-Service Link"
+                                  className="p-1 rounded text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </button>
+                              )}
                               {app.status !== 'COMPLETED' && (
                                 <button
                                   type="button"

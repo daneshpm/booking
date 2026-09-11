@@ -32,17 +32,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Onboarding progress is derived from what actually exists in the workspace,
   // not from local UI state that resets on reload.
-  const [serviceCount, staffWithHoursCount, publishedPageCount] = await Promise.all([
-    prisma.service.count({ where: { workspaceId: activeWorkspace.id, isActive: true } }),
-    prisma.staff.count({
-      where: {
-        workspaceId: activeWorkspace.id,
-        isActive: true,
-        workingHours: { some: {} },
-      },
-    }),
-    prisma.bookingPage.count({ where: { workspaceId: activeWorkspace.id, isPublished: true } }),
-  ]);
+  const [serviceCount, staffWithHoursCount, publishedPageCount, workspaceRecord, userRecord] =
+    await Promise.all([
+      prisma.service.count({ where: { workspaceId: activeWorkspace.id, isActive: true } }),
+      prisma.staff.count({
+        where: {
+          workspaceId: activeWorkspace.id,
+          isActive: true,
+          workingHours: { some: {} },
+        },
+      }),
+      prisma.bookingPage.count({ where: { workspaceId: activeWorkspace.id, isPublished: true } }),
+      prisma.workspace.findUnique({
+        where: { id: activeWorkspace.id },
+        select: { logoUrl: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { avatarUrl: true },
+      }),
+    ]);
 
   // Step ids match the checklist rendered by SetupWizardModal.
   const completedSteps = [
@@ -52,20 +61,29 @@ export default async function DashboardLayout({ children }: { children: React.Re
     publishedPageCount > 0 ? 4 : 0, // Booking page published
   ].filter((step) => step > 0);
 
+  const currentAvatarUrl = userRecord?.avatarUrl || session.user.avatarUrl;
+  const currentLogoUrl = workspaceRecord?.logoUrl ?? activeWorkspace.logoUrl;
+
   return (
     <DashboardShell
-      user={{ name: session.user.name, email: session.user.email }}
+      user={{
+        name: session.user.name,
+        email: session.user.email,
+        avatarUrl: currentAvatarUrl,
+      }}
       workspaces={session.workspaces.map((w) => ({
         id: w.id,
         name: w.name,
         slug: w.slug,
         role: w.role,
+        logoUrl: w.id === activeWorkspace.id ? currentLogoUrl : w.logoUrl,
       }))}
       activeWorkspace={{
         id: activeWorkspace.id,
         name: activeWorkspace.name,
         slug: activeWorkspace.slug,
         role: activeWorkspace.role,
+        logoUrl: currentLogoUrl,
       }}
       completedSteps={completedSteps}
     >
