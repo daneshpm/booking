@@ -28,7 +28,7 @@
     "workflows:worker": "npm --workspace=@bookings/notifications run workflows:worker"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.0",
     "prettier": "^3.5.3",
     "turbo": "^2.10.12",
     "typescript": "^7.0.2",
