@@ -142,7 +142,7 @@ export async function createStaffAction(
     };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }
@@ -257,7 +257,7 @@ export async function updateStaffAction(
     };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }
