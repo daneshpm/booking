@@ -13,7 +13,7 @@
     "@bookings/ui": "*",
     "lucide-react": "^1.41.0",
     "slugify": "^1.6.6",
-    "zod": "^3.24.2"
+    "zod": "^4.5.4"
   },
   "peerDependencies": {
     "react": "^19.0.0",
