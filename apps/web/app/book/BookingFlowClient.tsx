@@ -28,12 +28,19 @@ import {
   ExternalLink,
   Users,
   UserCheck,
+  CreditCard,
+  Lock,
+  ShieldCheck,
+  Receipt,
+  QrCode,
+  Smartphone,
 } from 'lucide-react';
 import { Button, Input, Textarea } from '@bookings/ui';
 import {
   createPublicBookingAction,
   getAvailableSlotsAction,
   joinPublicWaitlistAction,
+  verifyAndConfirmPaymentAction,
   type BookingResult,
   type AvailableSlot,
 } from './actions';
@@ -44,6 +51,33 @@ export interface BookingStaffMember {
   name: string;
   headline?: string | null;
   avatarUrl?: string | null;
+}
+
+const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+let razorpayScriptPromise: Promise<boolean> | null = null;
+
+/** Loads the Razorpay checkout widget on demand; only a real payment needs it. */
+function loadRazorpayCheckoutScript(): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if ((window as any).Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+
+  razorpayScriptPromise = new Promise((resolve) => {
+    const existing = document.querySelector(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = RAZORPAY_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  return razorpayScriptPromise;
 }
 
 interface BookingFlowClientProps {
@@ -89,7 +123,9 @@ export function BookingFlowClient({
   const [selectedSlotLabel, setSelectedSlotLabel] = React.useState<string | null>(null);
   const [selectedStaffId, setSelectedStaffId] = React.useState<string | undefined>(undefined);
   const [selectedSlot, setSelectedSlot] = React.useState<AvailableSlot | null>(null);
-  const [step, setStep] = React.useState<'SLOT' | 'DETAILS' | 'CONFIRMED'>('SLOT');
+  const [step, setStep] = React.useState<'SLOT' | 'DETAILS' | 'PAYMENT' | 'CONFIRMED'>('SLOT');
+  const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+  const [paymentError, setPaymentError] = React.useState<string | null>(null);
 
   // Dynamic available slots state
   const [availableSlots, setAvailableSlots] = React.useState<AvailableSlot[]>([]);
@@ -287,9 +323,112 @@ export function BookingFlowClient({
 
     if (result.success) {
       setBookingResult(result);
-      setStep('CONFIRMED');
+      if (result.requiresPayment) {
+        setStep('PAYMENT');
+      } else {
+        setStep('CONFIRMED');
+      }
     } else {
       setErrorMsg(result.error || 'Failed to complete booking. Please try again.');
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+    const cur = currency.toUpperCase();
+    if (cur === 'INR') return `₹${amount.toFixed(2)}`;
+    if (cur === 'EUR') return `€${amount.toFixed(2)}`;
+    if (cur === 'GBP') return `£${amount.toFixed(2)}`;
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const handlePayAndConfirm = async (testProviderOverride?: 'MOCK' | 'RAZORPAY' | 'STRIPE') => {
+    if (!bookingResult?.bookingId || !bookingResult.paymentOrder) return;
+    setIsProcessingPayment(true);
+    setPaymentError(null);
+
+    const order = bookingResult.paymentOrder;
+    const provider = testProviderOverride || order.provider;
+    const isRealOrder = Boolean(order.keyId) && order.keyId !== 'rzp_test_mockkey';
+
+    try {
+      // Stripe Checkout Sessions are paid on Stripe's own hosted page; there's
+      // nothing to render here, only somewhere to send the customer.
+      if (provider === 'STRIPE' && order.redirectUrl) {
+        window.location.href = order.redirectUrl;
+        return;
+      }
+
+      // Real Razorpay orders need the checkout widget script, which nothing
+      // else on this page loads until a Razorpay payment is actually started.
+      if (provider === 'RAZORPAY' && isRealOrder && typeof window !== 'undefined') {
+        const scriptReady = await loadRazorpayCheckoutScript();
+        if (!scriptReady || !(window as any).Razorpay) {
+          setPaymentError(
+            'Could not load the payment provider. Please check your connection and try again.'
+          );
+          setIsProcessingPayment(false);
+          return;
+        }
+
+        const rzp = new (window as any).Razorpay({
+          key: order.keyId,
+          amount: Math.round(order.amount * 100),
+          currency: order.currency || 'INR',
+          name: workspace.name,
+          description: `${service.name} Appointment`,
+          order_id: order.orderId,
+          prefill: {
+            name: customerName,
+            email: customerEmail,
+            contact: customerPhone,
+          },
+          handler: async function (response: any) {
+            const verifyRes = await verifyAndConfirmPaymentAction({
+              bookingId: bookingResult.bookingId!,
+              provider: 'RAZORPAY',
+              orderId: order.orderId,
+              transactionId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+
+            if (verifyRes.success) {
+              setBookingResult(verifyRes);
+              setStep('CONFIRMED');
+            } else {
+              setPaymentError(verifyRes.error || 'Payment verification failed.');
+            }
+            setIsProcessingPayment(false);
+          },
+          modal: {
+            ondismiss: function () {
+              setIsProcessingPayment(false);
+            },
+          },
+        });
+        rzp.open();
+        return;
+      }
+
+      // Default & Sandbox Automated Verification
+      const verifyRes = await verifyAndConfirmPaymentAction({
+        bookingId: bookingResult.bookingId,
+        provider: provider,
+        orderId: order.orderId,
+        transactionId: `${provider.toLowerCase()}_txn_${Date.now()}`,
+        signature: 'sandbox_valid_sig',
+      });
+
+      if (verifyRes.success) {
+        setBookingResult(verifyRes);
+        setStep('CONFIRMED');
+      } else {
+        setPaymentError(verifyRes.error || 'Payment confirmation failed.');
+      }
+    } catch (err: any) {
+      console.error('Payment processing error:', err);
+      setPaymentError(err.message || 'An error occurred while processing payment.');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -1105,13 +1244,168 @@ export function BookingFlowClient({
                   type="submit"
                   variant="primary"
                   isLoading={isSubmitting}
-                  className="w-full py-3 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 gap-2 rounded-xl transition-all"
+                  className="w-full py-3 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 gap-2 rounded-xl transition-all cursor-pointer"
                 >
-                  Confirm & Schedule Appointment
-                  <ArrowRight className="h-4 w-4" />
+                  {effectiveBasePrice > 0 ? (
+                    <>
+                      <span>
+                        Proceed to Payment (
+                        {formatCurrency(effectiveBasePrice, service.currency || workspace.timezone)}
+                        )
+                      </span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Confirm & Schedule Appointment (Free)</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
+          )}
+
+          {/* STEP: Payment Checkout for Paid Services */}
+          {step === 'PAYMENT' && bookingResult && (
+            <div className="space-y-5 animate-in fade-in">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setStep('DETAILS')}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors mb-3 cursor-pointer"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Edit Contact Information
+                </button>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold uppercase tracking-wider block w-fit">
+                  <Lock className="h-3 w-3 text-emerald-600" />
+                  Step 3 of 3 • Secure Checkout
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mt-2">Complete Session Payment</h2>
+                <p className="text-xs text-slate-600 mt-1">
+                  Your appointment slot is tentatively held. Finalize payment below to confirm your
+                  booking and receive meeting details.
+                </p>
+              </div>
+
+              {paymentError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                  <span className="font-semibold">{paymentError}</span>
+                </div>
+              )}
+
+              {/* Itemized Invoice & Order Summary */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-3 shadow-2xs">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <span className="text-slate-600 font-medium">Session Item</span>
+                  <span className="text-slate-900 font-bold">{service.name}</span>
+                </div>
+
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <span className="text-slate-600 font-medium">Date & Time</span>
+                  <span className="text-slate-900 font-semibold">{bookingResult.startTime}</span>
+                </div>
+
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                  <span className="text-slate-600 font-medium">Base Service Rate</span>
+                  <span className="text-slate-900 font-semibold">
+                    {formatCurrency(Number(service.price), bookingResult.currency)}
+                  </span>
+                </div>
+
+                {selectedAddonsList.length > 0 && (
+                  <div className="pb-2 border-b border-slate-200 space-y-1">
+                    <span className="text-slate-600 font-medium block">
+                      Selected Add-ons ({selectedAddonsList.length}):
+                    </span>
+                    {selectedAddonsList.map((addon: any) => (
+                      <div key={addon.id} className="flex justify-between text-slate-700 pl-2">
+                        <span>
+                          • {addon.name} ({addon.durationMinutes}m)
+                        </span>
+                        <span className="font-semibold">
+                          +{formatCurrency(Number(addon.price || 0), bookingResult.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedSlot?.isOffPeak && selectedSlot.discountPercent ? (
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-200 text-amber-800">
+                    <span className="font-medium flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-amber-600" />
+                      {selectedSlot.discountLabel || 'Off-Peak Discount'} (
+                      {selectedSlot.discountPercent}% OFF)
+                    </span>
+                    <span className="font-bold text-amber-700">
+                      -
+                      {formatCurrency(
+                        (selectedSlot.originalPrice || 0) - (selectedSlot.discountedPrice || 0),
+                        bookingResult.currency
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="flex justify-between items-center pt-1 text-sm font-black text-slate-900">
+                  <span>Total Amount Due</span>
+                  <span className="text-indigo-600 text-base">
+                    {formatCurrency(Number(bookingResult.paidPrice || 0), bookingResult.currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Methods & Pay Action */}
+              <div className="space-y-3 pt-2">
+                <div className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 block">
+                        Instant Online Checkout
+                      </span>
+                      <span className="text-[11px] text-slate-500 block">
+                        Credit/Debit Cards, UPI (GPay, PhonePe), NetBanking & Wallets
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>256-bit Encrypted</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="primary"
+                  isLoading={isProcessingPayment}
+                  onClick={() => handlePayAndConfirm()}
+                  className="w-full py-3.5 text-sm font-bold bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-md shadow-indigo-600/25 gap-2 rounded-xl transition-all cursor-pointer"
+                >
+                  <Lock className="h-4 w-4" />
+                  Pay {formatCurrency(
+                    Number(bookingResult.paidPrice || 0),
+                    bookingResult.currency
+                  )}{' '}
+                  & Confirm Booking
+                </Button>
+
+                <div className="flex items-center justify-center gap-4 text-[11px] text-slate-400 font-medium pt-1">
+                  <span className="flex items-center gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                    Secure Checkout
+                  </span>
+                  <span>•</span>
+                  <span>Instant Booking Confirmation</span>
+                  <span>•</span>
+                  <span>No Hidden Fees</span>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* STEP 3: Booking Confirmed Success State */}

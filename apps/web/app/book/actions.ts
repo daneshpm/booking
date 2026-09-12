@@ -27,6 +27,12 @@ import {
   generateGoogleCalendarUrl,
   generateOutlook365Url,
 } from '@/lib/calendar';
+import {
+  createPaymentOrder,
+  verifyPayment,
+  type PaymentOrderResult,
+  type PaymentProvider,
+} from '@/lib/payments';
 
 export interface AvailableSlot {
   time: string; // "09:00"
@@ -59,6 +65,11 @@ export interface BookingFormData {
 
 export interface BookingResult {
   success: boolean;
+  requiresPayment?: boolean;
+  paymentOrder?: PaymentOrderResult;
+  paymentStatus?: string;
+  paymentProvider?: string;
+  currency?: string;
   bookingId?: string;
   manageToken?: string;
   manageUrl?: string;
@@ -608,7 +619,103 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
 
     const manageToken = `mng_${crypto.randomUUID().replace(/-/g, '')}`;
+    const isFree = paidPrice === 0;
 
+    if (isFree) {
+      // FREE SESSION: Confirm immediately, generate meeting link and send invites
+      const booking = await prisma.booking.create({
+        data: {
+          workspaceId,
+          serviceId: service.id,
+          staffId: chosen.staffId,
+          customerId: customer.id,
+          startTime: chosen.slot.startUtc,
+          endTime: chosen.slot.endUtc,
+          customerTimezone,
+          status: 'CONFIRMED',
+          paymentStatus: 'PAID',
+          paymentProvider: 'FREE',
+          paidAt: new Date(),
+          source: 'ONLINE',
+          paidPrice: 0,
+          discountApplied,
+          discountLabel,
+          selectedAddons: (activeAddons.length > 0 ? activeAddons : null) as any,
+          intakeResponses: (data.intakeResponses ? data.intakeResponses : null) as any,
+          manageToken,
+          meetingLink,
+          idempotencyKey: data.idempotencyKey || null,
+          auditLogs: {
+            create: {
+              action: 'CREATED',
+              actorType: 'CUSTOMER',
+              actorId: customer.id,
+              details: {
+                customerEmail: customer.email,
+                serviceName: service.name,
+                bookedAt: new Date().toISOString(),
+                addons: activeAddons,
+                intakeResponses: data.intakeResponses,
+                isFreeSession: true,
+              },
+            },
+          },
+        },
+      });
+
+      // A failed email must not undo a booking the customer already completed.
+      await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
+        console.error('Booking notification dispatch failed:', err)
+      );
+
+      revalidatePath('/calendar');
+      revalidatePath('/appointments');
+      revalidatePath('/customers');
+
+      const calendarEvent = {
+        title: `${service.name} with ${chosen.staffName}`,
+        description: `Appointment for ${service.name} at ${workspace.name}.\n${meetingLink ? `Video Meeting Link: ${meetingLink}\n` : ''}${customerName ? `Client: ${customerName}\n` : ''}`,
+        location: meetingLink || (service.locationDetails ?? workspace.name),
+        startTime: chosen.slot.startUtc,
+        endTime: chosen.slot.endUtc,
+        organizerName: workspace.name,
+        uid: booking.id,
+      };
+
+      const googleCalendarUrl = generateGoogleCalendarUrl(calendarEvent);
+      const outlookCalendarUrl = generateOutlook365Url(calendarEvent);
+      const icsContent = generateICSContent(calendarEvent);
+      const manageUrl = `/book/manage/${manageToken}`;
+
+      return {
+        success: true,
+        requiresPayment: false,
+        bookingId: booking.id,
+        manageToken,
+        manageUrl,
+        meetingLink: meetingLink ?? undefined,
+        startTime: formatTz(
+          toZonedTime(chosen.slot.startUtc, timezone),
+          'EEEE, MMMM d, yyyy - h:mm a',
+          { timeZone: timezone }
+        ),
+        endTime: formatTz(toZonedTime(chosen.slot.endUtc, timezone), 'h:mm a', {
+          timeZone: timezone,
+        }),
+        serviceName: service.name,
+        staffName: chosen.staffName,
+        paidPrice: 0,
+        currency: service.currency || workspace.currency || 'USD',
+        selectedAddons: activeAddons,
+        intakeResponses: data.intakeResponses,
+        googleCalendarUrl,
+        outlookCalendarUrl,
+        icsContent,
+      };
+    }
+
+    // PAID SESSION: Create PENDING booking and initiate payment order
+    const currency = service.currency || workspace.currency || 'USD';
     const booking = await prisma.booking.create({
       data: {
         workspaceId,
@@ -618,19 +725,21 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
         startTime: chosen.slot.startUtc,
         endTime: chosen.slot.endUtc,
         customerTimezone,
-        status: 'CONFIRMED',
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
         source: 'ONLINE',
         paidPrice,
+        paymentCurrency: currency,
         discountApplied,
         discountLabel,
         selectedAddons: (activeAddons.length > 0 ? activeAddons : null) as any,
         intakeResponses: (data.intakeResponses ? data.intakeResponses : null) as any,
         manageToken,
-        meetingLink,
+        meetingLink: null, // Generated only upon payment confirmation
         idempotencyKey: data.idempotencyKey || null,
         auditLogs: {
           create: {
-            action: 'CREATED',
+            action: 'CREATED_PENDING_PAYMENT',
             actorType: 'CUSTOMER',
             actorId: customer.id,
             details: {
@@ -638,43 +747,52 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
               serviceName: service.name,
               bookedAt: new Date().toISOString(),
               addons: activeAddons,
-              intakeResponses: data.intakeResponses,
+              paidPrice,
+              currency,
             },
           },
         },
       },
     });
 
-    // A failed email must not undo a booking the customer already completed.
-    await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-      console.error('Booking notification dispatch failed:', err)
-    );
+    const paymentOrder = await createPaymentOrder({
+      bookingId: booking.id,
+      amount: paidPrice,
+      currency,
+      customerName,
+      customerEmail,
+      customerPhone: data.customerPhone,
+      serviceName: service.name,
+      workspaceName: workspace.name,
+    });
 
-    revalidatePath('/calendar');
-    revalidatePath('/appointments');
-    revalidatePath('/customers');
+    if (!paymentOrder.success) {
+      // Clean up pending booking if order initiation fails
+      await prisma.booking.delete({ where: { id: booking.id } }).catch(() => {});
+      return {
+        success: false,
+        error: paymentOrder.error || 'Failed to initialize payment gateway checkout.',
+      };
+    }
 
-    const calendarEvent = {
-      title: `${service.name} with ${chosen.staffName}`,
-      description: `Appointment for ${service.name} at ${workspace.name}.\n${meetingLink ? `Video Meeting Link: ${meetingLink}\n` : ''}${customerName ? `Client: ${customerName}\n` : ''}`,
-      location: meetingLink || (service.locationDetails ?? workspace.name),
-      startTime: chosen.slot.startUtc,
-      endTime: chosen.slot.endUtc,
-      organizerName: workspace.name,
-      uid: booking.id,
-    };
+    // Attach order ID & provider to booking
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        paymentOrderId: paymentOrder.orderId,
+        paymentProvider: paymentOrder.provider,
+      },
+    });
 
-    const googleCalendarUrl = generateGoogleCalendarUrl(calendarEvent);
-    const outlookCalendarUrl = generateOutlook365Url(calendarEvent);
-    const icsContent = generateICSContent(calendarEvent);
     const manageUrl = `/book/manage/${manageToken}`;
 
     return {
       success: true,
+      requiresPayment: true,
       bookingId: booking.id,
+      paymentOrder,
       manageToken,
       manageUrl,
-      meetingLink: meetingLink ?? undefined,
       startTime: formatTz(
         toZonedTime(chosen.slot.startUtc, timezone),
         'EEEE, MMMM d, yyyy - h:mm a',
@@ -686,11 +804,9 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
       serviceName: service.name,
       staffName: chosen.staffName,
       paidPrice,
+      currency,
       selectedAddons: activeAddons,
       intakeResponses: data.intakeResponses,
-      googleCalendarUrl,
-      outlookCalendarUrl,
-      icsContent,
     };
   } catch (error) {
     if (isOverlapConstraintViolation(error)) {
@@ -1071,5 +1187,197 @@ export async function cancelBookingByManageTokenAction(token: string, reason?: s
   } catch (err: any) {
     console.error('Error cancelling booking:', err);
     return { success: false, error: 'Failed to cancel appointment. Please try again.' };
+  }
+}
+
+export interface VerifyAndConfirmPaymentInput {
+  bookingId: string;
+  provider: PaymentProvider;
+  orderId: string;
+  transactionId?: string;
+  signature?: string;
+  paymentToken?: string;
+}
+
+/**
+ * Verify payment signature/token and transition pending booking to CONFIRMED.
+ */
+export async function verifyAndConfirmPaymentAction(
+  input: VerifyAndConfirmPaymentInput
+): Promise<BookingResult> {
+  try {
+    const { bookingId, orderId } = input;
+    if (!bookingId || !orderId) {
+      return { success: false, error: 'Missing booking or order identifier.' };
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        workspace: true,
+        service: true,
+        staff: true,
+        customer: true,
+      },
+    });
+
+    if (!booking) {
+      return { success: false, error: 'Booking record not found.' };
+    }
+
+    const timezone = booking.workspace.timezone || 'UTC';
+    const manageUrl = `/book/manage/${booking.manageToken}`;
+
+    // If already confirmed (e.g. duplicate callback or webhook finished first)
+    if (booking.status === 'CONFIRMED' && booking.paymentStatus === 'PAID') {
+      const calendarEvent = {
+        title: `${booking.service.name} with ${booking.staff.name}`,
+        description: `Appointment for ${booking.service.name} at ${booking.workspace.name}.\n${booking.meetingLink ? `Video Meeting Link: ${booking.meetingLink}\n` : ''}Client: ${booking.customer.name}`,
+        location:
+          booking.meetingLink || (booking.service.locationDetails ?? booking.workspace.name),
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        organizerName: booking.workspace.name,
+        uid: booking.id,
+      };
+
+      return {
+        success: true,
+        requiresPayment: false,
+        bookingId: booking.id,
+        manageToken: booking.manageToken ?? undefined,
+        manageUrl,
+        meetingLink: booking.meetingLink ?? undefined,
+        startTime: formatTz(
+          toZonedTime(booking.startTime, timezone),
+          'EEEE, MMMM d, yyyy - h:mm a',
+          {
+            timeZone: timezone,
+          }
+        ),
+        endTime: formatTz(toZonedTime(booking.endTime, timezone), 'h:mm a', {
+          timeZone: timezone,
+        }),
+        serviceName: booking.service.name,
+        staffName: booking.staff.name,
+        paidPrice: Number(booking.paidPrice || 0),
+        currency: booking.paymentCurrency || 'USD',
+        selectedAddons: (booking.selectedAddons as any[]) || [],
+        intakeResponses: (booking.intakeResponses as any) || undefined,
+        googleCalendarUrl: generateGoogleCalendarUrl(calendarEvent),
+        outlookCalendarUrl: generateOutlook365Url(calendarEvent),
+        icsContent: generateICSContent(calendarEvent),
+      };
+    }
+
+    // The provider and order id are resolved and stored server-side when the
+    // payment order is created (createPaymentOrder, above). Trusting the
+    // client-supplied `provider` instead would let a caller pick whichever
+    // provider has no credentials configured, since every verifier reports
+    // success when it cannot reach a real gateway. Re-deriving both from the
+    // booking record closes that hole; a mismatched or missing order id means
+    // this isn't the order that was actually issued for this booking.
+    if (!booking.paymentProvider || !booking.paymentOrderId) {
+      return { success: false, error: 'No payment order is associated with this booking.' };
+    }
+    if (booking.paymentOrderId !== orderId) {
+      return { success: false, error: 'This order does not match the pending booking.' };
+    }
+    const provider = booking.paymentProvider as PaymentProvider;
+
+    // Verify payment with gateway verifier
+    const verifyRes = await verifyPayment({
+      bookingId,
+      provider,
+      orderId,
+      transactionId: input.transactionId,
+      signature: input.signature,
+      paymentToken: input.paymentToken,
+    });
+
+    if (!verifyRes.success) {
+      return {
+        success: false,
+        error: verifyRes.error || 'Payment verification failed. Please try again.',
+      };
+    }
+
+    const meetingLink =
+      booking.service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
+
+    const updated = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        paymentTransactionId: verifyRes.transactionId,
+        paymentProvider: provider,
+        paidAt: new Date(),
+        meetingLink,
+        auditLogs: {
+          create: {
+            action: 'PAYMENT_VERIFIED_CONFIRMED',
+            actorType: 'CUSTOMER',
+            actorId: booking.customerId,
+            details: {
+              transactionId: verifyRes.transactionId,
+              orderId,
+              provider,
+              paidPrice: booking.paidPrice,
+              confirmedAt: new Date().toISOString(),
+            },
+          },
+        },
+      },
+    });
+
+    // Dispatch confirmation notifications
+    await dispatchBookingNotifications(updated.id, 'BOOKING_CREATED').catch((err) =>
+      console.error('Booking notification dispatch failed after payment:', err)
+    );
+
+    revalidatePath('/calendar');
+    revalidatePath('/appointments');
+    revalidatePath('/customers');
+
+    const calendarEvent = {
+      title: `${booking.service.name} with ${booking.staff.name}`,
+      description: `Appointment for ${booking.service.name} at ${booking.workspace.name}.\n${meetingLink ? `Video Meeting Link: ${meetingLink}\n` : ''}Client: ${booking.customer.name}`,
+      location: meetingLink || (booking.service.locationDetails ?? booking.workspace.name),
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      organizerName: booking.workspace.name,
+      uid: booking.id,
+    };
+
+    return {
+      success: true,
+      requiresPayment: false,
+      bookingId: updated.id,
+      manageToken: updated.manageToken ?? undefined,
+      manageUrl,
+      meetingLink: meetingLink ?? undefined,
+      startTime: formatTz(toZonedTime(booking.startTime, timezone), 'EEEE, MMMM d, yyyy - h:mm a', {
+        timeZone: timezone,
+      }),
+      endTime: formatTz(toZonedTime(booking.endTime, timezone), 'h:mm a', {
+        timeZone: timezone,
+      }),
+      serviceName: booking.service.name,
+      staffName: booking.staff.name,
+      paidPrice: Number(booking.paidPrice || 0),
+      currency: booking.paymentCurrency || 'USD',
+      selectedAddons: (booking.selectedAddons as any[]) || [],
+      intakeResponses: (booking.intakeResponses as any) || undefined,
+      googleCalendarUrl: generateGoogleCalendarUrl(calendarEvent),
+      outlookCalendarUrl: generateOutlook365Url(calendarEvent),
+      icsContent: generateICSContent(calendarEvent),
+    };
+  } catch (error: any) {
+    console.error('Error verifying payment:', error);
+    return {
+      success: false,
+      error: error.message || 'Payment confirmation encountered an error.',
+    };
   }
 }

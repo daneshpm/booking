@@ -16,6 +16,7 @@
     "@bookings/ui": "*",
     "clsx": "^2.1.1",
     "framer-motion": "^13.2.0",
+    "lenis": "^1.3.26",
     "lucide-react": "^1.41.0",
     "motion-dom": "^13.2.0",
     "motion-utils": "^13.0.0",

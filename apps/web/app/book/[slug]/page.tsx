@@ -122,16 +122,6 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
             </span>
           </div>
         </div>
-
-        <Link href="/services">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs"
-          >
-            Admin Portal
-          </Button>
-        </Link>
       </header>
 
       {/* Main Content */}
