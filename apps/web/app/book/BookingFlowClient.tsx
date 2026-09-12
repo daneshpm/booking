@@ -572,15 +572,12 @@ export function BookingFlowClient({
             ) : null}
           </div>
 
-          <div className="pt-6 border-t border-slate-200 text-[11px] text-slate-500 flex items-center justify-between">
+          <div className="pt-6 border-t border-slate-200 text-[11px] text-slate-500 flex items-center">
             <Link
               href={`/book/${workspace.slug}`}
               className="text-slate-600 hover:text-slate-900 font-medium transition-colors"
             >
               ← All Services
-            </Link>
-            <Link href="/services" className="text-indigo-600 hover:underline font-semibold">
-              Admin Dashboard →
             </Link>
           </div>
         </div>
