@@ -148,10 +148,14 @@ export async function verifyRazorpayPayment(
       .update(`${input.orderId}|${input.transactionId}`)
       .digest('hex');
 
-    const isMatch = crypto.timingSafeEqual(
-      Buffer.from(expectedSignature, 'utf8'),
-      Buffer.from(input.signature, 'utf8')
-    );
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+    const providedBuffer = Buffer.from(input.signature, 'utf8');
+
+    // timingSafeEqual throws on a length mismatch instead of returning false,
+    // and a signature of the wrong length is just as invalid as a wrong one.
+    const isMatch =
+      expectedBuffer.length === providedBuffer.length &&
+      crypto.timingSafeEqual(expectedBuffer, providedBuffer);
 
     if (!isMatch) {
       return {

@@ -53,6 +53,33 @@ export interface BookingStaffMember {
   avatarUrl?: string | null;
 }
 
+const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+let razorpayScriptPromise: Promise<boolean> | null = null;
+
+/** Loads the Razorpay checkout widget on demand; only a real payment needs it. */
+function loadRazorpayCheckoutScript(): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if ((window as any).Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+
+  razorpayScriptPromise = new Promise((resolve) => {
+    const existing = document.querySelector(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true));
+      existing.addEventListener('error', () => resolve(false));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = RAZORPAY_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  return razorpayScriptPromise;
+}
+
 interface BookingFlowClientProps {
   workspace: {
     id: string;
@@ -321,16 +348,26 @@ export function BookingFlowClient({
 
     const order = bookingResult.paymentOrder;
     const provider = testProviderOverride || order.provider;
+    const isRealOrder = Boolean(order.keyId) && order.keyId !== 'rzp_test_mockkey';
 
     try {
-      // If Razorpay with live window script
-      if (
-        provider === 'RAZORPAY' &&
-        typeof window !== 'undefined' &&
-        order.keyId &&
-        order.keyId !== 'rzp_test_mockkey' &&
-        (window as any).Razorpay
-      ) {
+      // Stripe Checkout Sessions are paid on Stripe's own hosted page; there's
+      // nothing to render here, only somewhere to send the customer.
+      if (provider === 'STRIPE' && order.redirectUrl) {
+        window.location.href = order.redirectUrl;
+        return;
+      }
+
+      // Real Razorpay orders need the checkout widget script, which nothing
+      // else on this page loads until a Razorpay payment is actually started.
+      if (provider === 'RAZORPAY' && isRealOrder && typeof window !== 'undefined') {
+        const scriptReady = await loadRazorpayCheckoutScript();
+        if (!scriptReady || !(window as any).Razorpay) {
+          setPaymentError('Could not load the payment provider. Please check your connection and try again.');
+          setIsProcessingPayment(false);
+          return;
+        }
+
         const rzp = new (window as any).Razorpay({
           key: order.keyId,
           amount: Math.round(order.amount * 100),

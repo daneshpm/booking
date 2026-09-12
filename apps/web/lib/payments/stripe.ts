@@ -53,7 +53,7 @@ export async function createStripePaymentSession(
     params.append('mode', 'payment');
     params.append(
       'success_url',
-      `${appUrl}/book/manage/{CHECKOUT_SESSION_ID}?session_id={CHECKOUT_SESSION_ID}`
+      `${appUrl}/book/payment-confirm?bookingId=${encodeURIComponent(input.bookingId)}&session_id={CHECKOUT_SESSION_ID}`
     );
     params.append('cancel_url', `${appUrl}/book`);
     params.append('customer_email', input.customerEmail);
@@ -95,6 +95,9 @@ export async function createStripePaymentSession(
       orderId: session.id,
       keyId: publishableKey,
       clientSecret: session.client_secret,
+      // Checkout Sessions are paid on Stripe's hosted page, not embedded in
+      // this app, so the customer has to be redirected there to actually pay.
+      redirectUrl: session.url,
       amount: input.amount,
       currency: input.currency,
       metadata: session,

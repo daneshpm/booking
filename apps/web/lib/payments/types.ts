@@ -19,6 +19,8 @@ export interface PaymentOrderResult {
   amount: number;
   currency: string;
   clientSecret?: string;
+  /** Hosted checkout page to send the customer to. Set only when the gateway requires a redirect (e.g. Stripe Checkout Sessions). */
+  redirectUrl?: string;
   metadata?: Record<string, any>;
   error?: string;
 }
