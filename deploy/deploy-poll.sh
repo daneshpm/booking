@@ -9,7 +9,19 @@
 set -eu
 cd /opt/rooman-bookings
 
-docker compose -f docker-compose.prod.yml pull --quiet
+# Pulled one at a time, smallest first, with a dangling-only prune between
+# each: this host's ~7.8G disk cannot always hold two full copies of every
+# image's layers at once mid-pull, and repeatedly hit "no space left on
+# device" pulling everything in one `docker compose pull`.
+#
+# `docker image prune -f` (no -a) only removes untagged/dangling layers,
+# never a tagged image — `-a` looks like a stronger cleanup but removes
+# any image not currently backing a running container, which deletes an
+# image this same loop just pulled but hasn't started yet.
+for svc in api web migrate worker; do
+  docker compose -f docker-compose.prod.yml pull "$svc"
+  docker image prune -f > /dev/null
+done
 
 # Not `up -d`: that only starts the container and returns immediately.
 # This attaches until migrate exits and fails the script (leaving web and
@@ -18,6 +30,6 @@ docker compose -f docker-compose.prod.yml up migrate --no-build --exit-code-from
 
 docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-build
 
-# This host's disk is small; without pruning, a run every few minutes is
-# enough to fill it within days.
+# Now safe to reclaim anything left over from the previous version of an
+# image that just got replaced.
 docker image prune -f > /dev/null
