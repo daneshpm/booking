@@ -1,18 +1,22 @@
 name: Deploy
 
-# Runs only after CI has finished on main, and only deploys if CI passed.
+# Runs only after CI has finished on main, and only builds if CI passed.
 # Pushing straight to main never bypasses the test suite: a red CI run
-# blocks the deploy below from ever starting.
+# blocks this from ever pushing an image.
+#
+# This workflow only builds and publishes images to GHCR. It cannot reach
+# into the production host directly: that host lives on a private LAN
+# address, and GitHub's hosted runners have no route to it (no VPN, no port
+# forward, and a self-hosted runner isn't an option without repo admin
+# rights). Instead, a systemd timer running ON the host itself
+# (deploy/deploy-poll.sh, installed once by hand) polls GHCR every couple of
+# minutes and pulls + restarts whatever changed. See deploy/README.md.
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
     branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
 
 jobs:
   build-and-push:
@@ -79,28 +83,3 @@ jobs:
             ${{ steps.vars.outputs.image_prefix }}-${{ matrix.name }}:${{ github.event.workflow_run.head_sha || github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
-
-  deploy:
-    name: Deploy to production
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: build-and-push
-    steps:
-      - name: SSH deploy
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd /opt/rooman-bookings
-            docker compose -f docker-compose.prod.yml pull
-            # Not `up -d`: that only starts the container and returns
-            # immediately. This attaches until migrate exits and fails the
-            # step (so the deploy stops here) if migrations fail.
-            docker compose -f docker-compose.prod.yml up migrate --no-build --exit-code-from migrate
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans --no-build
-            # This container's disk is small; without pruning, a few days of
-            # daily deploys is enough to fill it and fail the next one.
-            docker image prune -f

@@ -1,0 +1,10 @@
+[Unit]
+Description=Pull and apply the latest Rooman Bookings images from GHCR
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# -n: skip this run rather than queue up behind a slow one (e.g. a large
+# image pull) so ticks never pile up.
+ExecStart=/usr/bin/flock -n /run/rooman-deploy-poll.lock /opt/rooman-bookings/deploy/deploy-poll.sh
