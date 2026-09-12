@@ -1,0 +1,139 @@
+name: rooman-bookings
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: bookings_prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d bookings_prod']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Built from apps/web/Dockerfile's intermediate `builder` stage rather than
+  # its final `runner` stage: the runner ships only the pruned Next.js
+  # standalone output, which does not carry the Prisma CLI this needs to run
+  # migrations. `image:` lets a plain `docker compose pull` fetch this from
+  # CI without ever building on the deploy host; `build:` is kept only so a
+  # local/manual `docker compose build` still works without CI.
+  migrate:
+    image: ${GHCR_IMAGE_PREFIX}-migrate:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME}
+      WORKSPACE_NAME: ${WORKSPACE_NAME}
+      WORKSPACE_SLUG: ${WORKSPACE_SLUG}
+      WORKSPACE_TIMEZONE: ${WORKSPACE_TIMEZONE}
+      WORKSPACE_CURRENCY: ${WORKSPACE_CURRENCY}
+      SEED_DEMO_SERVICES: ${SEED_DEMO_SERVICES:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Prisma 7's config auto-discovery looks for prisma.config.ts in the
+    # current directory, not next to --schema, so this must run with cwd set
+    # to packages/database (matching how the npm workspace script runs it).
+    command: ['sh', '-c', 'cd packages/database && npx prisma migrate deploy']
+
+  api:
+    image: ${GHCR_IMAGE_PREFIX}-api:latest
+    build:
+      context: ./apps/api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      CORS_ORIGINS: ${NEXT_PUBLIC_APP_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    image: ${GHCR_IMAGE_PREFIX}-worker:latest
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      REDIS_URL: redis://redis:6379
+      WORKFLOW_INTERVAL_SECONDS: ${WORKFLOW_INTERVAL_SECONDS:-60}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM}
+      SMS_GATEWAY_DOMAIN: ${SMS_GATEWAY_DOMAIN:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET}
+      VIDEO_MEETING_BASE_URL: ${VIDEO_MEETING_BASE_URL}
+      VIDEO_MEETING_ROOM_PREFIX: ${VIDEO_MEETING_ROOM_PREFIX}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ${GHCR_IMAGE_PREFIX}-web:latest
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_DEFAULT_WORKSPACE_SLUG: ${WORKSPACE_SLUG}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM}
+      SMS_GATEWAY_DOMAIN: ${SMS_GATEWAY_DOMAIN:-}
+      WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET}
+      VIDEO_MEETING_BASE_URL: ${VIDEO_MEETING_BASE_URL}
+      VIDEO_MEETING_ROOM_PREFIX: ${VIDEO_MEETING_ROOM_PREFIX}
+      PYTHON_API_URL: http://api:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  redis_data:
