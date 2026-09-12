@@ -9,6 +9,7 @@ const SESSION_COOKIE = 'rb_session';
 
 /** Routes that require a signed-in user. */
 const PROTECTED_PREFIXES = [
+  '/analytics',
   '/appointments',
   '/availability',
   '/booking-pages',

@@ -13,6 +13,7 @@ import {
   Settings,
   Tag,
   Activity,
+  BarChart3,
   HelpCircle,
   BookOpen,
   CalendarCheck,
@@ -55,6 +56,7 @@ const NAV_ITEMS = [
   { label: 'Workflows', href: '/workflows', icon: Activity },
   { label: 'Users', href: '/users', icon: Users },
   { label: 'Booking Pages', href: '/booking-pages', icon: Layers },
+  { label: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
 ];
 
 export function DashboardShell({
@@ -104,6 +106,7 @@ export function DashboardShell({
     if (pathname.startsWith('/users') || pathname.startsWith('/staff'))
       return { title: 'Team & Staff', icon: Users };
     if (pathname.startsWith('/booking-pages')) return { title: 'Booking Pages', icon: Layers };
+    if (pathname.startsWith('/analytics')) return { title: 'Analytics', icon: BarChart3 };
     if (pathname.startsWith('/settings')) return { title: 'Workspace Settings', icon: Settings };
     if (pathname.startsWith('/profile')) return { title: 'My Profile', icon: Settings };
     return { title: 'Dashboard', icon: CalendarCheck };
@@ -225,7 +228,12 @@ export function DashboardShell({
 
           {/* Navigation Items */}
           <nav className="px-3 space-y-1 mt-1">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter(
+              (item) =>
+                !item.adminOnly ||
+                activeWorkspace.role === 'OWNER' ||
+                activeWorkspace.role === 'ADMIN'
+            ).map((item) => {
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||

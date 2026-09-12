@@ -22,6 +22,13 @@ enum BookingStatus {
   RESCHEDULED
 }
 
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+}
+
 enum LocationType {
   ONLINE_MEETING
   IN_PERSON_BUSINESS
@@ -350,6 +357,12 @@ model Booking {
   paidPrice          Decimal?      @map("paid_price") @db.Decimal(10, 2)
   discountApplied    Int?          @default(0) @map("discount_applied")
   discountLabel      String?       @map("discount_label")
+  paymentStatus      PaymentStatus @default(PAID) @map("payment_status")
+  paymentProvider    String?       @map("payment_provider") // RAZORPAY, STRIPE, MOCK, FREE
+  paymentOrderId     String?       @map("payment_order_id")
+  paymentTransactionId String?     @map("payment_transaction_id")
+  paymentCurrency    String?       @map("payment_currency")
+  paidAt             DateTime?     @map("paid_at") @db.Timestamptz
   intakeResponses    Json?         @map("intake_responses")
   selectedAddons     Json?         @map("selected_addons")
   manageToken        String?       @unique @map("manage_token")
