@@ -363,7 +363,9 @@ export function BookingFlowClient({
       if (provider === 'RAZORPAY' && isRealOrder && typeof window !== 'undefined') {
         const scriptReady = await loadRazorpayCheckoutScript();
         if (!scriptReady || !(window as any).Razorpay) {
-          setPaymentError('Could not load the payment provider. Please check your connection and try again.');
+          setPaymentError(
+            'Could not load the payment provider. Please check your connection and try again.'
+          );
           setIsProcessingPayment(false);
           return;
         }
