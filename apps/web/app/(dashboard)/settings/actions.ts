@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@bookings/database';
 import { z } from 'zod';
-import { requireSession, requireWorkspace, toActionError } from '@/lib/session';
+import { requireSession, requireWorkspace, toActionError, startSession } from '@/lib/session';
 import { verifyPassword, hashPassword, validatePasswordPolicy } from '@bookings/auth';
+import { checkRateLimit, PASSWORD_CHANGE_LIMIT } from '@/lib/rate-limit';
 
 /**
  * Reject a timezone the scheduling engine cannot resolve.
@@ -152,6 +153,15 @@ export async function changeUserPasswordAction(formData: {
   try {
     const session = await requireSession();
 
+    if (
+      !(await checkRateLimit(`password-change:${session.user.id}`, PASSWORD_CHANGE_LIMIT)).allowed
+    ) {
+      return {
+        success: false,
+        error: 'Too many attempts. Please wait a few minutes and try again.',
+      };
+    }
+
     if (formData.newPassword !== formData.confirmPassword) {
       return { success: false, error: 'New password and confirmation do not match.' };
     }
@@ -176,10 +186,15 @@ export async function changeUserPasswordAction(formData: {
     }
 
     const newHash = await hashPassword(formData.newPassword);
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { passwordHash: newHash },
-    });
+
+    // Revoke every session, then issue a fresh one for this browser, so a
+    // stolen session elsewhere stops working the moment the password changes.
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: session.user.id }, data: { passwordHash: newHash } }),
+      prisma.session.deleteMany({ where: { userId: session.user.id } }),
+    ]);
+
+    await startSession(session.user.id);
 
     return { success: true, message: 'Password changed successfully.' };
   } catch (err) {
