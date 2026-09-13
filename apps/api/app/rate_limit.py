@@ -146,6 +146,19 @@ async def check_rate_limit(key: str, limit: int, window_seconds: int) -> RateLim
         return _check_in_memory(key, limit, window_seconds)
 
 
+def reset_rate_limits() -> None:
+    """
+    Clear every in-memory counter. Used by tests.
+
+    TestClient requests all share the same client address, so a test suite
+    that calls a rate-limited endpoint several times exhausts the same limit a
+    real caller would hit in production. Redis is not cleared here: nothing in
+    this test suite sets REDIS_URL, so the in-memory path is always what is
+    actually exercised.
+    """
+    _buckets.clear()
+
+
 def caller_address(request: Request) -> str:
     """Best-effort client address, matching the Next.js app's header precedence."""
     forwarded = request.headers.get("x-forwarded-for")
