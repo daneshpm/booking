@@ -135,6 +135,8 @@ async def _check_redis(client: redis_asyncio.Redis, key: str, limit: int, window
 
 async def check_rate_limit(key: str, limit: int, window_seconds: int) -> RateLimitResult:
     """Record one request against `key` and report whether it is allowed."""
+    global _redis_client, _retry_connection_after
+
     client = await _get_redis()
     if client is None:
         return _check_in_memory(key, limit, window_seconds)
@@ -143,6 +145,11 @@ async def check_rate_limit(key: str, limit: int, window_seconds: int) -> RateLim
         return await _check_redis(client, key, limit, window_seconds)
     except Exception as err:  # noqa: BLE001 - a Redis hiccup must not fail the request
         print(f"Rate limiter Redis command failed, using per-instance limits: {err}")
+        # Drop the cached client so the next call attempts a fresh connection
+        # (after the backoff) instead of being stuck reusing this same broken
+        # one, silently and permanently, for the rest of the process's life.
+        _redis_client = None
+        _retry_connection_after = time.monotonic() + RECONNECT_BACKOFF_SECONDS
         return _check_in_memory(key, limit, window_seconds)
 
 
