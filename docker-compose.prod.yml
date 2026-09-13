@@ -66,8 +66,11 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
       CORS_ORIGINS: ${NEXT_PUBLIC_APP_URL}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully

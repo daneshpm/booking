@@ -4,6 +4,12 @@ from typing import List
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+# The local dev Postgres credential, also used as the built-in fallback when
+# DATABASE_URL is unset. Compared against below so a production deployment
+# that forgot to set it fails loudly instead of silently running against a
+# well-known password.
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev"
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Rooman Bookings API"
@@ -17,7 +23,7 @@ class Settings(BaseSettings):
     #
     # An empty variable falls back to the local default rather than reaching
     # SQLAlchemy as "", which fails at import with an unhelpful parse error.
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev"
+    DATABASE_URL: str = DEFAULT_DATABASE_URL
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -26,7 +32,7 @@ class Settings(BaseSettings):
         # empty string, which would otherwise reach SQLAlchemy as "" and fail at
         # import with an unhelpful parse error.
         if value is None or (isinstance(value, str) and not value.strip()):
-            return "postgresql+asyncpg://postgres:password123@localhost:5434/bookings_dev"
+            return DEFAULT_DATABASE_URL
         return value
 
     @property
@@ -49,6 +55,11 @@ class Settings(BaseSettings):
     # Sessions
     SESSION_COOKIE: str = "rb_session"
     SESSION_TTL_DAYS: int = 7
+
+    # Rate limiting. Shared with the Next.js app so a limit holds across both
+    # services; unset in a single-instance deployment falls back to a
+    # per-process counter (see app/rate_limit.py).
+    REDIS_URL: str = ""
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
@@ -79,4 +90,12 @@ if settings.IS_PRODUCTION and not settings.CORS_ORIGINS:
     # rejects every browser request.
     raise RuntimeError(
         "CORS_ORIGINS must list the allowed browser origins when NODE_ENV=production."
+    )
+
+if settings.IS_PRODUCTION and settings.DATABASE_URL == DEFAULT_DATABASE_URL:
+    # Better to fail at startup than to serve production traffic against a
+    # database reachable with a well-known, publicly documented password.
+    raise RuntimeError(
+        "DATABASE_URL must be set explicitly when NODE_ENV=production; "
+        "the default local-dev value is not a valid production database."
     )

@@ -19,12 +19,20 @@ from app.auth.security import (
     destroy_session,
     get_current_user,
 )
+from app.rate_limit import (
+    check_rate_limit,
+    caller_address,
+    LOGIN_LIMIT,
+    LOGIN_PER_ACCOUNT_LIMIT,
+    SIGNUP_LIMIT,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # Deliberately identical for a wrong password and an unknown account, so the
 # response cannot be used to work out which email addresses are registered.
 INVALID_CREDENTIALS = "Invalid email or password."
+THROTTLED = "Too many attempts. Please wait a few minutes and try again."
 
 
 def slugify(text: str) -> str:
@@ -105,6 +113,9 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ):
     """Create an account with its own workspace and sign the new user in."""
+    if not (await check_rate_limit(f"signup:{caller_address(request)}", *SIGNUP_LIMIT)).allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=THROTTLED)
+
     email_clean = req.email.strip().lower()
 
     policy_errors = validate_password_policy(req.password)
@@ -204,7 +215,18 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """Authenticate with email and password and issue a session."""
+    address = caller_address(request)
     email_clean = req.email.strip().lower()
+
+    # Per-address and per-account, so a distributed attempt cannot escape the
+    # cap by rotating the forwarded address against one target, and a single
+    # address cannot exhaust attempts across many accounts.
+    if not (await check_rate_limit(f"login:{address}", *LOGIN_LIMIT)).allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=THROTTLED)
+    if not (
+        await check_rate_limit(f"login-account:{email_clean}", *LOGIN_PER_ACCOUNT_LIMIT)
+    ).allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=THROTTLED)
 
     result = await db.execute(
         select(User)

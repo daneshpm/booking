@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta, timezone
 from typing import List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +21,7 @@ from app.db.models import (
     StaffWorkingHours,
     Workspace,
 )
+from app.rate_limit import check_rate_limit, caller_address, PUBLIC_BOOKING_LIMIT
 
 router = APIRouter(prefix="", tags=["Services & Bookings"])
 
@@ -476,7 +477,7 @@ async def get_availability(
 
 
 @router.post("/bookings", response_model=BookingConfirmation, status_code=status.HTTP_201_CREATED)
-async def create_booking(req: CreateBookingRequest, db: AsyncSession = Depends(get_db)):
+async def create_booking(req: CreateBookingRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Create a confirmed appointment.
 
@@ -486,6 +487,14 @@ async def create_booking(req: CreateBookingRequest, db: AsyncSession = Depends(g
     client-supplied window would allow a booking on a rest day, inside a lunch
     break, or of an arbitrary length.
     """
+    if not (
+        await check_rate_limit(f"public-booking:{caller_address(request)}", *PUBLIC_BOOKING_LIMIT)
+    ).allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many booking attempts. Please wait a while and try again.",
+        )
+
     ws = await _get_workspace(db, req.workspaceSlug)
     service = await _get_service(db, ws, req.serviceSlug)
 
