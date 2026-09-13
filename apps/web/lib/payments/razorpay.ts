@@ -105,7 +105,7 @@ export async function createRazorpayOrder(
       orderId: '',
       amount: input.amount,
       currency: input.currency,
-      error: err.message || 'Payment provider communication error.',
+      error: 'Payment provider communication error.',
     };
   }
 }
@@ -170,10 +170,11 @@ export async function verifyRazorpayPayment(
       transactionId: input.transactionId,
     };
   } catch (err: any) {
+    console.error('Error verifying Razorpay signature:', err);
     return {
       success: false,
       transactionId: input.transactionId || '',
-      error: err.message || 'Signature verification error.',
+      error: 'Signature verification error.',
     };
   }
 }

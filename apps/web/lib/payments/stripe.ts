@@ -110,7 +110,7 @@ export async function createStripePaymentSession(
       orderId: '',
       amount: input.amount,
       currency: input.currency,
-      error: err.message || 'Stripe connection error.',
+      error: 'Stripe connection error.',
     };
   }
 }
@@ -166,10 +166,11 @@ export async function verifyStripePayment(input: VerifyPaymentInput): Promise<Ve
       transactionId: session.payment_intent || session.id,
     };
   } catch (err: any) {
+    console.error('Error verifying Stripe payment:', err);
     return {
       success: false,
       transactionId: input.transactionId || '',
-      error: err.message || 'Stripe verification error.',
+      error: 'Stripe verification error.',
     };
   }
 }
