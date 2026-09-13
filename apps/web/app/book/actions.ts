@@ -15,7 +15,13 @@ import {
 import { isOverlapConstraintViolation } from '@/lib/booking-errors';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications } from '@/lib/notifications';
-import { checkRateLimit, PUBLIC_BOOKING_LIMIT, PUBLIC_AVAILABILITY_LIMIT } from '@/lib/rate-limit';
+import {
+  checkRateLimit,
+  PUBLIC_BOOKING_LIMIT,
+  PUBLIC_AVAILABILITY_LIMIT,
+  PAYMENT_VERIFY_LIMIT,
+  MANAGE_BOOKING_LIMIT,
+} from '@/lib/rate-limit';
 import {
   addToWaitlist,
   getWaitlistEntryByClaimToken,
@@ -937,6 +943,11 @@ export async function getBookingByManageTokenAction(token: string) {
       return { success: false, error: 'Manage token is required.' };
     }
 
+    const throttle = await checkRateLimit(await callerKey('manage-booking'), MANAGE_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { manageToken: token },
       include: {
@@ -1027,6 +1038,11 @@ export async function rescheduleBookingByManageTokenAction(
   try {
     if (!token || !newDate || !newTime) {
       return { success: false, error: 'Missing reschedule parameters.' };
+    }
+
+    const throttle = await checkRateLimit(await callerKey('manage-booking'), MANAGE_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
     }
 
     const booking = await prisma.booking.findUnique({
@@ -1140,6 +1156,11 @@ export async function cancelBookingByManageTokenAction(token: string, reason?: s
       return { success: false, error: 'Manage token is required.' };
     }
 
+    const throttle = await checkRateLimit(await callerKey('manage-booking'), MANAGE_BOOKING_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { manageToken: token },
     });
@@ -1211,6 +1232,13 @@ export async function verifyAndConfirmPaymentAction(
       return { success: false, error: 'Missing booking or order identifier.' };
     }
 
+    // Each call verifies against the real gateway API, so this bounds both
+    // scripted hammering of this action and unnecessary gateway load.
+    const throttle = await checkRateLimit(await callerKey('payment-verify'), PAYMENT_VERIFY_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many attempts. Please wait a moment and try again.' };
+    }
+
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -1228,8 +1256,17 @@ export async function verifyAndConfirmPaymentAction(
     const timezone = booking.workspace.timezone || 'UTC';
     const manageUrl = `/book/manage/${booking.manageToken}`;
 
-    // If already confirmed (e.g. duplicate callback or webhook finished first)
-    if (booking.status === 'CONFIRMED' && booking.paymentStatus === 'PAID') {
+    // If already confirmed (e.g. duplicate callback or webhook finished first).
+    // bookingId alone isn't a secret: it rides in plain in the Stripe redirect
+    // URL, so it can end up in browser history or referrer headers. Requiring
+    // the order id to still match, exactly as the not-yet-confirmed branch
+    // below does, stops anyone who obtains a bookingId from pulling the
+    // customer's PII by calling this action with any order id.
+    if (
+      booking.status === 'CONFIRMED' &&
+      booking.paymentStatus === 'PAID' &&
+      booking.paymentOrderId === orderId
+    ) {
       const calendarEvent = {
         title: `${booking.service.name} with ${booking.staff.name}`,
         description: `Appointment for ${booking.service.name} at ${booking.workspace.name}.\n${booking.meetingLink ? `Video Meeting Link: ${booking.meetingLink}\n` : ''}Client: ${booking.customer.name}`,
@@ -1377,7 +1414,7 @@ export async function verifyAndConfirmPaymentAction(
     console.error('Error verifying payment:', error);
     return {
       success: false,
-      error: error.message || 'Payment confirmation encountered an error.',
+      error: 'Payment confirmation encountered an error. Please try again.',
     };
   }
 }

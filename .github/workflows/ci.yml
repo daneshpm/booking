@@ -317,6 +317,21 @@ jobs:
         # .github/audit-allowlist.json for what is accepted and why.
         run: npm run audit
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+
+      - name: Audit Python dependencies
+        # apps/api has no equivalent allowlist file yet, so this fails on any
+        # known vulnerability rather than only high/critical; tighten to match
+        # the npm audit's severity threshold if noise becomes a problem.
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip-audit -r apps/api/requirements.txt
+
   # ---------------------------------------------------------------
   # Single required status check for branch protection.
   # ---------------------------------------------------------------

@@ -5,11 +5,45 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Headers applied to every response.
+ * Baseline Content-Security-Policy.
  *
- * These are cheap, broadly compatible defenses. A Content-Security-Policy is
- * deliberately not set here: it needs per-deployment tuning for the analytics
- * and video provider in use, and a wrong one silently breaks the page.
+ * 'unsafe-inline' on script-src and style-src is a deliberate tradeoff: Next.js
+ * ships inline bootstrap scripts and React inlines some styles, and adopting a
+ * nonce-based strict policy is a larger change (every response needs a fresh
+ * nonce threaded through the app). This still blocks a script/style tag an
+ * attacker injects from a domain outside this allowlist, which is the more
+ * common outcome of a stored/reflected XSS bug. Extend the allowlists here,
+ * not by removing directives, if a new third-party provider is added.
+ */
+const isDev = process.env.NODE_ENV !== 'production';
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  // checkout.razorpay.com is the Razorpay payment widget, loaded on demand
+  // only when a real (non-sandbox) Razorpay order is opened. 'unsafe-eval' is
+  // added only in development: React's dev-mode instrumentation (component
+  // stack reconstruction, Fast Refresh) uses eval(), production never does.
+  `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com${isDev ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  // Uploaded logos/avatars are stored as data: URIs; blob: covers
+  // client-generated previews before upload completes.
+  "img-src 'self' data: blob:",
+  // Razorpay's checkout widget calls its own API and error-reporting host from
+  // the browser once opened.
+  "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
+  // Razorpay's checkout renders in an iframe it injects itself.
+  "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+  // Blocks this app being framed by another origin (clickjacking), in
+  // addition to X-Frame-Options below for older browsers.
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+/**
+ * Headers applied to every response. These are cheap, broadly compatible
+ * defenses.
  */
 const securityHeaders = [
   // Stop the browser from second-guessing a declared content type, which is how
@@ -25,6 +59,7 @@ const securityHeaders = [
     key: 'Permissions-Policy',
     value: 'camera=(self), microphone=(self), geolocation=(), payment=()',
   },
+  { key: 'Content-Security-Policy', value: contentSecurityPolicy },
 ];
 
 /** @type {import('next').NextConfig} */

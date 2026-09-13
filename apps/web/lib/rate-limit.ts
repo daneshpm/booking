@@ -311,3 +311,17 @@ export const PASSWORD_RESET_PER_ACCOUNT_LIMIT: RateLimitOptions = {
   limit: 3,
   windowMs: 60 * 60 * 1000,
 };
+
+/**
+ * Payment verification calls out to the real gateway (Razorpay/Stripe) each
+ * time, so this bounds both scripted hammering of the confirmation action and
+ * unnecessary load on the gateway's API.
+ */
+export const PAYMENT_VERIFY_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 * 60 * 1000 };
+
+/**
+ * The manage-token actions (view/reschedule/cancel a booking by its link) are
+ * unauthenticated and gated only by the token's own entropy, which makes
+ * brute force infeasible but not scripted hammering of the endpoint itself.
+ */
+export const MANAGE_BOOKING_LIMIT: RateLimitOptions = { limit: 30, windowMs: 15 * 60 * 1000 };
