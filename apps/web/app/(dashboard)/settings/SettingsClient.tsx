@@ -972,6 +972,21 @@ export function SettingsClient({
 
                         <div>
                           <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Phone Number (WhatsApp)
+                          </label>
+                          <input
+                            type="tel"
+                            value={profileData.phone || ''}
+                            onChange={(e) =>
+                              setProfileData({ ...profileData, phone: e.target.value })
+                            }
+                            placeholder="+91 98765 43210"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                             Gender
                           </label>
                           <select
@@ -1231,13 +1246,17 @@ export function SettingsClient({
                     </div>
                     <div>
                       <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <span>{profileData.phone || '+91 98765 43210'}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
-                          WhatsApp Active
-                        </span>
+                        <span>{profileData.phone || 'No phone number on file'}</span>
+                        {profileData.phone && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                            WhatsApp Active
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
-                        Active for SMS & WhatsApp notifications
+                        {profileData.phone
+                          ? 'Active for SMS & WhatsApp notifications'
+                          : 'Add a number to enable SMS & WhatsApp notifications'}
                       </div>
                     </div>
                   </div>

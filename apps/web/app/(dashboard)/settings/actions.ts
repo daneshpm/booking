@@ -62,7 +62,7 @@ export async function updateWorkspaceSettingsAction(
     return { success: true, data: updated };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }
@@ -138,7 +138,7 @@ export async function updateUserProfileAction(input: ProfileInput) {
     return { success: true, user: updatedUser };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }

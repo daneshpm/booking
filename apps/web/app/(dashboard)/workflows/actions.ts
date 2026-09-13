@@ -102,7 +102,7 @@ export async function createWorkflowAction(
     return { success: true, workflowId: workflow.id };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }
@@ -149,7 +149,7 @@ export async function updateWorkflowAction(
     return { success: true, workflowId };
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return { success: false, error: err.errors[0].message };
+      return { success: false, error: err.issues[0].message };
     }
     return toActionError(err);
   }
