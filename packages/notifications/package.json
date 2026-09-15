@@ -14,7 +14,7 @@
     "@bookings/core": "*",
     "@bookings/database": "*",
     "date-fns-tz": "^3.2.0",
-    "nodemailer": "^10.0.1"
+    "nodemailer": "^10.0.9"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
