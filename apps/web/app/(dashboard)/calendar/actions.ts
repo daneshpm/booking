@@ -125,6 +125,13 @@ export async function rescheduleBookingAction(
       return { success: false, error: 'Please provide a valid date and time.' };
     }
 
+    if (newStartUtc.getTime() < Date.now() - 60000) {
+      return {
+        success: false,
+        error: 'Cannot reschedule an appointment to a past date or time.',
+      };
+    }
+
     // The database holds an exclusion constraint that rejects overlapping
     // appointments for a staff member, so the write below is the real check.
     // This lookup only turns the common case into a friendlier message.

@@ -223,3 +223,55 @@ export async function revokeSessionAction(
     return { success: false, error: res.error || 'Failed to revoke session' };
   }
 }
+
+export async function updateMemberRoleAction(
+  workspaceId: string,
+  userEmailOrId: string,
+  newRole: 'OWNER' | 'ADMIN' | 'STAFF' | 'RECEPTIONIST'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireWorkspace(workspaceId, 'OWNER');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ id: userEmailOrId }, { email: userEmailOrId }],
+      },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User account not found. The member must register an account first.',
+      };
+    }
+
+    if (newRole !== 'OWNER') {
+      const ownerCount = await prisma.workspaceMember.count({
+        where: { workspaceId, role: 'OWNER' },
+      });
+      const targetMember = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      });
+      if (targetMember?.role === 'OWNER' && ownerCount <= 1) {
+        return { success: false, error: 'Cannot demote the only workspace owner.' };
+      }
+    }
+
+    await prisma.workspaceMember.upsert({
+      where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      update: { role: newRole },
+      create: {
+        workspaceId,
+        userId: user.id,
+        role: newRole,
+      },
+    });
+
+    revalidatePath('/settings');
+    revalidatePath('/users');
+    return { success: true };
+  } catch (err) {
+    const res = toActionError(err);
+    return { success: false, error: res.error || 'Failed to update member role' };
+  }
+}

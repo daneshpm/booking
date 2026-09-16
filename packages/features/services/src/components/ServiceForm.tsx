@@ -184,6 +184,30 @@ export function ServiceForm({
     setErrorMessage(null);
     setFieldErrors({});
 
+    const errors: Record<string, string[]> = {};
+    if (formData.addons && formData.addons.length > 0) {
+      formData.addons.forEach((addon, idx) => {
+        if (!addon.name.trim()) {
+          errors[`addons.${idx}.name`] = ['Add-on name is required.'];
+          errors[`addon_${addon.id}_name`] = ['Add-on name is required.'];
+        }
+      });
+    }
+    if (formData.intakeQuestions && formData.intakeQuestions.length > 0) {
+      formData.intakeQuestions.forEach((q, idx) => {
+        if (!q.label.trim()) {
+          errors[`intakeQuestions.${idx}.label`] = ['Question label / prompt is required.'];
+          errors[`question_${q.id}_label`] = ['Question label / prompt is required.'];
+        }
+      });
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setErrorMessage('Validation failed. Please check form fields.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       let res;
       if (isEditing && initialData) {
@@ -856,11 +880,26 @@ export function ServiceForm({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="sm:col-span-2">
                       <Label className="text-xs">Question Label / Prompt *</Label>
-                      <Input
-                        placeholder="e.g. Do you have any allergies or specific goals?"
-                        value={q.label}
-                        onChange={(e) => updateIntakeQuestion(q.id, { label: e.target.value })}
-                      />
+                      {(() => {
+                        const qError =
+                          fieldErrors[`intakeQuestions.${idx}.label`]?.[0] ||
+                          fieldErrors[`question_${q.id}_label`]?.[0];
+                        return (
+                          <>
+                            <Input
+                              placeholder="e.g. Do you have any allergies or specific goals?"
+                              value={q.label}
+                              onChange={(e) =>
+                                updateIntakeQuestion(q.id, { label: e.target.value })
+                              }
+                              className={qError ? 'border-rose-500 focus:ring-rose-500' : ''}
+                            />
+                            {qError && (
+                              <p className="text-[11px] text-rose-500 font-medium mt-1">{qError}</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div>
                       <Label className="text-xs">Response Type</Label>
@@ -987,11 +1026,26 @@ export function ServiceForm({
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-2">
                       <Label className="text-xs">Add-on Name *</Label>
-                      <Input
-                        placeholder="e.g. Extended 15-Min Strategy Session"
-                        value={addon.name}
-                        onChange={(e) => updateAddon(addon.id, { name: e.target.value })}
-                      />
+                      {(() => {
+                        const addonError =
+                          fieldErrors[`addons.${idx}.name`]?.[0] ||
+                          fieldErrors[`addon_${addon.id}_name`]?.[0];
+                        return (
+                          <>
+                            <Input
+                              placeholder="e.g. Extended 15-Min Strategy Session"
+                              value={addon.name}
+                              onChange={(e) => updateAddon(addon.id, { name: e.target.value })}
+                              className={addonError ? 'border-rose-500 focus:ring-rose-500' : ''}
+                            />
+                            {addonError && (
+                              <p className="text-[11px] text-rose-500 font-medium mt-1">
+                                {addonError}
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div>
                       <Label className="text-xs">Extra Duration (Mins)</Label>

@@ -78,10 +78,18 @@ export async function createServiceAction(
 
   const parsed = serviceFormSchema.safeParse(formData);
   if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors as Record<string, string[]>;
+    for (const issue of parsed.error.issues) {
+      if (issue.path.length > 0) {
+        const pathKey = issue.path.join('.');
+        if (!fieldErrors[pathKey]) fieldErrors[pathKey] = [];
+        fieldErrors[pathKey].push(issue.message);
+      }
+    }
     return {
       success: false,
       error: 'Validation failed. Please check form fields.',
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors,
     };
   }
 
@@ -162,10 +170,18 @@ export async function updateServiceAction(
 
   const parsed = serviceFormSchema.safeParse(formData);
   if (!parsed.success) {
+    const fieldErrors = parsed.error.flatten().fieldErrors as Record<string, string[]>;
+    for (const issue of parsed.error.issues) {
+      if (issue.path.length > 0) {
+        const pathKey = issue.path.join('.');
+        if (!fieldErrors[pathKey]) fieldErrors[pathKey] = [];
+        fieldErrors[pathKey].push(issue.message);
+      }
+    }
     return {
       success: false,
       error: 'Validation failed. Please check form fields.',
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      fieldErrors,
     };
   }
 

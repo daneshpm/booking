@@ -39,6 +39,7 @@ import {
   updateStaffWorkingHoursAction,
   type DayScheduleInput,
 } from './actions';
+import { isValidPhoneNumber } from '@/lib/validation';
 
 export interface StaffItem {
   id: string;
@@ -306,6 +307,10 @@ export function StaffManagementClient({
       setFormError('Valid email address is required');
       return;
     }
+    if (formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())) {
+      setFormError('Please enter a valid phone number (at least 10 digits)');
+      return;
+    }
 
     setIsSubmitting(true);
     setFormError(null);
@@ -341,6 +346,10 @@ export function StaffManagementClient({
     }
     if (!formData.email.trim()) {
       setFormError('Valid email address is required');
+      return;
+    }
+    if (formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())) {
+      setFormError('Please enter a valid phone number (at least 10 digits)');
       return;
     }
 
@@ -930,9 +939,21 @@ export function StaffManagementClient({
                 type="tel"
                 placeholder="+1 (555) 234-5678"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="text-xs"
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: e.target.value });
+                  if (formError && formError.toLowerCase().includes('phone')) setFormError(null);
+                }}
+                className={
+                  formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())
+                    ? 'text-xs border-rose-400 focus:border-rose-500'
+                    : 'text-xs'
+                }
               />
+              {formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) && (
+                <p className="text-[11px] text-rose-500 mt-1 font-medium">
+                  Please enter a valid phone number with at least 10 digits
+                </p>
+              )}
             </div>
 
             <div>
@@ -1120,9 +1141,21 @@ export function StaffManagementClient({
               <Input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="text-xs"
+                onChange={(e) => {
+                  setFormData({ ...formData, phone: e.target.value });
+                  if (formError && formError.toLowerCase().includes('phone')) setFormError(null);
+                }}
+                className={
+                  formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())
+                    ? 'text-xs border-rose-400 focus:border-rose-500'
+                    : 'text-xs'
+                }
               />
+              {formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) && (
+                <p className="text-[11px] text-rose-500 mt-1 font-medium">
+                  Please enter a valid phone number with at least 10 digits
+                </p>
+              )}
             </div>
 
             <div>

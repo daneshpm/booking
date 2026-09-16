@@ -76,6 +76,12 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
     e.preventDefault();
     if (!reschedulingBooking || !rescheduleDate || !rescheduleTime) return;
 
+    const chosenDateTime = new Date(`${rescheduleDate}T${rescheduleTime}`);
+    if (chosenDateTime.getTime() < Date.now() - 60000) {
+      setRescheduleError('Please select a future date and time for rescheduling.');
+      return;
+    }
+
     setLoadingId(reschedulingBooking.id);
     setRescheduleError(null);
     try {
@@ -236,7 +242,7 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
                     )}
 
                     {/* Action Controls */}
-                    {b.status === 'CONFIRMED' && (
+                    {(b.status === 'CONFIRMED' || b.status === 'RESCHEDULED') && (
                       <>
                         <button
                           type="button"
@@ -290,41 +296,52 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
 
       {/* Reschedule Modal */}
       {reschedulingBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 rounded-2xl border border-slate-800 p-6 shadow-2xl text-slate-100">
-            <h3 className="text-lg font-bold text-white mb-1">Reschedule Appointment</h3>
-            <p className="text-xs text-slate-400 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl text-slate-800 dark:text-slate-100">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+              Reschedule Appointment
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
               {reschedulingBooking.service.name} with {reschedulingBooking.customer.name}
             </p>
 
             {rescheduleError && (
-              <div className="p-3 mb-4 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs">
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium">
                 {rescheduleError}
               </div>
             )}
 
             <form onSubmit={handleRescheduleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">New Date</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  New Date
+                </label>
                 <input
                   type="date"
                   required
+                  min={format(new Date(), 'yyyy-MM-dd')}
                   value={rescheduleDate}
-                  onChange={(e) => setRescheduleDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500"
+                  onChange={(e) => {
+                    setRescheduleDate(e.target.value);
+                    setRescheduleError(null);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   New Time (24h)
                 </label>
                 <input
                   type="time"
                   required
                   value={rescheduleTime}
-                  onChange={(e) => setRescheduleTime(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-blue-500"
+                  onChange={(e) => {
+                    setRescheduleTime(e.target.value);
+                    setRescheduleError(null);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -332,14 +349,14 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
                 <button
                   type="button"
                   onClick={() => setReschedulingBooking(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <Button
                   type="submit"
                   disabled={loadingId === reschedulingBooking.id}
-                  className="bg-blue-600 hover:bg-blue-500 text-xs"
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm"
                 >
                   {loadingId === reschedulingBooking.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

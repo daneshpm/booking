@@ -15,6 +15,7 @@ import {
   notifyWaitlistEntry,
   cancelWaitlistEntry,
 } from '@/lib/waitlist';
+import { isValidPhoneNumber, isValidName } from '@/lib/validation';
 
 export interface CreateAppointmentInput {
   workspaceId: string;
@@ -69,6 +70,18 @@ export async function createDashboardAppointmentAction(
     ) {
       return { success: false, error: 'Please fill in all required fields.' };
     }
+    if (!isValidName(customerName)) {
+      return {
+        success: false,
+        error: 'Customer name must contain letters and cannot be numeric only.',
+      };
+    }
+    if (data.customerPhone?.trim() && !isValidPhoneNumber(data.customerPhone.trim())) {
+      return {
+        success: false,
+        error: 'Please enter a valid phone number with at least 10 digits.',
+      };
+    }
     if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
       return { success: false, error: 'Please provide a valid date and time.' };
     }
@@ -96,6 +109,9 @@ export async function createDashboardAppointmentAction(
     const startUtc = fromZonedTime(`${date}T${time}:00`, timezone);
     if (Number.isNaN(startUtc.getTime())) {
       return { success: false, error: 'Please provide a valid date and time.' };
+    }
+    if (startUtc.getTime() < Date.now() - 60000) {
+      return { success: false, error: 'Cannot book appointments for past dates or times.' };
     }
     const endUtc = addMinutes(startUtc, service.durationMinutes);
 
@@ -361,8 +377,20 @@ export async function createFastPassBookingAction(
     if (!cleanPhone && !data.customerEmail) {
       return { success: false, error: 'Please enter a customer phone number or email.' };
     }
+    if (cleanPhone && !isValidPhoneNumber(cleanPhone)) {
+      return {
+        success: false,
+        error: 'Please enter a valid phone number with at least 10 digits.',
+      };
+    }
     if (!cleanName) {
       return { success: false, error: 'Please enter customer name.' };
+    }
+    if (!isValidName(cleanName)) {
+      return {
+        success: false,
+        error: 'Customer name must contain letters and cannot be numeric only.',
+      };
     }
 
     await requireWorkspace(workspaceId, 'STAFF');
@@ -396,6 +424,9 @@ export async function createFastPassBookingAction(
       startUtc = fromZonedTime(`${data.date}T${data.time}:00`, timezone);
       if (Number.isNaN(startUtc.getTime())) {
         return { success: false, error: 'Invalid date/time provided.' };
+      }
+      if (startUtc.getTime() < Date.now() - 60000) {
+        return { success: false, error: 'Cannot book appointments for past dates or times.' };
       }
     }
     const endUtc = addMinutes(startUtc, service.durationMinutes);
