@@ -120,7 +120,16 @@ export function WorkflowsClient({
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<WorkflowInput>(EMPTY_FORM);
   const [error, setError] = React.useState<string | null>(null);
+  const [workflowToDelete, setWorkflowToDelete] = React.useState<WorkflowItem | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
+
+  React.useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   React.useEffect(() => {
     setWorkflows(initialWorkflows);
@@ -190,12 +199,19 @@ export function WorkflowsClient({
   };
 
   const handleDelete = (workflow: WorkflowItem) => {
+    setWorkflowToDelete(workflow);
+  };
+
+  const confirmDelete = (workflow: WorkflowItem) => {
     startTransition(async () => {
       const res = await deleteWorkflowAction(workspaceId, workflow.id);
       if (res.success) {
         setWorkflows((prev) => prev.filter((w) => w.id !== workflow.id));
+        setSuccessMessage('Workflow deleted successfully.');
+        setWorkflowToDelete(null);
       } else {
         setError(res.error ?? 'Could not delete the workflow.');
+        setWorkflowToDelete(null);
       }
     });
   };
@@ -223,6 +239,16 @@ export function WorkflowsClient({
           New workflow
         </button>
       </div>
+
+      {successMessage && (
+        <div
+          role="status"
+          className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold animate-in fade-in"
+        >
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{successMessage}</span>
+        </div>
+      )}
 
       {!mailConfigured && (
         <div
@@ -302,22 +328,21 @@ export function WorkflowsClient({
                       role="switch"
                       aria-checked={workflow.isActive}
                       aria-label={`${workflow.isActive ? 'Disable' : 'Enable'} ${workflow.name}`}
-                      className={`relative h-5 w-9 rounded-full transition-colors disabled:opacity-50 ${
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
                         workflow.isActive ? 'bg-emerald-500' : 'bg-slate-300'
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                          workflow.isActive ? 'translate-x-4.5 left-0.5' : 'left-0.5'
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          workflow.isActive ? 'translate-x-4' : 'translate-x-0'
                         }`}
-                        style={{ transform: workflow.isActive ? 'translateX(16px)' : undefined }}
                       />
                     </button>
                     <button
                       type="button"
                       onClick={() => openEdit(workflow)}
                       aria-label={`Edit ${workflow.name}`}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -326,7 +351,7 @@ export function WorkflowsClient({
                       onClick={() => handleDelete(workflow)}
                       disabled={isPending}
                       aria-label={`Delete ${workflow.name}`}
-                      className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                      className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -643,6 +668,46 @@ export function WorkflowsClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {workflowToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Delete Workflow</h3>
+                <p className="text-[11px] text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Are you sure you want to delete <strong className="text-slate-900">&ldquo;{workflowToDelete.name}&rdquo;</strong>? Automated triggers for this workflow will stop immediately.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setWorkflowToDelete(null)}
+                className="text-xs font-semibold text-slate-600 px-3.5 py-2 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => confirmDelete(workflowToDelete)}
+                className="text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {isPending ? 'Deleting...' : 'Delete Workflow'}
+              </button>
+            </div>
           </div>
         </div>
       )}

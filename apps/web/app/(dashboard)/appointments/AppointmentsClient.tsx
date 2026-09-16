@@ -25,6 +25,8 @@ import {
   Sparkles,
   Bell,
   Trash2,
+  Info,
+  BookOpen,
 } from 'lucide-react';
 import {
   createDashboardAppointmentAction,
@@ -34,6 +36,7 @@ import {
 } from './actions';
 import { FastPassModal } from '../components/FastPassModal';
 import { AddToWaitlistModal } from '../components/AddToWaitlistModal';
+import { isValidPhoneNumber, isValidName } from '@/lib/validation';
 
 export interface AppointmentItem {
   id: string;
@@ -224,8 +227,17 @@ export function AppointmentsClient({
   const [customerPhone, setCustomerPhone] = React.useState('');
   const [notes, setNotes] = React.useState('');
   const [formError, setFormError] = React.useState('');
+  const [nameError, setNameError] = React.useState('');
+  const [phoneError, setPhoneError] = React.useState('');
+  const [dateError, setDateError] = React.useState('');
+  const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [actionLoadingId, setActionLoadingId] = React.useState<string | null>(null);
+
+  const currentDateStr = React.useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
 
   // Tab counts
   const tabCounts = React.useMemo(() => {
@@ -289,9 +301,45 @@ export function AppointmentsClient({
   const handleCreateAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    setNameError('');
+    setPhoneError('');
+    setDateError('');
 
-    if (!customerName.trim() || !customerEmail.trim()) {
-      setFormError('Please provide customer name and email.');
+    let hasError = false;
+    const trimmedName = customerName.trim();
+    if (!trimmedName) {
+      setNameError('Please provide customer name.');
+      hasError = true;
+    } else if (!isValidName(trimmedName)) {
+      setNameError('Customer name must contain letters and cannot be numeric only.');
+      hasError = true;
+    }
+
+    if (!customerEmail.trim()) {
+      setFormError('Please provide customer email address.');
+      hasError = true;
+    }
+
+    const trimmedPhone = customerPhone.trim();
+    if (trimmedPhone && !isValidPhoneNumber(trimmedPhone)) {
+      setPhoneError('Please enter a valid phone number with at least 10 digits.');
+      hasError = true;
+    }
+
+    if (date < currentDateStr) {
+      setDateError('Cannot schedule appointments for past dates.');
+      hasError = true;
+    } else if (date === currentDateStr) {
+      const [h, m] = time.split(':').map(Number);
+      const slotD = new Date();
+      slotD.setHours(h, m, 0, 0);
+      if (slotD.getTime() < Date.now()) {
+        setDateError('The selected time slot has already passed today.');
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
       return;
     }
 
@@ -303,9 +351,9 @@ export function AppointmentsClient({
         staffId: selectedStaffId,
         date,
         time,
-        customerName,
-        customerEmail,
-        customerPhone,
+        customerName: trimmedName,
+        customerEmail: customerEmail.trim(),
+        customerPhone: trimmedPhone || undefined,
         notes,
       });
 
@@ -405,8 +453,9 @@ export function AppointmentsClient({
           <h1 className="text-xl font-bold text-slate-800 tracking-tight">Appointments</h1>
           <button
             type="button"
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-            title="Appointments Help"
+            onClick={() => setShowHelpModal(true)}
+            className="text-slate-400 hover:text-[#5c34ad] p-1 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
+            title="Appointments Help & Documentation"
           >
             <HelpCircle className="h-4 w-4" />
           </button>
@@ -415,7 +464,7 @@ export function AppointmentsClient({
         {/* Tabs & Search row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Tabs */}
-          <div className="flex items-center gap-4 sm:gap-6 text-sm font-medium overflow-x-auto">
+          <div className="flex items-center gap-4 sm:gap-6 text-sm font-medium overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => setActiveTab('upcoming')}
@@ -919,19 +968,40 @@ export function AppointmentsClient({
                                 </div>
                               </div>
                             ))
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDate(dayStr);
-                                setTime(slot);
-                                setIsModalOpen(true);
-                              }}
-                              className="w-full h-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-[#5c34ad] bg-purple-50/80 rounded-md border border-dashed border-purple-300 transition-all cursor-pointer"
-                            >
-                              + Book
-                            </button>
-                          )}
+                          ) : (() => {
+                            const isPastSlot = (() => {
+                              if (dayStr < currentDateStr) return true;
+                              if (dayStr === currentDateStr) {
+                                const [h, m] = slot.split(':').map(Number);
+                                const slotD = new Date();
+                                slotD.setHours(h, m, 0, 0);
+                                return slotD.getTime() < Date.now();
+                              }
+                              return false;
+                            })();
+
+                            if (isPastSlot) {
+                              return (
+                                <div className="w-full h-full bg-slate-50/50 rounded-md flex items-center justify-center text-[10px] text-slate-300 select-none cursor-not-allowed">
+                                  —
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDate(dayStr);
+                                  setTime(slot);
+                                  setIsModalOpen(true);
+                                }}
+                                className="w-full h-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-[#5c34ad] bg-purple-50/80 rounded-md border border-dashed border-purple-300 transition-all cursor-pointer"
+                              >
+                                + Book
+                              </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1288,22 +1358,34 @@ export function AppointmentsClient({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Appointment Date
+                    Appointment Date <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="date"
+                    min={currentDateStr}
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:border-[#5c34ad]"
+                    onChange={(e) => {
+                      setDate(e.target.value);
+                      if (dateError) setDateError('');
+                    }}
+                    className={`w-full text-xs px-3 py-2 border rounded-xl bg-white text-slate-800 focus:outline-none ${
+                      dateError ? 'border-rose-500' : 'border-slate-200 focus:border-[#5c34ad]'
+                    }`}
                     required
                   />
+                  {dateError && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{dateError}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Time Slot</label>
                   <select
                     value={time}
-                    onChange={(e) => setTime(e.target.value)}
+                    onChange={(e) => {
+                      setTime(e.target.value);
+                      if (dateError) setDateError('');
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white text-slate-800 focus:outline-none focus:border-[#5c34ad]"
                     required
                   >
@@ -1332,22 +1414,30 @@ export function AppointmentsClient({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Full Name
+                    Full Name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      if (nameError) setNameError('');
+                    }}
                     placeholder="e.g. Alex Morgan"
-                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#5c34ad]"
+                    className={`w-full text-xs px-3 py-2 border rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none ${
+                      nameError ? 'border-rose-500' : 'border-slate-200 focus:border-[#5c34ad]'
+                    }`}
                     required
                   />
+                  {nameError && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{nameError}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Email Address
+                      Email Address <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="email"
@@ -1366,10 +1456,18 @@ export function AppointmentsClient({
                     <input
                       type="tel"
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      onChange={(e) => {
+                        setCustomerPhone(e.target.value);
+                        if (phoneError) setPhoneError('');
+                      }}
                       placeholder="+1 (555) 000-0000"
-                      className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#5c34ad]"
+                      className={`w-full text-xs px-3 py-2 border rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none ${
+                        phoneError ? 'border-rose-500' : 'border-slate-200 focus:border-[#5c34ad]'
+                      }`}
                     />
+                    {phoneError && (
+                      <p className="text-[11px] text-rose-500 font-medium mt-1">{phoneError}</p>
+                    )}
                   </div>
                 </div>
 
@@ -1443,6 +1541,79 @@ export function AppointmentsClient({
         services={services}
         staffMembers={staffMembers}
       />
+
+      {/* ---------------------------------------------------- */}
+      {/* 6. APPOINTMENTS HELP MODAL                           */}
+      {/* ---------------------------------------------------- */}
+      {showHelpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-xl bg-purple-50 text-[#5c34ad] flex items-center justify-center">
+                  <HelpCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Appointments Management Guide</h3>
+                  <p className="text-[11px] text-slate-500">How to manage schedules, filters, and fast actions</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-600 max-h-[60vh] overflow-y-auto pr-1">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <LayoutList className="h-3.5 w-3.5 text-[#5c34ad]" />
+                  Status Breakdown
+                </span>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <strong className="text-emerald-700">CONFIRMED:</strong> Active upcoming booking.<br />
+                  <strong className="text-amber-700">RESCHEDULED:</strong> Appointment moved to a new time. Complete, cancel, and join actions remain fully available.<br />
+                  <strong className="text-blue-700">COMPLETED:</strong> Client was served.<br />
+                  <strong className="text-rose-700">CANCELLED:</strong> Booking was cancelled; slot is freed immediately.
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-amber-500" />
+                  10-Second Fast Pass (Alt+W)
+                </span>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Press <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded font-mono text-[10px]">Alt+W</kbd> from any page to quickly book walk-in clients or phone calls with zero overlap protection.
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5 text-indigo-500" />
+                  View Switching & Filters
+                </span>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Switch between <strong>List</strong> and <strong>Calendar</strong> views using the top-right toggle. Filter by Today, Upcoming, Past, or pick any Custom Date.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(false)}
+                className="px-4 py-2 text-xs font-bold text-white bg-[#5c34ad] hover:bg-[#4d2994] rounded-xl shadow-xs transition-colors"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

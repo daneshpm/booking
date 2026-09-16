@@ -25,6 +25,7 @@ import {
 import { SetupWizardModal } from './components/SetupWizardModal';
 import { FastPassModal } from './components/FastPassModal';
 import { logoutAction } from '../signup/actions';
+import { getAvatarBgClass } from '@/lib/avatar';
 
 export interface ShellWorkspace {
   id: string;
@@ -400,50 +401,55 @@ export function DashboardShell({
 
             {/* Profile Avatar Dropdown */}
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                aria-haspopup="menu"
-                aria-expanded={showProfileMenu}
-                className="h-8 w-8 rounded-xl bg-purple-700 text-white font-bold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-purple-400/40 transition-all overflow-hidden border border-purple-200/50 cursor-pointer"
-              >
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="h-full w-full object-cover rounded-xl"
-                  />
-                ) : activeWorkspace.logoUrl ? (
-                  <img
-                    src={activeWorkspace.logoUrl}
-                    alt={activeWorkspace.name}
-                    className="h-full w-full object-cover rounded-xl"
-                  />
-                ) : (
-                  <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
-                )}
-              </button>
+              {(() => {
+                const isPreset = user.avatarUrl?.startsWith('preset:');
+                const avatarBg = getAvatarBgClass(user.avatarUrl);
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileMenu(!showProfileMenu)}
+                      aria-haspopup="menu"
+                      aria-expanded={showProfileMenu}
+                      className={`h-8 w-8 rounded-xl ${avatarBg} text-white font-bold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-purple-400/40 transition-all overflow-hidden border border-purple-200/50 cursor-pointer`}
+                    >
+                      {user.avatarUrl && !isPreset ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt={user.name}
+                          className="h-full w-full object-cover rounded-xl"
+                        />
+                      ) : activeWorkspace.logoUrl ? (
+                        <img
+                          src={activeWorkspace.logoUrl}
+                          alt={activeWorkspace.name}
+                          className="h-full w-full object-cover rounded-xl"
+                        />
+                      ) : (
+                        <span>{user.name ? user.name.charAt(0).toUpperCase() : 'U'}</span>
+                      )}
+                    </button>
 
-              {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 text-xs animate-in fade-in-50 duration-150">
-                  <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
-                    {user.avatarUrl ? (
-                      <img
-                        src={user.avatarUrl}
-                        alt={user.name}
-                        className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
-                      />
-                    ) : activeWorkspace.logoUrl ? (
-                      <img
-                        src={activeWorkspace.logoUrl}
-                        alt={activeWorkspace.name}
-                        className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-[#5c34ad] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                        {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                      </div>
-                    )}
+                    {showProfileMenu && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 text-xs animate-in fade-in-50 duration-150">
+                        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+                          {user.avatarUrl && !isPreset ? (
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : activeWorkspace.logoUrl ? (
+                            <img
+                              src={activeWorkspace.logoUrl}
+                              alt={activeWorkspace.name}
+                              className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div className={`h-8 w-8 rounded-full ${avatarBg} text-white font-bold text-xs flex items-center justify-center shrink-0`}>
+                              {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                          )}
                     <div className="min-w-0 flex-1">
                       <span className="font-bold block text-slate-800 truncate">{user.name}</span>
                       <span className="text-[11px] text-slate-400 block truncate">
@@ -503,7 +509,10 @@ export function DashboardShell({
                   </form>
                 </div>
               )}
-            </div>
+            </>
+          );
+        })()}
+      </div>
           </div>
         </header>
 

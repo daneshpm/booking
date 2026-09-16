@@ -23,6 +23,7 @@ import {
   searchCustomerByPhoneOrEmailAction,
   type FastPassActionResult,
 } from '../appointments/actions';
+import { isValidPhoneNumber, isValidName } from '@/lib/validation';
 
 export interface FastPassModalProps {
   workspaceId: string;
@@ -68,6 +69,8 @@ export function FastPassModal({
   } | null>(null);
 
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [phoneError, setPhoneError] = React.useState<string | null>(null);
+  const [nameError, setNameError] = React.useState<string | null>(null);
   const [confirmedBooking, setConfirmedBooking] = React.useState<
     FastPassActionResult['bookingDetails'] | null
   >(null);
@@ -167,17 +170,35 @@ export function FastPassModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setPhoneError(null);
+    setNameError(null);
 
-    if (!phone.trim()) {
-      setErrorMessage('Please provide customer phone number.');
-      return;
+    let hasError = false;
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone) {
+      setPhoneError('Please provide customer phone number.');
+      hasError = true;
+    } else if (!isValidPhoneNumber(trimmedPhone)) {
+      setPhoneError('Please enter a valid phone number with at least 10 digits.');
+      hasError = true;
     }
-    if (!name.trim()) {
-      setErrorMessage('Please enter customer name.');
-      return;
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError('Please enter customer name.');
+      hasError = true;
+    } else if (!isValidName(trimmedName)) {
+      setNameError('Customer name must contain letters and cannot be numeric only.');
+      hasError = true;
     }
+
     if (!selectedServiceId) {
       setErrorMessage('Please select a service.');
+      hasError = true;
+    }
+
+    if (hasError) {
+      setErrorMessage('Please fix the validation errors below.');
       return;
     }
 
@@ -421,8 +442,15 @@ export function FastPassModal({
                     type="tel"
                     placeholder="e.g. +1 555-0199 or 9876543210"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad] focus:ring-2 focus:ring-purple-100 font-medium"
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (phoneError) setPhoneError(null);
+                    }}
+                    className={`w-full text-xs px-3.5 py-2.5 border rounded-xl bg-white text-slate-900 focus:outline-none font-medium ${
+                      phoneError
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-2 focus:ring-rose-100'
+                        : 'border-slate-200 focus:border-[#5c34ad] focus:ring-2 focus:ring-purple-100'
+                    }`}
                     required
                   />
                   {foundCustomer && (
@@ -432,6 +460,9 @@ export function FastPassModal({
                     </div>
                   )}
                 </div>
+                {phoneError && (
+                  <p className="text-[11px] text-rose-500 font-medium mt-1">{phoneError}</p>
+                )}
               </div>
 
               {/* Customer Name & Email */}
@@ -444,10 +475,20 @@ export function FastPassModal({
                     type="text"
                     placeholder="e.g. Sarah Jenkins"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full text-xs px-3.5 py-2 border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:border-[#5c34ad] font-medium"
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (nameError) setNameError(null);
+                    }}
+                    className={`w-full text-xs px-3.5 py-2 border rounded-xl bg-white text-slate-900 focus:outline-none font-medium ${
+                      nameError
+                        ? 'border-rose-500 focus:border-rose-500 focus:ring-2 focus:ring-rose-100'
+                        : 'border-slate-200 focus:border-[#5c34ad]'
+                    }`}
                     required
                   />
+                  {nameError && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{nameError}</p>
+                  )}
                 </div>
 
                 <div>

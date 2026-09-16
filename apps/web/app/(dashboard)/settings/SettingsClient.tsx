@@ -34,13 +34,16 @@ import {
   Briefcase,
   Trash2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import {
   updateWorkspaceSettingsAction,
   updateUserProfileAction,
   changeUserPasswordAction,
   revokeSessionAction,
+  updateMemberRoleAction,
   type ProfileInput,
 } from './actions';
+import { AVATAR_PRESETS, getAvatarBgClass } from '@/lib/avatar';
 
 interface SessionItem {
   id: string;
@@ -161,18 +164,6 @@ const LANGUAGES = [
   'Arabic',
 ];
 
-const AVATAR_PRESETS = [
-  { id: 'purple', bg: 'bg-gradient-to-tr from-[#5c34ad] to-indigo-600', text: 'text-white' },
-  { id: 'emerald', bg: 'bg-gradient-to-tr from-emerald-600 to-teal-500', text: 'text-white' },
-  {
-    id: 'sunset',
-    bg: 'bg-gradient-to-tr from-rose-500 via-orange-500 to-amber-400',
-    text: 'text-white',
-  },
-  { id: 'blue', bg: 'bg-gradient-to-tr from-blue-600 to-cyan-500', text: 'text-white' },
-  { id: 'dark', bg: 'bg-gradient-to-tr from-slate-900 to-slate-700', text: 'text-white' },
-];
-
 export function SettingsClient({
   workspace,
   user,
@@ -182,6 +173,10 @@ export function SettingsClient({
   currentSessionId,
   role,
 }: SettingsClientProps) {
+  const router = useRouter();
+  const [membersList, setMembersList] = React.useState(workspaceUsers);
+  const [updatingRoleUserId, setUpdatingRoleUserId] = React.useState<string | null>(null);
+
   const [activeTab, setActiveTab] = React.useState<
     'profile' | 'security' | 'mfa' | 'settings' | 'sessions' | 'groups' | 'privacy'
   >('profile');
@@ -212,7 +207,12 @@ export function SettingsClient({
     avatarUrl: user.avatarUrl || staffProfile?.avatarUrl || '',
   });
 
-  const [selectedAvatarPreset, setSelectedAvatarPreset] = React.useState('purple');
+  const [selectedAvatarPreset, setSelectedAvatarPreset] = React.useState(() => {
+    if (user.avatarUrl?.startsWith('preset:')) {
+      return user.avatarUrl.replace('preset:', '');
+    }
+    return 'purple';
+  });
 
   // Search filter in Groups & Roles tab
   const [memberSearchQuery, setMemberSearchQuery] = React.useState('');
@@ -300,7 +300,7 @@ export function SettingsClient({
   };
 
   const handleRemovePhoto = () => {
-    setProfileData((prev) => ({ ...prev, avatarUrl: '' }));
+    setProfileData((prev) => ({ ...prev, avatarUrl: `preset:${selectedAvatarPreset}` }));
     if (fileInputRef.current) fileInputRef.current.value = '';
     setSuccessMessage('Photo removed. Click "Save Changes" to apply.');
   };
@@ -317,6 +317,7 @@ export function SettingsClient({
     if (res.success) {
       setSuccessMessage('Profile details updated successfully!');
       setIsEditingProfile(false);
+      router.refresh();
     } else {
       setErrorMessage(res.error || 'Failed to update profile.');
     }
@@ -369,7 +370,7 @@ export function SettingsClient({
 
   const userInitial = (profileData.name || user.name || 'U').charAt(0).toUpperCase();
 
-  const filteredUsers = workspaceUsers.filter(
+  const filteredUsers = membersList.filter(
     (u) =>
       u.name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
@@ -423,8 +424,8 @@ export function SettingsClient({
             Preview Booker
           </a>
 
-          <div className="h-8 w-8 rounded-full bg-[#5c34ad] text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-purple-100 dark:ring-purple-950 overflow-hidden">
-            {profileData.avatarUrl ? (
+          <div className={`h-8 w-8 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-purple-100 dark:ring-purple-950 overflow-hidden`}>
+            {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') ? (
               <img src={profileData.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <span>{userInitial}</span>
@@ -671,8 +672,8 @@ export function SettingsClient({
                   <div className="flex items-center gap-5">
                     {/* Big Circular Avatar with Local Image Upload Support */}
                     <div className="relative group">
-                      <div className="h-16 w-16 rounded-full bg-[#5c34ad] text-white font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-purple-50 dark:ring-purple-950/50 overflow-hidden">
-                        {profileData.avatarUrl ? (
+                      <div className={`h-16 w-16 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-purple-50 dark:ring-purple-950/50 overflow-hidden`}>
+                        {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') ? (
                           <img
                             src={profileData.avatarUrl}
                             alt={profileData.name}
@@ -698,7 +699,7 @@ export function SettingsClient({
                         <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                           {profileData.displayName || profileData.name || 'Danesh'}
                         </h3>
-                        {profileData.avatarUrl && (
+                        {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') && (
                           <button
                             type="button"
                             onClick={handleRemovePhoto}
@@ -886,7 +887,7 @@ export function SettingsClient({
                             <Camera className="h-4 w-4 text-[#5c34ad]" />
                             <span>Profile Photo (Choose from Device)</span>
                           </div>
-                          {profileData.avatarUrl && (
+                          {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') && (
                             <button
                               type="button"
                               onClick={handleRemovePhoto}
@@ -925,13 +926,13 @@ export function SettingsClient({
                                 type="button"
                                 onClick={() => {
                                   setSelectedAvatarPreset(preset.id);
-                                  setProfileData({ ...profileData, avatarUrl: '' });
+                                  setProfileData({ ...profileData, avatarUrl: `preset:${preset.id}` });
                                 }}
                                 className={`h-6 w-6 rounded-full ${preset.bg} ring-2 ${
-                                  selectedAvatarPreset === preset.id && !profileData.avatarUrl
+                                  selectedAvatarPreset === preset.id && (!profileData.avatarUrl || profileData.avatarUrl.startsWith('preset:'))
                                     ? 'ring-[#5c34ad] ring-offset-2'
                                     : 'ring-transparent'
-                                } transition-all`}
+                                } transition-all cursor-pointer`}
                               />
                             ))}
                           </div>
@@ -1296,7 +1297,7 @@ export function SettingsClient({
                   Change Password
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-                  Ensure your account uses a strong password of at least 8 characters.
+                  Ensure your account uses a strong password of at least 10 characters (including uppercase, lowercase, and a number).
                 </p>
 
                 <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md text-xs">
@@ -1785,20 +1786,48 @@ export function SettingsClient({
                             </div>
                           )}
 
-                          {/* Role Badge */}
-                          <span
-                            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                              m.role === 'OWNER'
-                                ? 'bg-purple-100 dark:bg-purple-950/60 text-[#5c34ad] dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                                : m.role === 'ADMIN'
-                                  ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                                  : m.role === 'STAFF'
-                                    ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                    : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                            }`}
-                          >
-                            {m.role}
-                          </span>
+                          {/* Role Badge or Assignment Dropdown for Owner */}
+                          {role === 'OWNER' && !m.isCurrentUser ? (
+                            <select
+                              value={m.role}
+                              disabled={updatingRoleUserId === m.id}
+                              onChange={async (e) => {
+                                const newRole = e.target.value as 'OWNER' | 'ADMIN' | 'STAFF' | 'RECEPTIONIST';
+                                setUpdatingRoleUserId(m.id);
+                                const res = await updateMemberRoleAction(workspace.id, m.id, newRole);
+                                setUpdatingRoleUserId(null);
+                                if (res.success) {
+                                  setSuccessMessage(`Updated ${m.name}'s role to ${newRole}`);
+                                  setMembersList((prev) =>
+                                    prev.map((u) => (u.id === m.id ? { ...u, role: newRole } : u))
+                                  );
+                                  router.refresh();
+                                } else {
+                                  setErrorMessage(res.error || 'Failed to update member role');
+                                }
+                              }}
+                              className="text-[11px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#5c34ad] cursor-pointer shadow-xs"
+                            >
+                              <option value="OWNER">OWNER</option>
+                              <option value="ADMIN">ADMIN</option>
+                              <option value="STAFF">STAFF</option>
+                              <option value="RECEPTIONIST">RECEPTIONIST</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                                m.role === 'OWNER'
+                                  ? 'bg-purple-100 dark:bg-purple-950/60 text-[#5c34ad] dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                  : m.role === 'ADMIN'
+                                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                    : m.role === 'STAFF'
+                                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              }`}
+                            >
+                              {m.role}
+                            </span>
+                          )}
 
                           <a
                             href="/staff"

@@ -30,10 +30,18 @@ async function scopeServiceIds(workspaceId: string, serviceIds: string[]): Promi
   return owned.map((s) => s.id);
 }
 
+import { isValidPhoneNumber } from '@/lib/validation';
+
 const staffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().optional().nullable(),
+  phone: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || !val.trim() || isValidPhoneNumber(val.trim()), {
+      message: 'Please enter a valid phone number with at least 10 digits',
+    }),
   avatarUrl: z.string().optional().nullable(),
   timezone: z.string().default('UTC'),
   isActive: z.boolean().default(true),
