@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function WorkflowsPage() {
   const { workspace } = await requireWorkspace();
 
-  const [workflows, recentDeliveries] = await Promise.all([
+  const [workflows, recentDeliveries, services] = await Promise.all([
     prisma.workflow.findMany({
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: 'asc' },
@@ -26,6 +26,11 @@ export default async function WorkflowsPage() {
         error: true,
         createdAt: true,
       },
+    }),
+    prisma.service.findMany({
+      where: { workspaceId: workspace.id },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
@@ -48,6 +53,7 @@ export default async function WorkflowsPage() {
     <WorkflowsClient
       workspaceId={workspace.id}
       initialWorkflows={items}
+      availableServices={services}
       mailConfigured={isMailConfigured()}
       smsConfigured={isSmsConfigured()}
       recentDeliveries={recentDeliveries.map((d) => ({

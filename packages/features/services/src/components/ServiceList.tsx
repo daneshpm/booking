@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button, Input, Select, Modal } from '@bookings/ui';
 import { Plus, Search, Briefcase, Trash2 } from 'lucide-react';
 import { ServiceCard } from './ServiceCard';
+import { CreateServiceTypeModal } from './CreateServiceTypeModal';
 import { deleteServiceAction } from '../api/service.actions';
 import type { ServiceOutputDTO } from '../application/create-service/CreateServiceDTO';
 
@@ -18,6 +19,7 @@ export function ServiceList({ workspaceId, workspaceSlug, initialServices }: Ser
   const [services, setServices] = React.useState<ServiceOutputDTO[]>(initialServices);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'DRAFT'>('ALL');
+  const [isCreateTypeModalOpen, setIsCreateTypeModalOpen] = React.useState(false);
 
   // Deletion modal state
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -59,12 +61,14 @@ export function ServiceList({ workspaceId, workspaceSlug, initialServices }: Ser
           </p>
         </div>
 
-        <Link href="/services/new">
-          <Button variant="primary" className="gap-2 shadow-lg shadow-blue-500/20">
-            <Plus className="h-4 w-4" />
-            Create Service
-          </Button>
-        </Link>
+        <Button
+          variant="primary"
+          onClick={() => setIsCreateTypeModalOpen(true)}
+          className="gap-2 shadow-lg shadow-purple-500/20 bg-[#5c34ad] hover:bg-[#4d2994]"
+        >
+          <Plus className="h-4 w-4" />
+          Create Service
+        </Button>
       </div>
 
       {/* Filters and Search */}
@@ -106,12 +110,14 @@ export function ServiceList({ workspaceId, workspaceSlug, initialServices }: Ser
               ? 'Try adjusting your search query or clear the filter to see all services.'
               : 'Create your first appointment service to allow clients to view your availability and book appointments.'}
           </p>
-          <Link href="/services/new">
-            <Button variant="primary" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Your First Service
-            </Button>
-          </Link>
+          <Button
+            variant="primary"
+            onClick={() => setIsCreateTypeModalOpen(true)}
+            className="gap-2 bg-[#5c34ad] hover:bg-[#4d2994]"
+          >
+            <Plus className="h-4 w-4" />
+            Create Your First Service
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -125,6 +131,12 @@ export function ServiceList({ workspaceId, workspaceSlug, initialServices }: Ser
           ))}
         </div>
       )}
+
+      {/* Create Service Type Selection Modal */}
+      <CreateServiceTypeModal
+        isOpen={isCreateTypeModalOpen}
+        onClose={() => setIsCreateTypeModalOpen(false)}
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

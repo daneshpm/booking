@@ -26,3 +26,4 @@ export * from './api/service.actions';
 export * from './components/ServiceForm';
 export * from './components/ServiceCard';
 export * from './components/ServiceList';
+export * from './components/CreateServiceTypeModal';
