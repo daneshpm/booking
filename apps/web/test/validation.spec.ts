@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isValidPhoneNumber, isValidName, isFutureDateTime } from '../lib/validation';
+import {
+  isValidPhoneNumber,
+  isValidNumericPhone,
+  isValidName,
+  isFutureDateTime,
+} from '../lib/validation';
 import { getAvatarBgClass, AVATAR_PRESETS } from '../lib/avatar';
 
 describe('validation utilities', () => {
@@ -18,6 +23,26 @@ describe('validation utilities', () => {
 
     it('rejects numbers exceeding 15 digits', () => {
       expect(isValidPhoneNumber('1234567890123456')).toBe(false);
+    });
+  });
+
+  describe('isValidNumericPhone', () => {
+    it('accepts valid numeric phone numbers with or without +', () => {
+      expect(isValidNumericPhone('9876543210')).toBe(true);
+      expect(isValidNumericPhone('+919876543210')).toBe(true);
+      expect(isValidNumericPhone('+15552345678')).toBe(true);
+      expect(isValidNumericPhone('')).toBe(true); // Optional
+    });
+
+    it('rejects non-numeric characters and alphabets', () => {
+      expect(isValidNumericPhone('98765abc10')).toBe(false);
+      expect(isValidNumericPhone('phone12345')).toBe(false);
+      expect(isValidNumericPhone('98765-43210')).toBe(false);
+    });
+
+    it('rejects numbers shorter than 10 digits or longer than 15 digits', () => {
+      expect(isValidNumericPhone('12345')).toBe(false);
+      expect(isValidNumericPhone('1234567890123456')).toBe(false);
     });
   });
 
