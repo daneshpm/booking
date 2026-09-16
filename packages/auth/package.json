@@ -19,11 +19,11 @@
     "zod": "^4.5.4"
   },
   "peerDependencies": {
-    "next": "^16.3.4"
+    "next": "^16.3.5"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
-    "next": "^16.3.4",
+    "next": "^16.3.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }
