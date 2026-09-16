@@ -18,6 +18,16 @@ export function isValidPhoneNumber(phone: string): boolean {
 }
 
 /**
+ * Validates that an optional or required profile phone number consists strictly
+ * of numbers (10 to 15 digits, with optional leading +).
+ */
+export function isValidNumericPhone(phone: string): boolean {
+  if (!phone || !phone.trim()) return true;
+  const cleaned = phone.trim().replace(/\s+/g, '');
+  return /^\+?[0-9]{10,15}$/.test(cleaned);
+}
+
+/**
  * Validates that a person/customer name is not empty, has at least 2 characters,
  * and contains alphabetic characters (rejecting numeric-only strings like "87634").
  */

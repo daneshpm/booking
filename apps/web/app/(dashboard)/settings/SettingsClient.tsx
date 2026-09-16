@@ -307,9 +307,19 @@ export function SettingsClient({
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+
+    // Validate phone number: only numeric digits (10 to 15 digits, optional + prefix)
+    if (profileData.phone && profileData.phone.trim()) {
+      const cleanPhone = profileData.phone.trim().replace(/\s+/g, '');
+      if (!/^\+?[0-9]{10,15}$/.test(cleanPhone)) {
+        setErrorMessage('Phone number must contain only numeric digits (10 to 15 digits).');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
 
     const res = await updateUserProfileAction(profileData);
     setIsSubmitting(false);
@@ -839,7 +849,7 @@ export function SettingsClient({
                         {profileData.bio && (
                           <div className="sm:col-span-2 pt-4 border-t border-slate-100 dark:border-slate-800">
                             <div className="text-slate-500 dark:text-slate-400 font-medium text-[11px] mb-1">
-                              Bio / About Me
+                              About Me
                             </div>
                             <div className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
                               {profileData.bio}
@@ -983,17 +993,23 @@ export function SettingsClient({
 
                         <div>
                           <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                            Phone Number (WhatsApp)
+                            Phone Number (Numeric Only)
                           </label>
                           <input
                             type="tel"
                             value={profileData.phone || ''}
                             onChange={(e) =>
-                              setProfileData({ ...profileData, phone: e.target.value })
+                              setProfileData({
+                                ...profileData,
+                                phone: e.target.value.replace(/[^\d+]/g, ''),
+                              })
                             }
-                            placeholder="+91 98765 43210"
+                            placeholder="+919876543210 or 9876543210"
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none"
                           />
+                          <span className="text-[10px] text-slate-400 mt-0.5 block">
+                            Only numbers allowed (10-15 digits)
+                          </span>
                         </div>
 
                         <div>
@@ -1087,7 +1103,7 @@ export function SettingsClient({
                         <div className="sm:col-span-2">
                           <div className="flex justify-between items-center mb-1">
                             <label className="font-semibold text-slate-700 dark:text-slate-300">
-                              Instagram-Style Bio (About Me)
+                              About Me
                             </label>
                             <span className="text-[10px] text-slate-400">
                               {(profileData.bio || '').length}/300
@@ -1100,7 +1116,7 @@ export function SettingsClient({
                             onChange={(e) =>
                               setProfileData({ ...profileData, bio: e.target.value })
                             }
-                            placeholder="e.g. Helping professionals master technical skilling | 1-on-1 career guidance"
+                            placeholder="e.g. Senior Career Advisor specializing in IT skilling, career mentorship, and technical upskilling."
                             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#5c34ad] focus:outline-none resize-none"
                           />
                         </div>

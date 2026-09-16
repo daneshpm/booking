@@ -72,7 +72,14 @@ export async function updateWorkspaceSettingsAction(
 const profileSchema = z.object({
   name: z.string().trim().min(1, 'Full name is required'),
   displayName: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (val) => !val || /^\+?[0-9]{10,15}$/.test(val.replace(/\s+/g, '')),
+      'Phone number must contain only numeric digits (10 to 15 digits).'
+    ),
   gender: z.string().trim().optional(),
   country: z.string().trim().optional(),
   state: z.string().trim().optional(),
