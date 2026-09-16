@@ -27,6 +27,8 @@ const TRIGGERS = [
 const workflowSchema = z.object({
   name: z.string().trim().min(2, 'Give the workflow a name of at least 2 characters.').max(120),
   description: z.string().trim().max(500).optional().nullable(),
+  /** Restricts the workflow to one service's bookings. Empty/null applies it workspace-wide. */
+  serviceId: z.string().trim().optional().nullable(),
   trigger: z.enum(TRIGGERS),
   channel: z.enum(['EMAIL', 'SMS', 'WEBHOOK']),
   recipient: z.enum(['CUSTOMER', 'STAFF', 'BOTH']),
@@ -62,6 +64,27 @@ function crossFieldError(data: z.infer<typeof workflowSchema>): string | null {
   return null;
 }
 
+/**
+ * Resolves a workflow's service scope, or null for every service in the
+ * workspace. Re-checked against the workspace rather than trusted as-is: a
+ * service id from another tenant must not silently attach here.
+ */
+async function resolveServiceId(
+  workspaceId: string,
+  serviceId: string | null | undefined
+): Promise<{ ok: true; serviceId: string | null } | { ok: false; error: string }> {
+  if (!serviceId) return { ok: true, serviceId: null };
+
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, workspaceId },
+    select: { id: true },
+  });
+  if (!service) {
+    return { ok: false, error: 'Selected service was not found in this workspace.' };
+  }
+  return { ok: true, serviceId: service.id };
+}
+
 export async function createWorkflowAction(
   workspaceId: string,
   input: WorkflowInput
@@ -81,9 +104,13 @@ export async function createWorkflowAction(
       return { success: false, error: 'A workflow with this name already exists.' };
     }
 
+    const scope = await resolveServiceId(workspaceId, data.serviceId);
+    if (!scope.ok) return { success: false, error: scope.error };
+
     const workflow = await prisma.workflow.create({
       data: {
         workspaceId,
+        serviceId: scope.serviceId,
         name: data.name,
         description: data.description || null,
         trigger: data.trigger as WorkflowTrigger,
@@ -129,9 +156,13 @@ export async function updateWorkflowAction(
       return { success: false, error: 'Workflow not found.' };
     }
 
+    const scope = await resolveServiceId(workspaceId, data.serviceId);
+    if (!scope.ok) return { success: false, error: scope.error };
+
     await prisma.workflow.update({
       where: { id: workflowId },
       data: {
+        serviceId: scope.serviceId,
         name: data.name,
         description: data.description || null,
         trigger: data.trigger as WorkflowTrigger,

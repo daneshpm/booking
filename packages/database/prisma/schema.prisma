@@ -301,6 +301,7 @@ model Service {
   staffAssignments ServiceStaff[]
   bookings         Booking[]
   waitlistEntries  WaitlistEntry[]
+  workflows        Workflow[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, isActive])
@@ -451,6 +452,10 @@ model CalendarConnection {
 model Workflow {
   id            String            @id @default(uuid())
   workspaceId   String            @map("workspace_id")
+  /// Restricts the workflow to one service's bookings. Null applies it to
+  /// every service in the workspace, which is also what a deleted service
+  /// falls back to rather than taking the whole workflow down with it.
+  serviceId     String?           @map("service_id")
   name          String
   description   String?
   trigger       WorkflowTrigger
@@ -468,10 +473,12 @@ model Workflow {
   updatedAt     DateTime          @updatedAt
 
   workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  service       Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   notifications NotificationLog[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, isActive])
+  @@index([serviceId])
   @@map("workflows")
 }
 

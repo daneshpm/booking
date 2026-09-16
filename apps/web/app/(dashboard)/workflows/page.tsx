@@ -38,6 +38,7 @@ export default async function WorkflowsPage() {
     id: w.id,
     name: w.name,
     description: w.description,
+    serviceId: w.serviceId,
     trigger: w.trigger,
     channel: w.channel,
     recipient: w.recipient,

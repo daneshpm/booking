@@ -14,7 +14,7 @@ import {
 } from '@bookings/core';
 import { isOverlapConstraintViolation } from '@/lib/booking-errors';
 import { generateMeetingLink } from '@/lib/meeting-link';
-import { dispatchBookingNotifications } from '@/lib/notifications';
+import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
 import {
   checkRateLimit,
   PUBLIC_BOOKING_LIMIT,
@@ -1119,6 +1119,13 @@ export async function rescheduleBookingByManageTokenAction(
         },
       },
     });
+
+    // Reminders already recorded refer to the old slot. The delivery claim has
+    // no time component, so leaving them would block any reminder for the new
+    // time from ever being sent.
+    await clearScheduledNotifications(updated.id).catch((e) =>
+      console.error('Could not clear reminders for the previous slot:', e)
+    );
 
     // Notify of reschedule
     await dispatchBookingNotifications(updated.id, 'BOOKING_RESCHEDULED').catch((e) =>

@@ -290,7 +290,13 @@ export async function dispatchBookingNotifications(
   if (!booking) return { attempted: 0, delivered: 0, skipped: 0 };
 
   const workflows = await prisma.workflow.findMany({
-    where: { workspaceId: booking.workspaceId, trigger, isActive: true },
+    where: {
+      workspaceId: booking.workspaceId,
+      trigger,
+      isActive: true,
+      // null scopes a workflow to every service in the workspace.
+      OR: [{ serviceId: null }, { serviceId: booking.serviceId }],
+    },
   });
 
   const context = buildTemplateContext(booking);

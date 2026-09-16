@@ -32,6 +32,7 @@ export interface WorkflowItem {
   id: string;
   name: string;
   description: string | null;
+  serviceId: string | null;
   trigger: string;
   channel: string;
   recipient: string;
@@ -162,6 +163,7 @@ const WORKFLOW_PRESETS = [
 const EMPTY_FORM: WorkflowInput = {
   name: '',
   description: '',
+  serviceId: '',
   trigger: 'BOOKING_CREATED',
   channel: 'EMAIL',
   recipient: 'CUSTOMER',
@@ -213,6 +215,7 @@ export function WorkflowsClient({
     setForm({
       name: preset.name,
       description: preset.description,
+      serviceId: '',
       trigger: preset.trigger,
       channel: preset.channel,
       recipient: preset.recipient,
@@ -229,6 +232,7 @@ export function WorkflowsClient({
     setForm({
       name: workflow.name,
       description: workflow.description ?? '',
+      serviceId: workflow.serviceId ?? '',
       trigger: workflow.trigger as WorkflowInput['trigger'],
       channel: workflow.channel as WorkflowInput['channel'],
       recipient: workflow.recipient as WorkflowInput['recipient'],
@@ -299,11 +303,14 @@ export function WorkflowsClient({
 
   const isTimeBased = form.trigger === 'BEFORE_APPOINTMENT' || form.trigger === 'AFTER_APPOINTMENT';
 
+  const serviceNameById = new Map(availableServices.map((s) => [s.id, s.name]));
+
   const filteredWorkflows = workflows.filter((w) => {
     const matchesSearch =
       w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (w.description && w.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesSearch;
+    const matchesEventType = selectedEventType === 'ALL' || w.serviceId === selectedEventType;
+    return matchesSearch && matchesEventType;
   });
 
   return (
@@ -336,6 +343,25 @@ export function WorkflowsClient({
               className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200/90 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#5c34ad]/20 focus:border-[#5c34ad]"
             />
           </div>
+
+          {/* Event Type Filter */}
+          {availableServices.length > 0 && (
+            <div className="relative shrink-0">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              <select
+                value={selectedEventType}
+                onChange={(e) => setSelectedEventType(e.target.value)}
+                className="pl-9 pr-8 py-2 text-xs border border-slate-200/90 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#5c34ad]/20 focus:border-[#5c34ad] appearance-none cursor-pointer"
+              >
+                <option value="ALL">All Event Types</option>
+                {availableServices.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <button
             type="button"
@@ -450,7 +476,9 @@ export function WorkflowsClient({
                       <td className="py-4 px-4 text-slate-600">
                         <span className="inline-flex items-center gap-1.5 font-medium text-[11px] px-2.5 py-1 rounded-lg bg-slate-100/80 text-slate-700">
                           <Layers className="h-3 w-3 text-slate-400" />
-                          All Event Types
+                          {workflow.serviceId
+                            ? (serviceNameById.get(workflow.serviceId) ?? 'Deleted service')
+                            : 'All Event Types'}
                         </span>
                       </td>
 
@@ -654,6 +682,10 @@ export function WorkflowsClient({
                 </label>
                 <select
                   id="wf-events"
+                  value={form.serviceId || 'ALL'}
+                  onChange={(e) =>
+                    setForm({ ...form, serviceId: e.target.value === 'ALL' ? '' : e.target.value })
+                  }
                   className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#5c34ad]"
                 >
                   <option value="ALL">All Event Types (Universal)</option>
@@ -676,9 +708,22 @@ export function WorkflowsClient({
                   <select
                     id="wf-trigger"
                     value={form.trigger}
-                    onChange={(e) =>
-                      setForm({ ...form, trigger: e.target.value as WorkflowInput['trigger'] })
-                    }
+                    onChange={(e) => {
+                      const trigger = e.target.value as WorkflowInput['trigger'];
+                      // The offset input only re-signs itself when its own value
+                      // changes, so switching direction here without touching the
+                      // number would otherwise leave a before-trigger with a
+                      // positive offset (or vice versa) and fail validation with
+                      // no visible reason.
+                      const magnitude = Math.abs(form.offsetMinutes ?? 0);
+                      const offsetMinutes =
+                        trigger === 'BEFORE_APPOINTMENT'
+                          ? -magnitude
+                          : trigger === 'AFTER_APPOINTMENT'
+                            ? magnitude
+                            : form.offsetMinutes;
+                      setForm({ ...form, trigger, offsetMinutes });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-[#5c34ad]"
                   >
                     {Object.entries(TRIGGER_LABELS).map(([value, label]) => (

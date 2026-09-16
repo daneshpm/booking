@@ -104,6 +104,8 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
     const bookings = await prisma.booking.findMany({
       where: {
         workspaceId: workflow.workspaceId,
+        // Unset scopes the workflow to every service in the workspace.
+        ...(workflow.serviceId ? { serviceId: workflow.serviceId } : {}),
         // A cancelled appointment needs no reminder, and a no-show needs no
         // follow-up.
         status: { in: ['CONFIRMED', 'PENDING', 'RESCHEDULED', 'COMPLETED'] },
@@ -161,7 +163,7 @@ export async function countExpiredReminders(options: SweepOptions = {}): Promise
       trigger: { in: ['BEFORE_APPOINTMENT', 'AFTER_APPOINTMENT'] },
       offsetMinutes: { not: 0 },
     },
-    select: { id: true, workspaceId: true, offsetMinutes: true },
+    select: { id: true, workspaceId: true, offsetMinutes: true, serviceId: true },
   });
 
   let expired = 0;
@@ -177,6 +179,7 @@ export async function countExpiredReminders(options: SweepOptions = {}): Promise
     const candidates = await prisma.booking.findMany({
       where: {
         workspaceId: workflow.workspaceId,
+        ...(workflow.serviceId ? { serviceId: workflow.serviceId } : {}),
         status: { in: ['CONFIRMED', 'PENDING', 'RESCHEDULED', 'COMPLETED'] },
         startTime: { gt: floor, lte: cutoff },
       },
