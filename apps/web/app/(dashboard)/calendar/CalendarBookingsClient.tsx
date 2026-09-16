@@ -298,7 +298,9 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
       {reschedulingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-2xl text-slate-800 dark:text-slate-100">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Reschedule Appointment</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+              Reschedule Appointment
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
               {reschedulingBooking.service.name} with {reschedulingBooking.customer.name}
             </p>
@@ -311,7 +313,9 @@ export function CalendarBookingsClient({ initialBookings }: CalendarBookingsClie
 
             <form onSubmit={handleRescheduleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Date</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  New Date
+                </label>
                 <input
                   type="date"
                   required

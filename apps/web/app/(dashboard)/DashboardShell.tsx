@@ -446,73 +446,77 @@ export function DashboardShell({
                               className="h-8 w-8 rounded-full object-cover shrink-0 border border-slate-200"
                             />
                           ) : (
-                            <div className={`h-8 w-8 rounded-full ${avatarBg} text-white font-bold text-xs flex items-center justify-center shrink-0`}>
+                            <div
+                              className={`h-8 w-8 rounded-full ${avatarBg} text-white font-bold text-xs flex items-center justify-center shrink-0`}
+                            >
                               {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                             </div>
                           )}
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold block text-slate-800 truncate">{user.name}</span>
-                      <span className="text-[11px] text-slate-400 block truncate">
-                        {user.email}
-                      </span>
-                    </div>
-                  </div>
-                  <Link
-                    href="/settings"
-                    onClick={() => setShowProfileMenu(false)}
-                    className="block px-4 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
-                  >
-                    My Profile & Account
-                  </Link>
-                  <Link
-                    href={`/book/${activeWorkspace.slug}`}
-                    target="_blank"
-                    onClick={() => setShowProfileMenu(false)}
-                    className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
-                  >
-                    Preview Client Booker
-                  </Link>
-                  <Link
-                    href="/settings"
-                    onClick={() => setShowProfileMenu(false)}
-                    className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
-                  >
-                    Workspace Settings
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      setIsSetupOpen(true);
-                    }}
-                    className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 flex items-center justify-between cursor-pointer"
-                  >
-                    <span>Onboarding Checklist</span>
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        doneCount === 4
-                          ? 'text-emerald-700 bg-emerald-50'
-                          : 'text-purple-700 bg-purple-50'
-                      }`}
-                    >
-                      {doneCount}/4
-                    </span>
-                  </button>
-                  <form action={logoutAction} className="border-t border-slate-100 mt-1 pt-1">
-                    <button
-                      type="submit"
-                      className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600 font-semibold inline-flex items-center gap-2 cursor-pointer"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      Sign out
-                    </button>
-                  </form>
-                </div>
-              )}
-            </>
-          );
-        })()}
-      </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold block text-slate-800 truncate">
+                              {user.name}
+                            </span>
+                            <span className="text-[11px] text-slate-400 block truncate">
+                              {user.email}
+                            </span>
+                          </div>
+                        </div>
+                        <Link
+                          href="/settings"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="block px-4 py-2 hover:bg-slate-50 text-slate-700 font-semibold"
+                        >
+                          My Profile & Account
+                        </Link>
+                        <Link
+                          href={`/book/${activeWorkspace.slug}`}
+                          target="_blank"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Preview Client Booker
+                        </Link>
+                        <Link
+                          href="/settings"
+                          onClick={() => setShowProfileMenu(false)}
+                          className="block px-4 py-2 hover:bg-slate-50 text-slate-700"
+                        >
+                          Workspace Settings
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setIsSetupOpen(true);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Onboarding Checklist</span>
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              doneCount === 4
+                                ? 'text-emerald-700 bg-emerald-50'
+                                : 'text-purple-700 bg-purple-50'
+                            }`}
+                          >
+                            {doneCount}/4
+                          </span>
+                        </button>
+                        <form action={logoutAction} className="border-t border-slate-100 mt-1 pt-1">
+                          <button
+                            type="submit"
+                            className="w-full text-left px-4 py-2 hover:bg-slate-50 text-rose-600 font-semibold inline-flex items-center gap-2 cursor-pointer"
+                          >
+                            <LogOut className="h-3.5 w-3.5" />
+                            Sign out
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </header>
 

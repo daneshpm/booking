@@ -950,58 +950,58 @@ export function AppointmentsClient({
                           key={dayStr + slot}
                           className="p-1 relative group hover:bg-purple-50/20 transition-colors min-h-[56px]"
                         >
-                          {slotBookings.length > 0 ? (
-                            slotBookings.map((b) => (
-                              <div
-                                key={b.id}
-                                className="bg-[#f8f5ff] border border-purple-200 rounded-lg p-1.5 shadow-2xs space-y-0.5 text-left"
-                              >
-                                <div className="text-[10px] font-bold text-[#5c34ad] truncate">
-                                  {b.customer.name}
+                          {slotBookings.length > 0
+                            ? slotBookings.map((b) => (
+                                <div
+                                  key={b.id}
+                                  className="bg-[#f8f5ff] border border-purple-200 rounded-lg p-1.5 shadow-2xs space-y-0.5 text-left"
+                                >
+                                  <div className="text-[10px] font-bold text-[#5c34ad] truncate">
+                                    {b.customer.name}
+                                  </div>
+                                  <div className="text-[9px] text-slate-500 truncate">
+                                    {b.service.name}
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[9px] text-slate-400">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                    <span>{slot}</span>
+                                  </div>
                                 </div>
-                                <div className="text-[9px] text-slate-500 truncate">
-                                  {b.service.name}
-                                </div>
-                                <div className="flex items-center gap-1 text-[9px] text-slate-400">
-                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                  <span>{slot}</span>
-                                </div>
-                              </div>
-                            ))
-                          ) : (() => {
-                            const isPastSlot = (() => {
-                              if (dayStr < currentDateStr) return true;
-                              if (dayStr === currentDateStr) {
-                                const [h, m] = slot.split(':').map(Number);
-                                const slotD = new Date();
-                                slotD.setHours(h, m, 0, 0);
-                                return slotD.getTime() < Date.now();
-                              }
-                              return false;
-                            })();
+                              ))
+                            : (() => {
+                                const isPastSlot = (() => {
+                                  if (dayStr < currentDateStr) return true;
+                                  if (dayStr === currentDateStr) {
+                                    const [h, m] = slot.split(':').map(Number);
+                                    const slotD = new Date();
+                                    slotD.setHours(h, m, 0, 0);
+                                    return slotD.getTime() < Date.now();
+                                  }
+                                  return false;
+                                })();
 
-                            if (isPastSlot) {
-                              return (
-                                <div className="w-full h-full bg-slate-50/50 rounded-md flex items-center justify-center text-[10px] text-slate-300 select-none cursor-not-allowed">
-                                  —
-                                </div>
-                              );
-                            }
+                                if (isPastSlot) {
+                                  return (
+                                    <div className="w-full h-full bg-slate-50/50 rounded-md flex items-center justify-center text-[10px] text-slate-300 select-none cursor-not-allowed">
+                                      —
+                                    </div>
+                                  );
+                                }
 
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setDate(dayStr);
-                                  setTime(slot);
-                                  setIsModalOpen(true);
-                                }}
-                                className="w-full h-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-[#5c34ad] bg-purple-50/80 rounded-md border border-dashed border-purple-300 transition-all cursor-pointer"
-                              >
-                                + Book
-                              </button>
-                            );
-                          })()}
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDate(dayStr);
+                                      setTime(slot);
+                                      setIsModalOpen(true);
+                                    }}
+                                    className="w-full h-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] font-bold text-[#5c34ad] bg-purple-50/80 rounded-md border border-dashed border-purple-300 transition-all cursor-pointer"
+                                  >
+                                    + Book
+                                  </button>
+                                );
+                              })()}
                         </div>
                       );
                     })}
@@ -1554,8 +1554,12 @@ export function AppointmentsClient({
                   <HelpCircle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Appointments Management Guide</h3>
-                  <p className="text-[11px] text-slate-500">How to manage schedules, filters, and fast actions</p>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Appointments Management Guide
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    How to manage schedules, filters, and fast actions
+                  </p>
                 </div>
               </div>
               <button
@@ -1574,10 +1578,15 @@ export function AppointmentsClient({
                   Status Breakdown
                 </span>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  <strong className="text-emerald-700">CONFIRMED:</strong> Active upcoming booking.<br />
-                  <strong className="text-amber-700">RESCHEDULED:</strong> Appointment moved to a new time. Complete, cancel, and join actions remain fully available.<br />
-                  <strong className="text-blue-700">COMPLETED:</strong> Client was served.<br />
-                  <strong className="text-rose-700">CANCELLED:</strong> Booking was cancelled; slot is freed immediately.
+                  <strong className="text-emerald-700">CONFIRMED:</strong> Active upcoming booking.
+                  <br />
+                  <strong className="text-amber-700">RESCHEDULED:</strong> Appointment moved to a
+                  new time. Complete, cancel, and join actions remain fully available.
+                  <br />
+                  <strong className="text-blue-700">COMPLETED:</strong> Client was served.
+                  <br />
+                  <strong className="text-rose-700">CANCELLED:</strong> Booking was cancelled; slot
+                  is freed immediately.
                 </p>
               </div>
 
@@ -1587,7 +1596,12 @@ export function AppointmentsClient({
                   10-Second Fast Pass (Alt+W)
                 </span>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Press <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded font-mono text-[10px]">Alt+W</kbd> from any page to quickly book walk-in clients or phone calls with zero overlap protection.
+                  Press{' '}
+                  <kbd className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded font-mono text-[10px]">
+                    Alt+W
+                  </kbd>{' '}
+                  from any page to quickly book walk-in clients or phone calls with zero overlap
+                  protection.
                 </p>
               </div>
 
@@ -1597,7 +1611,8 @@ export function AppointmentsClient({
                   View Switching & Filters
                 </span>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Switch between <strong>List</strong> and <strong>Calendar</strong> views using the top-right toggle. Filter by Today, Upcoming, Past, or pick any Custom Date.
+                  Switch between <strong>List</strong> and <strong>Calendar</strong> views using the
+                  top-right toggle. Filter by Today, Upcoming, Past, or pick any Custom Date.
                 </p>
               </div>
             </div>

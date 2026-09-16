@@ -687,7 +687,9 @@ export function WorkflowsClient({
             </div>
 
             <p className="text-xs text-slate-600">
-              Are you sure you want to delete <strong className="text-slate-900">&ldquo;{workflowToDelete.name}&rdquo;</strong>? Automated triggers for this workflow will stop immediately.
+              Are you sure you want to delete{' '}
+              <strong className="text-slate-900">&ldquo;{workflowToDelete.name}&rdquo;</strong>?
+              Automated triggers for this workflow will stop immediately.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">

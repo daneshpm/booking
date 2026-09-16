@@ -943,7 +943,11 @@ export function StaffManagementClient({
                   setFormData({ ...formData, phone: e.target.value });
                   if (formError && formError.toLowerCase().includes('phone')) setFormError(null);
                 }}
-                className={formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) ? 'text-xs border-rose-400 focus:border-rose-500' : 'text-xs'}
+                className={
+                  formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())
+                    ? 'text-xs border-rose-400 focus:border-rose-500'
+                    : 'text-xs'
+                }
               />
               {formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) && (
                 <p className="text-[11px] text-rose-500 mt-1 font-medium">
@@ -1141,7 +1145,11 @@ export function StaffManagementClient({
                   setFormData({ ...formData, phone: e.target.value });
                   if (formError && formError.toLowerCase().includes('phone')) setFormError(null);
                 }}
-                className={formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) ? 'text-xs border-rose-400 focus:border-rose-500' : 'text-xs'}
+                className={
+                  formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim())
+                    ? 'text-xs border-rose-400 focus:border-rose-500'
+                    : 'text-xs'
+                }
               />
               {formData.phone?.trim() && !isValidPhoneNumber(formData.phone.trim()) && (
                 <p className="text-[11px] text-rose-500 mt-1 font-medium">

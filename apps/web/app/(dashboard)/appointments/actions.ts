@@ -71,10 +71,16 @@ export async function createDashboardAppointmentAction(
       return { success: false, error: 'Please fill in all required fields.' };
     }
     if (!isValidName(customerName)) {
-      return { success: false, error: 'Customer name must contain letters and cannot be numeric only.' };
+      return {
+        success: false,
+        error: 'Customer name must contain letters and cannot be numeric only.',
+      };
     }
     if (data.customerPhone?.trim() && !isValidPhoneNumber(data.customerPhone.trim())) {
-      return { success: false, error: 'Please enter a valid phone number with at least 10 digits.' };
+      return {
+        success: false,
+        error: 'Please enter a valid phone number with at least 10 digits.',
+      };
     }
     if (!DATE_PATTERN.test(date) || !TIME_PATTERN.test(time)) {
       return { success: false, error: 'Please provide a valid date and time.' };
@@ -372,13 +378,19 @@ export async function createFastPassBookingAction(
       return { success: false, error: 'Please enter a customer phone number or email.' };
     }
     if (cleanPhone && !isValidPhoneNumber(cleanPhone)) {
-      return { success: false, error: 'Please enter a valid phone number with at least 10 digits.' };
+      return {
+        success: false,
+        error: 'Please enter a valid phone number with at least 10 digits.',
+      };
     }
     if (!cleanName) {
       return { success: false, error: 'Please enter customer name.' };
     }
     if (!isValidName(cleanName)) {
-      return { success: false, error: 'Customer name must contain letters and cannot be numeric only.' };
+      return {
+        success: false,
+        error: 'Customer name must contain letters and cannot be numeric only.',
+      };
     }
 
     await requireWorkspace(workspaceId, 'STAFF');

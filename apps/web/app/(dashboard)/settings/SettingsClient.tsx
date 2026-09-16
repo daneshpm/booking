@@ -424,7 +424,9 @@ export function SettingsClient({
             Preview Booker
           </a>
 
-          <div className={`h-8 w-8 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-purple-100 dark:ring-purple-950 overflow-hidden`}>
+          <div
+            className={`h-8 w-8 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-xs flex items-center justify-center shadow-sm ring-2 ring-purple-100 dark:ring-purple-950 overflow-hidden`}
+          >
             {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') ? (
               <img src={profileData.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -672,7 +674,9 @@ export function SettingsClient({
                   <div className="flex items-center gap-5">
                     {/* Big Circular Avatar with Local Image Upload Support */}
                     <div className="relative group">
-                      <div className={`h-16 w-16 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-purple-50 dark:ring-purple-950/50 overflow-hidden`}>
+                      <div
+                        className={`h-16 w-16 rounded-full ${getAvatarBgClass(profileData.avatarUrl || 'preset:' + selectedAvatarPreset)} text-white font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-purple-50 dark:ring-purple-950/50 overflow-hidden`}
+                      >
                         {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') ? (
                           <img
                             src={profileData.avatarUrl}
@@ -887,16 +891,17 @@ export function SettingsClient({
                             <Camera className="h-4 w-4 text-[#5c34ad]" />
                             <span>Profile Photo (Choose from Device)</span>
                           </div>
-                          {profileData.avatarUrl && !profileData.avatarUrl.startsWith('preset:') && (
-                            <button
-                              type="button"
-                              onClick={handleRemovePhoto}
-                              className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Remove
-                            </button>
-                          )}
+                          {profileData.avatarUrl &&
+                            !profileData.avatarUrl.startsWith('preset:') && (
+                              <button
+                                type="button"
+                                onClick={handleRemovePhoto}
+                                className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Remove
+                              </button>
+                            )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
@@ -926,10 +931,15 @@ export function SettingsClient({
                                 type="button"
                                 onClick={() => {
                                   setSelectedAvatarPreset(preset.id);
-                                  setProfileData({ ...profileData, avatarUrl: `preset:${preset.id}` });
+                                  setProfileData({
+                                    ...profileData,
+                                    avatarUrl: `preset:${preset.id}`,
+                                  });
                                 }}
                                 className={`h-6 w-6 rounded-full ${preset.bg} ring-2 ${
-                                  selectedAvatarPreset === preset.id && (!profileData.avatarUrl || profileData.avatarUrl.startsWith('preset:'))
+                                  selectedAvatarPreset === preset.id &&
+                                  (!profileData.avatarUrl ||
+                                    profileData.avatarUrl.startsWith('preset:'))
                                     ? 'ring-[#5c34ad] ring-offset-2'
                                     : 'ring-transparent'
                                 } transition-all cursor-pointer`}
@@ -1297,7 +1307,8 @@ export function SettingsClient({
                   Change Password
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-                  Ensure your account uses a strong password of at least 10 characters (including uppercase, lowercase, and a number).
+                  Ensure your account uses a strong password of at least 10 characters (including
+                  uppercase, lowercase, and a number).
                 </p>
 
                 <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-md text-xs">
@@ -1792,9 +1803,14 @@ export function SettingsClient({
                               value={m.role}
                               disabled={updatingRoleUserId === m.id}
                               onChange={async (e) => {
-                                const newRole = e.target.value as 'OWNER' | 'ADMIN' | 'STAFF' | 'RECEPTIONIST';
+                                const newRole = e.target.value as
+                                  'OWNER' | 'ADMIN' | 'STAFF' | 'RECEPTIONIST';
                                 setUpdatingRoleUserId(m.id);
-                                const res = await updateMemberRoleAction(workspace.id, m.id, newRole);
+                                const res = await updateMemberRoleAction(
+                                  workspace.id,
+                                  m.id,
+                                  newRole
+                                );
                                 setUpdatingRoleUserId(null);
                                 if (res.success) {
                                   setSuccessMessage(`Updated ${m.name}'s role to ${newRole}`);

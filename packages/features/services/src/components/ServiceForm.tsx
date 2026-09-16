@@ -889,7 +889,9 @@ export function ServiceForm({
                             <Input
                               placeholder="e.g. Do you have any allergies or specific goals?"
                               value={q.label}
-                              onChange={(e) => updateIntakeQuestion(q.id, { label: e.target.value })}
+                              onChange={(e) =>
+                                updateIntakeQuestion(q.id, { label: e.target.value })
+                              }
                               className={qError ? 'border-rose-500 focus:ring-rose-500' : ''}
                             />
                             {qError && (
