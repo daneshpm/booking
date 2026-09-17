@@ -19,10 +19,12 @@ export const dynamic = 'force-dynamic';
 
 interface BookingPortalPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ viewAll?: string }>;
 }
 
-export default async function BookingPortalPage({ params }: BookingPortalPageProps) {
+export default async function BookingPortalPage({ params, searchParams }: BookingPortalPageProps) {
   const { slug } = await params;
+  const { viewAll } = await searchParams;
 
   // 1. A workspace slug resolves only when that workspace has a published
   //    booking page. Without this check, un-publishing a page changed nothing
@@ -37,6 +39,19 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
         where: { isActive: true },
         include: { category: true },
         orderBy: { createdAt: 'asc' },
+      },
+      // A service, staff assignment, or the routing form option pointing at
+      // it can each be deleted independently, so an option can end up with
+      // no active service behind it; those are simply left out rather than
+      // routing a customer to a page that no longer exists.
+      routingForm: {
+        include: {
+          options: {
+            where: { service: { isActive: true } },
+            include: { service: { select: { slug: true } } },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
       },
     },
   });
@@ -53,6 +68,15 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
               where: { isActive: true },
               include: { category: true },
               orderBy: { createdAt: 'asc' },
+            },
+            routingForm: {
+              include: {
+                options: {
+                  where: { service: { isActive: true } },
+                  include: { service: { select: { slug: true } } },
+                  orderBy: { sortOrder: 'asc' },
+                },
+              },
             },
           },
         },
@@ -104,12 +128,27 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
     }
   };
 
+  // Matches Tailwind's indigo-600, so an un-branded workspace renders exactly
+  // as it did before this was configurable.
+  const brandColor = workspace.brandColor || '#4f46e5';
+  const welcomeTitle = workspace.bookingWelcomeTitle || 'Schedule an Appointment';
+  const welcomeMessage =
+    workspace.bookingWelcomeMessage ||
+    'Choose an appointment type below to view open dates and instant time slots.';
+
+  const routingOptions = (workspace.routingForm?.options || []).filter((o) => o.service);
+  const showRouting =
+    Boolean(workspace.routingForm?.isEnabled) && routingOptions.length > 0 && viewAll !== '1';
+
   return (
     <div className="min-h-screen bg-[#fafbfc] text-slate-900 flex flex-col justify-between">
       {/* Header */}
       <header className="border-b border-slate-200/80 bg-white/85 backdrop-blur-md px-6 py-4 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white font-black shadow-md shadow-indigo-600/20">
+          <div
+            className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-black shadow-md"
+            style={{ backgroundColor: brandColor }}
+          >
             {workspace.name.charAt(0)}
           </div>
           <div>
@@ -128,21 +167,55 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
       <main className="max-w-5xl mx-auto px-6 py-12 w-full space-y-10">
         {/* Intro */}
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
-            <Calendar className="h-3.5 w-3.5 text-indigo-600" />
-            <span>Select an Appointment Type</span>
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-xs font-semibold"
+            style={{ color: brandColor }}
+          >
+            <Calendar className="h-3.5 w-3.5" style={{ color: brandColor }} />
+            <span>{showRouting ? 'Quick Question' : 'Select an Appointment Type'}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-            Schedule an Appointment
+            {welcomeTitle}
           </h1>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            Choose an appointment type below to view open dates and instant time slots.
-          </p>
+          <p className="text-sm text-slate-600 leading-relaxed">{welcomeMessage}</p>
         </div>
 
-        {/* Services List */}
-        {workspace.services.length === 0 ? (
+        {/* Routing Form: one question that sends the customer straight to a
+            matching service instead of the full catalogue. */}
+        {showRouting ? (
+          <div className="max-w-lg mx-auto space-y-4">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3">
+              <h2 className="text-base font-bold text-slate-900 text-center">
+                {workspace.routingForm!.question}
+              </h2>
+              <div className="space-y-2.5">
+                {routingOptions.map((option) => (
+                  <Link
+                    key={option.id}
+                    href={`/book/${workspace.slug}/${option.service!.slug}`}
+                    className="flex items-center justify-between gap-2 p-3.5 rounded-2xl border border-slate-200 hover:border-[var(--brand)] hover:shadow-md transition-all text-sm font-semibold text-slate-800 group"
+                    style={{ '--brand': brandColor } as React.CSSProperties}
+                  >
+                    {option.label}
+                    <ArrowRight
+                      className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-transform"
+                      style={{ color: brandColor }}
+                    />
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div className="text-center">
+              <Link
+                href={`/book/${workspace.slug}?viewAll=1`}
+                className="text-xs text-slate-500 hover:text-slate-800 font-medium underline"
+              >
+                View all services instead
+              </Link>
+            </div>
+          </div>
+        ) : workspace.services.length === 0 ? (
           <div className="p-12 text-center rounded-2xl border border-slate-200 bg-white shadow-sm max-w-md mx-auto">
             <Calendar className="h-8 w-8 text-slate-400 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-900">No active services</h3>
@@ -201,7 +274,8 @@ export default async function BookingPortalPage({ params }: BookingPortalPagePro
                   <Link href={`/book/${workspace.slug}/${service.slug}`}>
                     <Button
                       variant="primary"
-                      className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 px-4 py-2 rounded-xl transition-all"
+                      className="gap-2 text-xs text-white shadow-md hover:brightness-90 px-4 py-2 rounded-xl transition-all"
+                      style={{ backgroundColor: brandColor }}
                     >
                       Book Now
                       <ArrowRight className="h-3.5 w-3.5" />

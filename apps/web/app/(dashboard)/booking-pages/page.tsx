@@ -6,7 +6,7 @@ import { BookingPagesClient } from './BookingPagesClient';
 export const dynamic = 'force-dynamic';
 
 export default async function BookingPagesPage() {
-  const { workspace: access } = await requireWorkspace();
+  const { workspace: access } = await requireWorkspace(null, 'ADMIN');
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: access.id },
@@ -16,14 +16,35 @@ export default async function BookingPagesPage() {
         select: { id: true, name: true, slug: true },
         orderBy: { createdAt: 'asc' },
       },
+      routingForm: {
+        include: { options: { orderBy: { sortOrder: 'asc' } } },
+      },
     },
   });
 
   return (
     <BookingPagesClient
+      workspaceId={workspace.id}
       workspaceName={workspace.name}
       workspaceSlug={workspace.slug}
       services={workspace.services}
+      branding={{
+        brandColor: workspace.brandColor,
+        bookingWelcomeTitle: workspace.bookingWelcomeTitle,
+        bookingWelcomeMessage: workspace.bookingWelcomeMessage,
+      }}
+      routingForm={
+        workspace.routingForm
+          ? {
+              question: workspace.routingForm.question,
+              isEnabled: workspace.routingForm.isEnabled,
+              options: workspace.routingForm.options.map((o) => ({
+                serviceId: o.serviceId,
+                label: o.label,
+              })),
+            }
+          : null
+      }
     />
   );
 }

@@ -7,13 +7,31 @@ import {
   ExternalLink,
   Copy,
   Code2,
-  Share2,
   CheckCircle2,
-  QrCode,
   X,
-  Layers,
+  Palette,
+  Signpost,
+  Plus,
+  Trash2,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button } from '@bookings/ui';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Badge,
+  Button,
+  Label,
+  Input,
+  Select,
+} from '@bookings/ui';
+import {
+  updateBookingPageBrandingAction,
+  saveRoutingFormAction,
+  type BrandingInput,
+  type RoutingFormInput,
+} from './actions';
 
 interface ServiceItem {
   id: string;
@@ -21,21 +39,113 @@ interface ServiceItem {
   slug: string;
 }
 
+interface BrandingSettings {
+  brandColor: string | null;
+  bookingWelcomeTitle: string | null;
+  bookingWelcomeMessage: string | null;
+}
+
+interface RoutingFormSettings {
+  question: string;
+  isEnabled: boolean;
+  options: Array<{ serviceId: string; label: string }>;
+}
+
 interface BookingPagesClientProps {
+  workspaceId: string;
   workspaceName: string;
   workspaceSlug: string;
   services: ServiceItem[];
+  branding: BrandingSettings;
+  routingForm: RoutingFormSettings | null;
 }
 
+const DEFAULT_BRAND_COLOR = '#5c34ad';
+
 export function BookingPagesClient({
+  workspaceId,
   workspaceName,
   workspaceSlug,
   services,
+  branding,
+  routingForm,
 }: BookingPagesClientProps) {
   const [copiedLink, setCopiedLink] = React.useState<string | null>(null);
   const [isEmbedModalOpen, setIsEmbedModalOpen] = React.useState(false);
   const [embedTab, setEmbedTab] = React.useState<'iframe' | 'button' | 'signature'>('iframe');
   const [selectedEmbedSlug, setSelectedEmbedSlug] = React.useState(workspaceSlug);
+
+  const [brandColor, setBrandColor] = React.useState(branding.brandColor || DEFAULT_BRAND_COLOR);
+  const [welcomeTitle, setWelcomeTitle] = React.useState(branding.bookingWelcomeTitle ?? '');
+  const [welcomeMessage, setWelcomeMessage] = React.useState(branding.bookingWelcomeMessage ?? '');
+  const [isSavingBranding, setIsSavingBranding] = React.useState(false);
+  const [brandingSaved, setBrandingSaved] = React.useState(false);
+  const [brandingError, setBrandingError] = React.useState<string | null>(null);
+
+  const [routingQuestion, setRoutingQuestion] = React.useState(
+    routingForm?.question || 'What can we help you with?'
+  );
+  const [routingEnabled, setRoutingEnabled] = React.useState(routingForm?.isEnabled ?? false);
+  const [routingOptions, setRoutingOptions] = React.useState<
+    Array<{ serviceId: string; label: string }>
+  >(routingForm?.options.length ? routingForm.options : []);
+  const [isSavingRouting, setIsSavingRouting] = React.useState(false);
+  const [routingSaved, setRoutingSaved] = React.useState(false);
+  const [routingError, setRoutingError] = React.useState<string | null>(null);
+
+  const handleSaveBranding = async () => {
+    setIsSavingBranding(true);
+    setBrandingError(null);
+    setBrandingSaved(false);
+    const input: BrandingInput = {
+      brandColor,
+      bookingWelcomeTitle: welcomeTitle || null,
+      bookingWelcomeMessage: welcomeMessage || null,
+    };
+    const res = await updateBookingPageBrandingAction(workspaceId, input);
+    if (res.success) {
+      setBrandingSaved(true);
+      setTimeout(() => setBrandingSaved(false), 3000);
+    } else {
+      setBrandingError(res.error || 'Could not save branding.');
+    }
+    setIsSavingBranding(false);
+  };
+
+  const addRoutingOption = () => {
+    if (services.length === 0) return;
+    setRoutingOptions((prev) => [...prev, { serviceId: services[0].id, label: '' }]);
+  };
+
+  const removeRoutingOption = (index: number) => {
+    setRoutingOptions((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateRoutingOption = (
+    index: number,
+    patch: Partial<{ serviceId: string; label: string }>
+  ) => {
+    setRoutingOptions((prev) => prev.map((o, i) => (i === index ? { ...o, ...patch } : o)));
+  };
+
+  const handleSaveRouting = async () => {
+    setIsSavingRouting(true);
+    setRoutingError(null);
+    setRoutingSaved(false);
+    const input: RoutingFormInput = {
+      question: routingQuestion,
+      isEnabled: routingEnabled,
+      options: routingOptions,
+    };
+    const res = await saveRoutingFormAction(workspaceId, input);
+    if (res.success) {
+      setRoutingSaved(true);
+      setTimeout(() => setRoutingSaved(false), 3000);
+    } else {
+      setRoutingError(res.error || 'Could not save the routing form.');
+    }
+    setIsSavingRouting(false);
+  };
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
   const mainPortalUrl = `${baseUrl}/book/${workspaceSlug}`;
@@ -214,6 +324,190 @@ export function BookingPagesClient({
               })}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Branding */}
+      <Card className="border-slate-200 shadow-xs">
+        <CardHeader className="pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-md"
+              style={{ backgroundColor: brandColor }}
+            >
+              <Palette className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-bold text-slate-900">Branding</CardTitle>
+              <CardDescription className="text-xs">
+                The accent color and intro copy shown on your public booking page.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {brandingError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+              {brandingError}
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Label className="mb-0 whitespace-nowrap">Accent Color</Label>
+            <input
+              type="color"
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="h-9 w-14 rounded-lg border border-slate-200 cursor-pointer bg-white"
+            />
+            <Input
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="w-32 text-xs font-mono"
+              maxLength={7}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="welcome-title">Welcome Title</Label>
+            <Input
+              id="welcome-title"
+              placeholder="Schedule an Appointment"
+              value={welcomeTitle}
+              onChange={(e) => setWelcomeTitle(e.target.value)}
+              maxLength={120}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="welcome-message">Welcome Message</Label>
+            <Input
+              id="welcome-message"
+              placeholder="Choose an appointment type below to view open dates and instant time slots."
+              value={welcomeMessage}
+              onChange={(e) => setWelcomeMessage(e.target.value)}
+              maxLength={300}
+            />
+          </div>
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSaveBranding}
+            isLoading={isSavingBranding}
+            className="gap-2 bg-[#5c34ad] hover:bg-[#4d2994]"
+          >
+            {brandingSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {brandingSaved ? 'Saved' : 'Save Branding'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Routing Form */}
+      <Card className="border-slate-200 shadow-xs">
+        <CardHeader className="pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+                <Signpost className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900">Routing Form</CardTitle>
+                <CardDescription className="text-xs">
+                  Ask one question before the service list and send customers straight to the
+                  matching service.
+                </CardDescription>
+              </div>
+            </div>
+            <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none shrink-0">
+              <input
+                type="checkbox"
+                checked={routingEnabled}
+                onChange={(e) => setRoutingEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-[#5c34ad] focus:ring-[#5c34ad]/30"
+              />
+              Enabled
+            </label>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-4 space-y-4">
+          {routingError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+              {routingError}
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="routing-question">Question</Label>
+            <Input
+              id="routing-question"
+              value={routingQuestion}
+              onChange={(e) => setRoutingQuestion(e.target.value)}
+              maxLength={200}
+            />
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="mb-0">Options</Label>
+              <button
+                type="button"
+                onClick={addRoutingOption}
+                disabled={services.length === 0}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#5c34ad] hover:underline disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Option
+              </button>
+            </div>
+
+            {routingOptions.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">
+                No options yet. Add one for each answer that should route to a specific service.
+              </p>
+            ) : (
+              routingOptions.map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    placeholder="Answer label, e.g. New Client"
+                    value={option.label}
+                    onChange={(e) => updateRoutingOption(index, { label: e.target.value })}
+                    className="flex-1 text-xs"
+                  />
+                  <Select
+                    value={option.serviceId}
+                    onChange={(e) => updateRoutingOption(index, { serviceId: e.target.value })}
+                    className="w-48 text-xs"
+                  >
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => removeRoutingOption(index)}
+                    className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                    title="Remove option"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSaveRouting}
+            isLoading={isSavingRouting}
+            className="gap-2 bg-[#5c34ad] hover:bg-[#4d2994]"
+          >
+            {routingSaved ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {routingSaved ? 'Saved' : 'Save Routing Form'}
+          </Button>
         </CardContent>
       </Card>
 
