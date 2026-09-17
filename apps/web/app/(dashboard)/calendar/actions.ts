@@ -5,7 +5,7 @@ import { prisma, type BookingStatus } from '@bookings/database';
 import { addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import { requireWorkspace, toActionError } from '@/lib/session';
-import { isOverlapConstraintViolation } from '@/lib/booking-errors';
+import { isOverlapConstraintViolation, BookingCapacityExceededError } from '@/lib/booking-errors';
 import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
 
 /**
@@ -38,7 +38,11 @@ export interface BookingActionResult {
 async function loadOwnedBooking(bookingId: string) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { workspace: true, service: true },
+    include: {
+      workspace: true,
+      service: true,
+      participants: { where: { status: { not: 'CANCELLED' } } },
+    },
   });
 
   if (!booking) return null;
@@ -66,23 +70,35 @@ export async function updateBookingStatusAction(
       return { success: false, error: 'Booking not found.' };
     }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status,
-        auditLogs: {
-          create: {
-            action: 'STATUS_CHANGE',
-            actorType: 'STAFF',
-            details: {
-              previousStatus: booking.status,
-              newStatus: status,
-              updatedAt: new Date().toISOString(),
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          auditLogs: {
+            create: {
+              action: 'STATUS_CHANGE',
+              actorType: 'STAFF',
+              details: {
+                previousStatus: booking.status,
+                newStatus: status,
+                updatedAt: new Date().toISOString(),
+              },
             },
           },
         },
-      },
-    });
+      }),
+      // A cancelled booking's participant rows must not keep blocking those
+      // staff members' calendars under their own exclusion constraint.
+      ...(status === 'CANCELLED'
+        ? [
+            prisma.bookingParticipant.updateMany({
+              where: { bookingId, status: { not: 'CANCELLED' } },
+              data: { status: 'CANCELLED' },
+            }),
+          ]
+        : []),
+    ]);
 
     // Cancelling from the calendar must tell the customer, exactly as
     // cancelling from the appointments page does.
@@ -132,14 +148,20 @@ export async function rescheduleBookingAction(
       };
     }
 
+    const isGroupService = Boolean(booking.service.capacity && booking.service.capacity > 1);
+
     // The database holds an exclusion constraint that rejects overlapping
     // appointments for a staff member, so the write below is the real check.
-    // This lookup only turns the common case into a friendlier message.
+    // This lookup only turns the common case into a friendlier message. A
+    // group service's own other bookings sharing this staff+slot are
+    // capacity used, not a conflict, so they are excluded here — capacity is
+    // checked separately, below, inside the transaction.
     const conflict = await prisma.booking.findFirst({
       where: {
         id: { not: bookingId },
         staffId: booking.staffId,
         status: { notIn: ['CANCELLED'] },
+        ...(isGroupService ? { serviceId: { not: booking.serviceId } } : {}),
         AND: [{ startTime: { lt: newEndUtc } }, { endTime: { gt: newStartUtc } }],
       },
       select: { id: true },
@@ -152,26 +174,81 @@ export async function rescheduleBookingAction(
       };
     }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        startTime: newStartUtc,
-        endTime: newEndUtc,
-        status: 'RESCHEDULED',
-        auditLogs: {
-          create: {
-            action: 'RESCHEDULED',
-            actorType: 'STAFF',
-            details: {
-              previousStart: booking.startTime.toISOString(),
-              previousEnd: booking.endTime.toISOString(),
-              newStart: newStartUtc.toISOString(),
-              newEnd: newEndUtc.toISOString(),
-              rescheduledAt: new Date().toISOString(),
+    // A collective (panel) booking's other required staff must also be free
+    // at the new time, and their participant rows have to move in step with
+    // the primary booking's or they are left blocking that slot forever.
+    for (const participant of booking.participants) {
+      const participantConflict = await prisma.booking.findFirst({
+        where: {
+          staffId: participant.staffId,
+          status: { notIn: ['CANCELLED'] },
+          AND: [{ startTime: { lt: newEndUtc } }, { endTime: { gt: newStartUtc } }],
+        },
+        select: { id: true },
+      });
+      const participantSelfConflict = await prisma.bookingParticipant.findFirst({
+        where: {
+          id: { not: participant.id },
+          staffId: participant.staffId,
+          status: { not: 'CANCELLED' },
+          AND: [{ startTime: { lt: newEndUtc } }, { endTime: { gt: newStartUtc } }],
+        },
+        select: { id: true },
+      });
+      if (participantConflict || participantSelfConflict) {
+        return {
+          success: false,
+          error: 'A required team member is not available at the requested new time.',
+        };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (isGroupService && booking.service.capacity) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${booking.staffId}), hashtext(${newStartUtc.toISOString()}))`;
+
+        const used = await tx.booking.count({
+          where: {
+            staffId: booking.staffId,
+            serviceId: booking.serviceId,
+            startTime: newStartUtc,
+            status: { not: 'CANCELLED' },
+            id: { not: bookingId },
+          },
+        });
+        if (used >= booking.service.capacity) {
+          throw new BookingCapacityExceededError();
+        }
+      }
+
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          startTime: newStartUtc,
+          endTime: newEndUtc,
+          status: 'RESCHEDULED',
+          auditLogs: {
+            create: {
+              action: 'RESCHEDULED',
+              actorType: 'STAFF',
+              details: {
+                previousStart: booking.startTime.toISOString(),
+                previousEnd: booking.endTime.toISOString(),
+                newStart: newStartUtc.toISOString(),
+                newEnd: newEndUtc.toISOString(),
+                rescheduledAt: new Date().toISOString(),
+              },
             },
           },
         },
-      },
+      });
+
+      for (const participant of booking.participants) {
+        await tx.bookingParticipant.update({
+          where: { id: participant.id },
+          data: { startTime: newStartUtc, endTime: newEndUtc },
+        });
+      }
     });
 
     // Reminders already recorded refer to the old slot. The delivery claim has
@@ -190,6 +267,12 @@ export async function rescheduleBookingAction(
     revalidatePath('/appointments');
     return { success: true };
   } catch (error) {
+    if (error instanceof BookingCapacityExceededError) {
+      return {
+        success: false,
+        error: 'That session is already at capacity for the requested time.',
+      };
+    }
     if (isOverlapConstraintViolation(error)) {
       return {
         success: false,

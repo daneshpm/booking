@@ -92,9 +92,16 @@ export const serviceFormSchema = z.object({
   intakeQuestions: z.array(intakeQuestionSchema).optional().nullable(),
   addons: z.array(serviceAddonSchema).optional().nullable(),
   routingStrategy: z
-    .enum(['ANY_AVAILABLE', 'ROUND_ROBIN', 'CLIENT_CHOICE'])
+    .enum(['ANY_AVAILABLE', 'ROUND_ROBIN', 'CLIENT_CHOICE', 'ALL_REQUIRED'])
     .default('ANY_AVAILABLE'),
   assignedStaffIds: z.array(z.string()).optional().default([]),
+  // Null/1 = one-on-one. Above 1 lets that many separate customers each hold
+  // their own booking against the same staff+slot (a class or workshop),
+  // enforced in the booking engine rather than by this validator.
+  capacity: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : Number(val)),
+    z.number().int().min(1, 'Capacity must be at least 1.').max(1000).nullable().optional()
+  ),
 });
 
 export type ServiceFormData = z.infer<typeof serviceFormSchema>;

@@ -10,7 +10,7 @@ export default async function NewServicePage() {
 
   const staff = await prisma.staff.findMany({
     where: { workspaceId: workspace.id, isActive: true },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, kind: true },
     orderBy: { name: 'asc' },
   });
 

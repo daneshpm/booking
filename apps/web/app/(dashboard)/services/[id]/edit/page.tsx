@@ -34,7 +34,7 @@ export default async function EditServicePage({ params }: EditServicePageProps) 
   const [staff, currentAssignments] = await Promise.all([
     prisma.staff.findMany({
       where: { workspaceId: workspace.id, isActive: true },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, kind: true },
       orderBy: { name: 'asc' },
     }),
     prisma.serviceStaff.findMany({

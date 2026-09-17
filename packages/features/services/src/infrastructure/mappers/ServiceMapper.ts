@@ -28,6 +28,7 @@ export class ServiceMapper {
       intakeQuestions: raw.intakeQuestions as any[] | null,
       addons: raw.addons as any[] | null,
       routingStrategy: raw.routingStrategy ?? 'ANY_AVAILABLE',
+      capacity: raw.capacity,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     });
@@ -58,6 +59,7 @@ export class ServiceMapper {
       intakeQuestions: (service.intakeQuestions ?? null) as any,
       addons: (service.addons ?? null) as any,
       routingStrategy: service.routingStrategy,
+      capacity: service.capacity,
     };
   }
 }

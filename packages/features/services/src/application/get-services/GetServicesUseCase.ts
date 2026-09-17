@@ -42,6 +42,7 @@ export class GetServicesUseCase {
         intakeQuestions: s.intakeQuestions,
         addons: s.addons,
         routingStrategy: s.routingStrategy,
+        capacity: s.capacity,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
       }));

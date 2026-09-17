@@ -45,7 +45,7 @@ interface ServiceFormProps {
   workspaceId: string;
   initialData?: ServiceOutputDTO;
   isEditing?: boolean;
-  availableStaff?: Array<{ id: string; name: string; email: string }>;
+  availableStaff?: Array<{ id: string; name: string; email: string; kind?: string }>;
   initialAssignedStaffIds?: string[];
 }
 
@@ -95,7 +95,26 @@ export function ServiceForm({
     addons: initialData?.addons ?? [],
     routingStrategy: (initialData?.routingStrategy as any) ?? 'ANY_AVAILABLE',
     assignedStaffIds: initialAssignedStaffIds,
+    capacity: initialData?.capacity ?? 1,
   });
+
+  // Pre-fill capacity/routing based on which format the "Create New Service
+  // Type" picker was launched from, so the choice made there isn't discarded
+  // the moment the actual form loads. Only applies on first render of a new
+  // (not-yet-created) service — an existing service's saved values always win.
+  React.useEffect(() => {
+    if (isEditing) return;
+    const type = new URLSearchParams(window.location.search).get('type');
+    if (type === 'group') {
+      setFormData((prev) => ({
+        ...prev,
+        capacity: prev.capacity && prev.capacity > 1 ? prev.capacity : 2,
+      }));
+    } else if (type === 'collective') {
+      setFormData((prev) => ({ ...prev, routingStrategy: 'ALL_REQUIRED' }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addIntakeQuestion = () => {
     const newQuestion: IntakeQuestion = {
@@ -744,8 +763,13 @@ export function ServiceForm({
                       className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 pointer-events-none"
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                      <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
                         {staff.name}
+                        {staff.kind === 'RESOURCE' && (
+                          <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">
+                            Resource
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-500 truncate">{staff.email}</div>
                     </div>
@@ -754,6 +778,35 @@ export function ServiceForm({
               })}
             </div>
           )}
+
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Label className="flex items-center gap-2 mb-1.5 font-bold text-xs text-slate-700 dark:text-slate-300">
+              <Users className="h-4 w-4 text-indigo-500" />
+              Capacity (seats per slot)
+            </Label>
+            <p className="text-xs text-slate-500 mb-2">
+              Leave at 1 for a one-on-one appointment. Set higher to let that many separate
+              customers each book the same staff member&apos;s slot — a class or workshop.
+            </p>
+            <Input
+              type="number"
+              min={1}
+              max={1000}
+              value={formData.capacity ?? 1}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  capacity: e.target.value === '' ? null : Number(e.target.value),
+                })
+              }
+              className="max-w-[140px]"
+            />
+            {fieldErrors.capacity && (
+              <p className="text-[11px] text-rose-500 font-medium mt-1">
+                {fieldErrors.capacity[0]}
+              </p>
+            )}
+          </div>
 
           {availableStaff.length > 0 && (
             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -765,7 +818,7 @@ export function ServiceForm({
                 Determine how appointments are routed when multiple team members can perform this
                 service.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                 {[
                   {
                     id: 'ANY_AVAILABLE',
@@ -784,6 +837,12 @@ export function ServiceForm({
                     title: 'Client Selection',
                     icon: UserCheck,
                     desc: 'Allows client to choose their preferred staff',
+                  },
+                  {
+                    id: 'ALL_REQUIRED',
+                    title: 'Collective (All Required)',
+                    icon: Users,
+                    desc: 'Every assigned team member must be free — for panel interviews and joint meetings',
                   },
                 ].map((strat) => {
                   const StratIcon = strat.icon;

@@ -23,6 +23,7 @@ export interface CreateServiceInputDTO {
   intakeQuestions?: any[] | null;
   addons?: any[] | null;
   routingStrategy?: string | null;
+  capacity?: number | null;
 }
 
 export interface ServiceOutputDTO {
@@ -51,6 +52,7 @@ export interface ServiceOutputDTO {
   intakeQuestions?: any[] | null;
   addons?: any[] | null;
   routingStrategy?: string | null;
+  capacity?: number | null;
   createdAt: string;
   updatedAt: string;
 }

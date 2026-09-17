@@ -25,4 +25,5 @@ export interface UpdateServiceInputDTO {
   intakeQuestions?: any[] | null;
   addons?: any[] | null;
   routingStrategy?: string | null;
+  capacity?: number | null;
 }

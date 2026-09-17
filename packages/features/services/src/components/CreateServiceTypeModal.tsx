@@ -30,10 +30,6 @@ interface ServiceTypeOption {
   borderHover: string;
   bgHover: string;
   routeParam: string;
-  // Group/collective/resource booking need their own capacity and joint-
-  // availability model in the booking engine, not just a form field, so
-  // they stay disabled here rather than silently discarding what an owner
-  // configures for them.
   comingSoon?: boolean;
 }
 
@@ -61,7 +57,6 @@ const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
     borderHover: 'hover:border-blue-300 dark:hover:border-blue-700',
     bgHover: 'hover:bg-blue-50/40 dark:hover:bg-blue-950/20',
     routeParam: 'group',
-    comingSoon: true,
   },
   {
     id: 'COLLECTIVE_BOOKING',
@@ -74,7 +69,6 @@ const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
     borderHover: 'hover:border-indigo-300 dark:hover:border-indigo-700',
     bgHover: 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20',
     routeParam: 'collective',
-    comingSoon: true,
   },
   {
     id: 'RESOURCE_BOOKING',
@@ -87,7 +81,6 @@ const SERVICE_TYPE_OPTIONS: ServiceTypeOption[] = [
     borderHover: 'hover:border-amber-300 dark:hover:border-amber-700',
     bgHover: 'hover:bg-amber-50/40 dark:hover:bg-amber-950/20',
     routeParam: 'resource',
-    comingSoon: true,
   },
 ];
 

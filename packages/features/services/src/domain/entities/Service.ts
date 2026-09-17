@@ -25,6 +25,7 @@ export interface ServiceProps {
   intakeQuestions?: any[] | null;
   addons?: any[] | null;
   routingStrategy?: string | null;
+  capacity?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +52,7 @@ export class Service {
   private _intakeQuestions: any[] | null;
   private _addons: any[] | null;
   private _routingStrategy: string | null;
+  private _capacity: number | null;
   private readonly _createdAt: Date;
   private _updatedAt: Date;
 
@@ -76,6 +78,7 @@ export class Service {
     this._intakeQuestions = props.intakeQuestions ?? null;
     this._addons = props.addons ?? null;
     this._routingStrategy = props.routingStrategy ?? 'ANY_AVAILABLE';
+    this._capacity = props.capacity ?? null;
     this._createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
   }
@@ -144,6 +147,9 @@ export class Service {
   public get routingStrategy(): string {
     return this._routingStrategy ?? 'ANY_AVAILABLE';
   }
+  public get capacity(): number | null {
+    return this._capacity;
+  }
   public get createdAt(): Date {
     return this._createdAt;
   }
@@ -176,6 +182,7 @@ export class Service {
     intakeQuestions?: any[] | null;
     addons?: any[] | null;
     routingStrategy?: string | null;
+    capacity?: number | null;
     createdAt?: Date;
     updatedAt?: Date;
   }): Service {
@@ -223,6 +230,7 @@ export class Service {
       intakeQuestions: params.intakeQuestions ?? null,
       addons: params.addons ?? null,
       routingStrategy: params.routingStrategy ?? 'ANY_AVAILABLE',
+      capacity: params.capacity ?? null,
       createdAt: params.createdAt ?? new Date(),
       updatedAt: params.updatedAt ?? new Date(),
     });
@@ -250,6 +258,7 @@ export class Service {
     intakeQuestions?: any[] | null;
     addons?: any[] | null;
     routingStrategy?: string | null;
+    capacity?: number | null;
   }): void {
     if (!params.name || params.name.trim().length === 0) {
       throw new DomainError('Service name cannot be empty.');
@@ -282,6 +291,7 @@ export class Service {
     if (params.intakeQuestions !== undefined) this._intakeQuestions = params.intakeQuestions;
     if (params.addons !== undefined) this._addons = params.addons;
     if (params.routingStrategy !== undefined) this._routingStrategy = params.routingStrategy;
+    if (params.capacity !== undefined) this._capacity = params.capacity;
     this._updatedAt = new Date();
   }
 

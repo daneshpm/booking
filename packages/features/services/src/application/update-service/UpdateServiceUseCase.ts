@@ -51,6 +51,7 @@ export class UpdateServiceUseCase {
         intakeQuestions: input.intakeQuestions,
         addons: input.addons,
         routingStrategy: input.routingStrategy,
+        capacity: input.capacity,
       });
 
       if (input.isActive !== undefined) {
@@ -86,6 +87,7 @@ export class UpdateServiceUseCase {
         intakeQuestions: service.intakeQuestions,
         addons: service.addons,
         routingStrategy: service.routingStrategy,
+        capacity: service.capacity,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

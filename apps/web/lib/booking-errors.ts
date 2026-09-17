@@ -31,3 +31,17 @@ export function isOverlapConstraintViolation(error: unknown): boolean {
     haystack.includes(`exclusion constraint "${OVERLAP_CONSTRAINT}"`) || /\b23P01\b/.test(haystack)
   );
 }
+
+/**
+ * Thrown when a group booking's seat count is already at Service.capacity.
+ * Unlike double-booking, there is no Postgres constraint that can express
+ * "at most N rows sharing this staff+slot", so capacity is enforced in
+ * application code (guarded by an advisory lock) and needs its own signal
+ * distinct from isOverlapConstraintViolation.
+ */
+export class BookingCapacityExceededError extends Error {
+  constructor() {
+    super('Booking capacity exceeded for this slot.');
+    this.name = 'BookingCapacityExceededError';
+  }
+}

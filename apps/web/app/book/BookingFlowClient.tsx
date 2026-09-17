@@ -991,6 +991,15 @@ export function BookingFlowClient({
                             )}
                           </div>
 
+                          {slot.remainingCapacity !== undefined && (
+                            <div
+                              className={`mt-1.5 text-[11px] font-semibold ${isOffPeak ? 'text-amber-700' : 'text-slate-500 group-hover:text-indigo-100'}`}
+                            >
+                              {slot.remainingCapacity} seat{slot.remainingCapacity === 1 ? '' : 's'}{' '}
+                              left
+                            </div>
+                          )}
+
                           {isOffPeak && slot.discountedPrice !== undefined && (
                             <div className="flex items-center gap-1.5 mt-1.5 text-[11px]">
                               <span className="line-through text-slate-400 font-medium">

@@ -49,6 +49,7 @@ export interface StaffItem {
   avatarUrl?: string | null;
   timezone: string;
   isActive: boolean;
+  kind?: 'PERSON' | 'RESOURCE';
   serviceAssignments: Array<{
     id: string;
     serviceId: string;
@@ -181,6 +182,7 @@ export function StaffManagementClient({
     timezone: defaultTimezone || 'America/New_York',
     isActive: true,
     assignedServiceIds: [] as string[],
+    kind: 'PERSON' as 'PERSON' | 'RESOURCE',
   });
 
   const addFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -241,6 +243,7 @@ export function StaffManagementClient({
       timezone: defaultTimezone || 'America/New_York',
       isActive: true,
       assignedServiceIds: availableServices.map((s) => s.id), // Assign all by default
+      kind: 'PERSON',
     });
     setFormError(null);
     setIsAddModalOpen(true);
@@ -257,6 +260,7 @@ export function StaffManagementClient({
       timezone: staff.timezone || defaultTimezone || 'America/New_York',
       isActive: staff.isActive,
       assignedServiceIds: staff.serviceAssignments.map((sa) => sa.serviceId),
+      kind: staff.kind || 'PERSON',
     });
     setFormError(null);
   };
@@ -323,6 +327,7 @@ export function StaffManagementClient({
       timezone: formData.timezone,
       isActive: formData.isActive,
       assignedServiceIds: formData.assignedServiceIds,
+      kind: formData.kind,
     });
 
     setIsSubmitting(false);
@@ -364,6 +369,7 @@ export function StaffManagementClient({
       timezone: formData.timezone,
       isActive: formData.isActive,
       assignedServiceIds: formData.assignedServiceIds,
+      kind: formData.kind,
     });
 
     setIsSubmitting(false);
@@ -719,6 +725,11 @@ export function StaffManagementClient({
                         <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
                           {staff.name}
                         </CardTitle>
+                        {staff.kind === 'RESOURCE' && (
+                          <Badge variant="purple" className="text-[10px]">
+                            Resource
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                         <Mail className="h-3 w-3 text-slate-400" />
@@ -901,13 +912,37 @@ export function StaffManagementClient({
             </div>
           </div>
 
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Type
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['PERSON', 'RESOURCE'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, kind })}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                    formData.kind === kind
+                      ? 'border-[#5c34ad] bg-purple-50 text-[#5c34ad] dark:bg-purple-950/40'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {kind === 'PERSON' ? 'Person' : 'Resource (room, equipment)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Full Name *
+                {formData.kind === 'RESOURCE' ? 'Resource Name *' : 'Full Name *'}
               </label>
               <Input
-                placeholder="e.g. Dr. Emily Watson"
+                placeholder={
+                  formData.kind === 'RESOURCE' ? 'e.g. Conference Room A' : 'e.g. Dr. Emily Watson'
+                }
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
@@ -1106,10 +1141,32 @@ export function StaffManagementClient({
             </div>
           </div>
 
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Type
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['PERSON', 'RESOURCE'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, kind })}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                    formData.kind === kind
+                      ? 'border-[#5c34ad] bg-purple-50 text-[#5c34ad] dark:bg-purple-950/40'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {kind === 'PERSON' ? 'Person' : 'Resource (room, equipment)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Full Name *
+                {formData.kind === 'RESOURCE' ? 'Resource Name *' : 'Full Name *'}
               </label>
               <Input
                 value={formData.name}

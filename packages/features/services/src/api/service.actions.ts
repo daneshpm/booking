@@ -116,6 +116,7 @@ export async function createServiceAction(
     intakeQuestions: parsed.data.intakeQuestions,
     addons: parsed.data.addons,
     routingStrategy: parsed.data.routingStrategy,
+    capacity: parsed.data.capacity,
   });
 
   if (result.isFailure) {
@@ -209,6 +210,7 @@ export async function updateServiceAction(
     intakeQuestions: parsed.data.intakeQuestions,
     addons: parsed.data.addons,
     routingStrategy: parsed.data.routingStrategy,
+    capacity: parsed.data.capacity,
   });
 
   if (result.isFailure) {

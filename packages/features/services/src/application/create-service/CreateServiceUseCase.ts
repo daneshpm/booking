@@ -49,6 +49,7 @@ export class CreateServiceUseCase {
         intakeQuestions: input.intakeQuestions,
         addons: input.addons,
         routingStrategy: input.routingStrategy,
+        capacity: input.capacity,
       });
 
       // 4. Persist
@@ -81,6 +82,7 @@ export class CreateServiceUseCase {
         intakeQuestions: service.intakeQuestions,
         addons: service.addons,
         routingStrategy: service.routingStrategy,
+        capacity: service.capacity,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

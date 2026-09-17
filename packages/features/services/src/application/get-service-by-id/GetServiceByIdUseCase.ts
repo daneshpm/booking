@@ -48,6 +48,7 @@ export class GetServiceByIdUseCase {
         intakeQuestions: service.intakeQuestions,
         addons: service.addons,
         routingStrategy: service.routingStrategy,
+        capacity: service.capacity,
         createdAt: service.createdAt.toISOString(),
         updatedAt: service.updatedAt.toISOString(),
       };

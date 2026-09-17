@@ -46,6 +46,9 @@ const staffSchema = z.object({
   timezone: z.string().default('UTC'),
   isActive: z.boolean().default(true),
   assignedServiceIds: z.array(z.string()).default([]),
+  /** A bookable resource (room, equipment) rather than a person. Scheduled
+   * through the exact same availability and exclusion-constraint machinery. */
+  kind: z.enum(['PERSON', 'RESOURCE']).default('PERSON'),
 });
 
 function serializeStaff<T extends { serviceAssignments?: any[] } | null | undefined>(staff: T): T {
@@ -75,6 +78,7 @@ export async function createStaffAction(
     timezone?: string;
     isActive?: boolean;
     assignedServiceIds?: string[];
+    kind?: 'PERSON' | 'RESOURCE';
   }
 ): Promise<StaffActionResult> {
   try {
@@ -105,6 +109,7 @@ export async function createStaffAction(
     const staff = await prisma.staff.create({
       data: {
         workspaceId,
+        kind: validated.kind,
         name: validated.name.trim(),
         email: validated.email.toLowerCase().trim(),
         phone: validated.phone?.trim() || null,
@@ -170,6 +175,7 @@ export async function updateStaffAction(
     timezone?: string;
     isActive?: boolean;
     assignedServiceIds?: string[];
+    kind?: 'PERSON' | 'RESOURCE';
   }
 ): Promise<StaffActionResult> {
   try {
@@ -210,6 +216,7 @@ export async function updateStaffAction(
       await tx.staff.update({
         where: { id: staffId },
         data: {
+          kind: validated.kind,
           name: validated.name.trim(),
           email: validated.email.toLowerCase().trim(),
           phone: validated.phone?.trim() || null,
