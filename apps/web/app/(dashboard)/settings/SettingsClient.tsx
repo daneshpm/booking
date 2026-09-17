@@ -41,6 +41,8 @@ import {
   changeUserPasswordAction,
   revokeSessionAction,
   updateMemberRoleAction,
+  sendInvitationAction,
+  revokeInvitationAction,
   type ProfileInput,
 } from './actions';
 import { AVATAR_PRESETS, getAvatarBgClass } from '@/lib/avatar';
@@ -66,6 +68,14 @@ export interface WorkspaceUserItem {
   isCurrentUser: boolean;
   services: string[];
   joinedAt: string;
+}
+
+export interface PendingInvitationItem {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 interface SettingsClientProps {
@@ -107,6 +117,7 @@ interface SettingsClientProps {
   } | null;
   sessions: SessionItem[];
   workspaceUsers: WorkspaceUserItem[];
+  pendingInvitations: PendingInvitationItem[];
   currentSessionId: string;
   role: string;
 }
@@ -170,12 +181,55 @@ export function SettingsClient({
   staffProfile,
   sessions,
   workspaceUsers,
+  pendingInvitations,
   currentSessionId,
   role,
 }: SettingsClientProps) {
   const router = useRouter();
   const [membersList, setMembersList] = React.useState(workspaceUsers);
   const [updatingRoleUserId, setUpdatingRoleUserId] = React.useState<string | null>(null);
+
+  const [invitationsList, setInvitationsList] = React.useState(pendingInvitations);
+  const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
+  const [inviteEmail, setInviteEmail] = React.useState('');
+  const [inviteRole, setInviteRole] = React.useState<'ADMIN' | 'STAFF' | 'RECEPTIONIST'>('STAFF');
+  const [isSendingInvite, setIsSendingInvite] = React.useState(false);
+  const [inviteError, setInviteError] = React.useState<string | null>(null);
+  const [revokingInviteId, setRevokingInviteId] = React.useState<string | null>(null);
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError(null);
+    setIsSendingInvite(true);
+    try {
+      const res = await sendInvitationAction(workspace.id, {
+        email: inviteEmail,
+        role: inviteRole,
+      });
+      if (res.success) {
+        setIsInviteModalOpen(false);
+        setInviteEmail('');
+        setInviteRole('STAFF');
+        router.refresh();
+      } else {
+        setInviteError(res.error || 'Could not send this invitation.');
+      }
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleRevokeInvite = async (invitationId: string) => {
+    setRevokingInviteId(invitationId);
+    try {
+      const res = await revokeInvitationAction(workspace.id, invitationId);
+      if (res.success) {
+        setInvitationsList((prev) => prev.filter((inv) => inv.id !== invitationId));
+      }
+    } finally {
+      setRevokingInviteId(null);
+    }
+  };
 
   const [activeTab, setActiveTab] = React.useState<
     'profile' | 'security' | 'mfa' | 'settings' | 'sessions' | 'groups' | 'privacy'
@@ -1691,14 +1745,64 @@ export function SettingsClient({
                   </p>
                 </div>
 
-                <a
-                  href="/users"
-                  className="px-4 py-2 rounded-xl bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all shrink-0"
-                >
-                  <Users className="h-4 w-4" />
-                  Manage in Team Directory
-                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                  {role === 'OWNER' && (
+                    <button
+                      type="button"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="px-4 py-2 rounded-xl border border-[#5c34ad]/30 text-[#5c34ad] hover:bg-purple-50 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Mail className="h-4 w-4" />
+                      Invite Teammate
+                    </button>
+                  )}
+                  <a
+                    href="/users"
+                    className="px-4 py-2 rounded-xl bg-[#5c34ad] hover:bg-[#4d2994] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+                  >
+                    <Users className="h-4 w-4" />
+                    Manage in Team Directory
+                  </a>
+                </div>
               </div>
+
+              {/* Pending Invitations */}
+              {invitationsList.length > 0 && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Pending Invitations
+                    </span>
+                  </div>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {invitationsList.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="p-3.5 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 block">
+                            {inv.email}
+                          </span>
+                          <span className="text-[11px] text-slate-400 uppercase tracking-wide">
+                            {inv.role}
+                          </span>
+                        </div>
+                        {role === 'OWNER' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeInvite(inv.id)}
+                            disabled={revokingInviteId === inv.id}
+                            className="px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 rounded-lg font-bold disabled:opacity-50 cursor-pointer"
+                          >
+                            {revokingInviteId === inv.id ? 'Revoking...' : 'Revoke'}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Quick metrics header */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1959,6 +2063,84 @@ export function SettingsClient({
           )}
         </main>
       </div>
+
+      {/* Invite Teammate Modal */}
+      {isInviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Invite a Teammate
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsInviteModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendInvite} className="p-6 space-y-4">
+              {inviteError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                  {inviteError}
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="invite-email"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
+                >
+                  Email address
+                </label>
+                <input
+                  id="invite-email"
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="teammate@example.com"
+                  className="w-full text-sm px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#5c34ad]/30"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="invite-role"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
+                >
+                  Role
+                </label>
+                <select
+                  id="invite-role"
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as 'ADMIN' | 'STAFF' | 'RECEPTIONIST')
+                  }
+                  className="w-full text-sm px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#5c34ad]/30 cursor-pointer"
+                >
+                  <option value="ADMIN">Admin</option>
+                  <option value="STAFF">Staff</option>
+                  <option value="RECEPTIONIST">Receptionist</option>
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Ownership is transferred separately, from the member's row below.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSendingInvite}
+                className="w-full py-2.5 bg-[#5c34ad] hover:bg-[#4d2994] text-white text-sm font-bold rounded-xl shadow-sm transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                {isSendingInvite ? 'Sending...' : 'Send Invitation'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

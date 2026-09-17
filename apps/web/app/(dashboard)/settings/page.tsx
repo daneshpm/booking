@@ -8,92 +8,98 @@ export const dynamic = 'force-dynamic';
 export default async function SettingsPage() {
   const { session, workspace: access } = await requireWorkspace(null, 'ADMIN');
 
-  const [workspace, user, staffProfile, userSessions, members, staffList] = await Promise.all([
-    prisma.workspace.findUniqueOrThrow({ where: { id: access.id } }),
-    prisma.user.findUniqueOrThrow({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        displayName: true,
-        email: true,
-        avatarUrl: true,
-        phone: true,
-        gender: true,
-        country: true,
-        state: true,
-        language: true,
-        timezone: true,
-        bio: true,
-        headline: true,
-        instagram: true,
-        linkedin: true,
-        twitter: true,
-        website: true,
-        createdAt: true,
-      },
-    }),
-    prisma.staff.findFirst({
-      where: {
-        workspaceId: access.id,
-        OR: [{ userId: session.user.id }, { email: session.user.email }],
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        timezone: true,
-      },
-    }),
-    prisma.session.findMany({
-      where: { userId: session.user.id },
-      select: {
-        id: true,
-        createdAt: true,
-        lastUsedAt: true,
-        expiresAt: true,
-        userAgent: true,
-        ipAddress: true,
-      },
-      orderBy: { lastUsedAt: 'desc' },
-      take: 10,
-    }),
-    prisma.workspaceMember.findMany({
-      where: { workspaceId: access.id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            displayName: true,
-            email: true,
-            avatarUrl: true,
-            phone: true,
-            createdAt: true,
+  const [workspace, user, staffProfile, userSessions, members, staffList, pendingInvitations] =
+    await Promise.all([
+      prisma.workspace.findUniqueOrThrow({ where: { id: access.id } }),
+      prisma.user.findUniqueOrThrow({
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          displayName: true,
+          email: true,
+          avatarUrl: true,
+          phone: true,
+          gender: true,
+          country: true,
+          state: true,
+          language: true,
+          timezone: true,
+          bio: true,
+          headline: true,
+          instagram: true,
+          linkedin: true,
+          twitter: true,
+          website: true,
+          createdAt: true,
+        },
+      }),
+      prisma.staff.findFirst({
+        where: {
+          workspaceId: access.id,
+          OR: [{ userId: session.user.id }, { email: session.user.email }],
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          avatarUrl: true,
+          timezone: true,
+        },
+      }),
+      prisma.session.findMany({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          createdAt: true,
+          lastUsedAt: true,
+          expiresAt: true,
+          userAgent: true,
+          ipAddress: true,
+        },
+        orderBy: { lastUsedAt: 'desc' },
+        take: 10,
+      }),
+      prisma.workspaceMember.findMany({
+        where: { workspaceId: access.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+              email: true,
+              avatarUrl: true,
+              phone: true,
+              createdAt: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.staff.findMany({
-      where: { workspaceId: access.id },
-      include: {
-        serviceAssignments: {
-          include: {
-            service: {
-              select: {
-                id: true,
-                name: true,
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.staff.findMany({
+        where: { workspaceId: access.id },
+        include: {
+          serviceAssignments: {
+            include: {
+              service: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+        orderBy: { name: 'asc' },
+      }),
+      prisma.invitation.findMany({
+        where: { workspaceId: access.id, acceptedAt: null },
+        select: { id: true, email: true, role: true, expiresAt: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
   const serializedSessions = userSessions.map((s) => ({
     id: s.id,
@@ -181,6 +187,13 @@ export default async function SettingsPage() {
         staffProfile={staffProfile}
         sessions={serializedSessions}
         workspaceUsers={workspaceUsers}
+        pendingInvitations={pendingInvitations.map((inv) => ({
+          id: inv.id,
+          email: inv.email,
+          role: inv.role,
+          expiresAt: inv.expiresAt.toISOString(),
+          createdAt: inv.createdAt.toISOString(),
+        }))}
         currentSessionId={session.sessionId}
         role={access.role}
       />

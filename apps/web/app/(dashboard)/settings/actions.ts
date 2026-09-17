@@ -4,8 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@bookings/database';
 import { z } from 'zod';
 import { requireSession, requireWorkspace, toActionError, startSession } from '@/lib/session';
-import { verifyPassword, hashPassword, validatePasswordPolicy } from '@bookings/auth';
-import { checkRateLimit, PASSWORD_CHANGE_LIMIT } from '@/lib/rate-limit';
+import {
+  verifyPassword,
+  hashPassword,
+  validatePasswordPolicy,
+  generateSessionToken,
+  hashSessionToken,
+} from '@bookings/auth';
+import { sendMail, isMailConfigured } from '@bookings/notifications';
+import { checkRateLimit, PASSWORD_CHANGE_LIMIT, INVITE_LIMIT } from '@/lib/rate-limit';
 
 /**
  * Reject a timezone the scheduling engine cannot resolve.
@@ -280,5 +287,123 @@ export async function updateMemberRoleAction(
   } catch (err) {
     const res = toActionError(err);
     return { success: false, error: res.error || 'Failed to update member role' };
+  }
+}
+
+// ----------------------------------------------------
+// TEAMMATE INVITATIONS
+// ----------------------------------------------------
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INVITABLE_ROLES = ['ADMIN', 'STAFF', 'RECEPTIONIST'] as const;
+const INVITE_TTL_HOURS = 72;
+
+export interface InvitationActionResult {
+  success: boolean;
+  error?: string;
+}
+
+function inviteAcceptUrl(token: string): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  return `${base}/accept-invite?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Invite someone to join this workspace by email.
+ *
+ * Requires OWNER, same as updateMemberRoleAction: granting a role is granting
+ * access to real customer and business data, so it stays a decision only the
+ * owner makes rather than something any admin can hand out.
+ */
+export async function sendInvitationAction(
+  workspaceId: string,
+  input: { email: string; role: (typeof INVITABLE_ROLES)[number] }
+): Promise<InvitationActionResult> {
+  try {
+    const { session, workspace } = await requireWorkspace(workspaceId, 'OWNER');
+    const email = input.email?.toLowerCase().trim() ?? '';
+
+    if (!email || !EMAIL_PATTERN.test(email)) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    if (!INVITABLE_ROLES.includes(input.role)) {
+      return { success: false, error: 'Choose a valid role for this invitation.' };
+    }
+
+    if (!(await checkRateLimit(`invite:${session.user.id}`, INVITE_LIMIT)).allowed) {
+      return { success: false, error: 'Too many invitations sent. Please wait and try again.' };
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (existingUser) {
+      const existingMember = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: existingUser.id } },
+      });
+      if (existingMember) {
+        return { success: false, error: 'This person is already a member of this workspace.' };
+      }
+    }
+
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
+
+    // A fresh invite replaces any earlier unaccepted one to the same address,
+    // so re-inviting someone (after a typo in the role, say) does not leave
+    // two live links where only the newest is the one anyone should use.
+    await prisma.$transaction([
+      prisma.invitation.deleteMany({ where: { workspaceId, email, acceptedAt: null } }),
+      prisma.invitation.create({
+        data: {
+          workspaceId,
+          email,
+          role: input.role,
+          tokenHash: hashSessionToken(token),
+          invitedById: session.user.id,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    const link = inviteAcceptUrl(token);
+    if (isMailConfigured()) {
+      const result = await sendMail({
+        to: email,
+        subject: `You've been invited to join ${workspace.name} on Rooman Bookings`,
+        text:
+          `Hello,\n\n` +
+          `${session.user.name} has invited you to join ${workspace.name} as a${input.role === 'ADMIN' ? 'n' : ''} ${input.role.toLowerCase()}.\n\n` +
+          `Open the link below to accept:\n\n${link}\n\n` +
+          `This invitation expires in ${INVITE_TTL_HOURS / 24} days.\n`,
+      });
+      if (!result.delivered) {
+        console.error('Invitation email failed:', result.error);
+      }
+    } else {
+      console.error('Invitation created but SMTP is not configured; no email was sent.', link);
+    }
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/** Cancel a pending invitation before it is accepted. */
+export async function revokeInvitationAction(
+  workspaceId: string,
+  invitationId: string
+): Promise<InvitationActionResult> {
+  try {
+    await requireWorkspace(workspaceId, 'OWNER');
+
+    await prisma.invitation.deleteMany({
+      where: { id: invitationId, workspaceId, acceptedAt: null },
+    });
+
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (err) {
+    return toActionError(err);
   }
 }

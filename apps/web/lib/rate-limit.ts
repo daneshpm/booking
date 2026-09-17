@@ -325,3 +325,6 @@ export const PAYMENT_VERIFY_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 
  * brute force infeasible but not scripted hammering of the endpoint itself.
  */
 export const MANAGE_BOOKING_LIMIT: RateLimitOptions = { limit: 30, windowMs: 15 * 60 * 1000 };
+
+/** Sending a teammate invitation delivers an email each time. */
+export const INVITE_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 * 60 * 1000 };
