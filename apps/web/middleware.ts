@@ -16,6 +16,7 @@ const PROTECTED_PREFIXES = [
   '/calendar',
   '/customers',
   '/event-types',
+  '/export',
   '/schedules',
   '/services',
   '/settings',

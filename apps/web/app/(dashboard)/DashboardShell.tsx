@@ -14,6 +14,7 @@ import {
   Tag,
   Activity,
   BarChart3,
+  Download,
   HelpCircle,
   BookOpen,
   CalendarCheck,
@@ -57,6 +58,7 @@ const NAV_ITEMS = [
   { label: 'Users', href: '/users', icon: Users },
   { label: 'Booking Pages', href: '/booking-pages', icon: Layers },
   { label: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
+  { label: 'Export Data', href: '/export', icon: Download, adminOnly: true },
 ];
 
 export function DashboardShell({
@@ -106,6 +108,7 @@ export function DashboardShell({
       return { title: 'Team & Staff', icon: Users };
     if (pathname.startsWith('/booking-pages')) return { title: 'Booking Pages', icon: Layers };
     if (pathname.startsWith('/analytics')) return { title: 'Analytics', icon: BarChart3 };
+    if (pathname.startsWith('/export')) return { title: 'Export Data', icon: Download };
     if (pathname.startsWith('/settings')) return { title: 'Workspace Settings', icon: Settings };
     if (pathname.startsWith('/profile')) return { title: 'My Profile', icon: Settings };
     return { title: 'Dashboard', icon: CalendarCheck };
