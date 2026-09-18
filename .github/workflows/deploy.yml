@@ -31,10 +31,17 @@ jobs:
       matrix:
         include:
           # The web runtime image: only the pruned Next.js standalone output.
+          # NEXT_PUBLIC_APP_URL is a build arg, not a runtime env var: Next.js
+          # inlines NEXT_PUBLIC_* values into the compiled output during
+          # `next build` itself, so setting it only on the running container
+          # (docker-compose environment, an updated .env) has no effect —
+          # this is the one place it actually takes hold. Not a secret (it's
+          # the app's own public URL), so it's fine to hardcode here.
           - name: web
             context: .
             dockerfile: apps/web/Dockerfile
             target: runner
+            build_args: NEXT_PUBLIC_APP_URL=https://booking.futureacad.ae
           # Built from the same Dockerfile's intermediate stage, which still
           # carries the full node_modules and Prisma CLI the runner image
           # deliberately drops.
@@ -42,14 +49,17 @@ jobs:
             context: .
             dockerfile: apps/web/Dockerfile
             target: builder
+            build_args: NEXT_PUBLIC_APP_URL=https://booking.futureacad.ae
           - name: worker
             context: .
             dockerfile: apps/worker/Dockerfile
             target: runner
+            build_args: ''
           - name: api
             context: ./apps/api
             dockerfile: apps/api/Dockerfile
             target: ''
+            build_args: ''
     steps:
       - name: Checkout the commit CI just tested
         uses: actions/checkout@v7
@@ -77,6 +87,7 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
+          build-args: ${{ matrix.build_args }}
           push: true
           tags: |
             ${{ steps.vars.outputs.image_prefix }}-${{ matrix.name }}:latest

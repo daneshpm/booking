@@ -34,6 +34,14 @@ ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholde
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# NEXT_PUBLIC_* variables are inlined into the compiled output by `next build`
+# itself, not read from the environment at container start — setting this only
+# at runtime (docker-compose environment, an updated .env) has no effect on an
+# already-built image. It has to be supplied as a build arg instead, so it is
+# baked in during this RUN step.
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+
 RUN npm run build --workspace=@bookings/web
 
 # ---------------------------------------------------------------
