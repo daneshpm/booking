@@ -94,7 +94,12 @@ export const serviceFormSchema = z.object({
   routingStrategy: z
     .enum(['ANY_AVAILABLE', 'ROUND_ROBIN', 'CLIENT_CHOICE', 'ALL_REQUIRED'])
     .default('ANY_AVAILABLE'),
-  assignedStaffIds: z.array(z.string()).optional().default([]),
+  // No .default([]) here: the caller's "was this field provided at all"
+  // check (assignedStaffIds !== undefined) depends on an omitted field
+  // staying undefined after parsing rather than being coerced to []. A
+  // default would make every update silently unassign every staff member
+  // from the service the moment a payload leaves this field out.
+  assignedStaffIds: z.array(z.string()).optional(),
   // Null/1 = one-on-one. Above 1 lets that many separate customers each hold
   // their own booking against the same staff+slot (a class or workshop),
   // enforced in the booking engine rather than by this validator.

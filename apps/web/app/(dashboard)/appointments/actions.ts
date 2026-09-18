@@ -225,23 +225,47 @@ export async function updateAppointmentStatusAction(
       return { success: false, error: 'Appointment not found.' };
     }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status,
-        auditLogs: {
-          create: {
-            action: 'STATUS_CHANGE',
-            actorType: 'STAFF',
-            details: {
-              previousStatus: booking.status,
-              newStatus: status,
-              updatedAt: new Date().toISOString(),
+    // A cancelled booking's held seat (for a group service) or participant
+    // rows (for a collective one) are released the moment it is cancelled and
+    // nothing re-validates or restores them, so silently un-cancelling could
+    // resurrect a booking whose slot was already resold or whose panel was
+    // already dissolved. A fresh booking is the safe way back in.
+    if (booking.status === 'CANCELLED' && status !== 'CANCELLED') {
+      return {
+        success: false,
+        error: 'A cancelled appointment cannot be restored. Please create a new booking instead.',
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status,
+          auditLogs: {
+            create: {
+              action: 'STATUS_CHANGE',
+              actorType: 'STAFF',
+              details: {
+                previousStatus: booking.status,
+                newStatus: status,
+                updatedAt: new Date().toISOString(),
+              },
             },
           },
         },
-      },
-    });
+      }),
+      // A cancelled booking's participant rows must not keep blocking those
+      // staff members' calendars under their own exclusion constraint.
+      ...(status === 'CANCELLED'
+        ? [
+            prisma.bookingParticipant.updateMany({
+              where: { bookingId, status: { not: 'CANCELLED' } },
+              data: { status: 'CANCELLED' },
+            }),
+          ]
+        : []),
+    ]);
 
     if (status === 'CANCELLED') {
       await dispatchBookingNotifications(bookingId, 'BOOKING_CANCELLED').catch((err) =>

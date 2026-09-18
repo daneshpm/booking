@@ -1,4 +1,5 @@
 import { createClient, type RedisClientType } from 'redis';
+import { headers } from 'next/headers';
 
 /**
  * Fixed-window rate limiter.
@@ -328,3 +329,33 @@ export const MANAGE_BOOKING_LIMIT: RateLimitOptions = { limit: 30, windowMs: 15 
 
 /** Sending a teammate invitation delivers an email each time. */
 export const INVITE_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 * 60 * 1000 };
+
+/**
+ * An unauthenticated invite-accept token lookup, or the account it can create.
+ * Bounded the same way as every other public action reached before a session
+ * exists: cheap to call, and the account-creation branch writes a User row.
+ */
+export const INVITE_ACCEPT_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 * 60 * 1000 };
+
+/**
+ * Claiming a waitlist spot is unauthenticated and, unlike looking at it,
+ * writes a CONFIRMED booking and sends mail — the same shape as public
+ * booking creation, so it gets the same limit rather than none at all.
+ */
+export const WAITLIST_CLAIM_LIMIT: RateLimitOptions = { limit: 10, windowMs: 60 * 60 * 1000 };
+
+/**
+ * Identify the caller for rate limiting.
+ *
+ * Behind a proxy the socket address is the proxy, so the forwarded header is
+ * preferred. That header is client-supplied and trivially spoofed, which is why
+ * the limiter is a speed bump rather than a security boundary.
+ */
+export async function callerKey(scope: string): Promise<string> {
+  const headerList = await headers();
+  const address =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    headerList.get('x-real-ip') ||
+    'unknown';
+  return `${scope}:${address}`;
+}

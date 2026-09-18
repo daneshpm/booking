@@ -1249,7 +1249,7 @@ export function AppointmentsClient({
                                   <ExternalLink className="h-4 w-4" />
                                 </button>
                               )}
-                              {app.status !== 'COMPLETED' && (
+                              {app.status !== 'COMPLETED' && app.status !== 'CANCELLED' && (
                                 <button
                                   type="button"
                                   disabled={actionLoadingId === app.id}
@@ -1260,7 +1260,7 @@ export function AppointmentsClient({
                                   <CheckCircle className="h-4 w-4" />
                                 </button>
                               )}
-                              {app.status !== 'CANCELLED' && (
+                              {app.status !== 'CANCELLED' && app.status !== 'COMPLETED' && (
                                 <button
                                   type="button"
                                   disabled={actionLoadingId === app.id}

@@ -70,6 +70,18 @@ export async function updateBookingStatusAction(
       return { success: false, error: 'Booking not found.' };
     }
 
+    // A cancelled booking's held seat (for a group service) or participant
+    // rows (for a collective one) are released the moment it is cancelled and
+    // nothing re-validates or restores them, so silently un-cancelling could
+    // resurrect a booking whose slot was already resold or whose panel was
+    // already dissolved. A fresh booking is the safe way back in.
+    if (booking.status === 'CANCELLED' && status !== 'CANCELLED') {
+      return {
+        success: false,
+        error: 'A cancelled appointment cannot be restored. Please create a new booking instead.',
+      };
+    }
+
     await prisma.$transaction([
       prisma.booking.update({
         where: { id: bookingId },
@@ -135,7 +147,13 @@ export async function rescheduleBookingAction(
 
     const timezone = booking.workspace.timezone || 'UTC';
     const newStartUtc = fromZonedTime(`${newDate}T${newTime}:00`, timezone);
-    const newEndUtc = addMinutes(newStartUtc, booking.service.durationMinutes);
+    // Add-ons extend the appointment beyond the service's base duration, the
+    // same way booking creation and the customer-facing reschedule already
+    // account for them — omitting this here would silently shorten a booking
+    // that has add-ons and free time that was actually sold.
+    const rawAddons = (booking.selectedAddons as Array<{ durationMinutes: number }>) || [];
+    const extraDuration = rawAddons.reduce((sum, a) => sum + (Number(a.durationMinutes) || 0), 0);
+    const newEndUtc = addMinutes(newStartUtc, booking.service.durationMinutes + extraDuration);
 
     if (Number.isNaN(newStartUtc.getTime())) {
       return { success: false, error: 'Please provide a valid date and time.' };
@@ -205,15 +223,19 @@ export async function rescheduleBookingAction(
 
     await prisma.$transaction(async (tx) => {
       if (isGroupService && booking.service.capacity) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${booking.staffId}), hashtext(${newStartUtc.toISOString()}))`;
+        // Locked per staff+service, not per exact slot — see
+        // createBookingWithCapacityAndParticipants for why exact-start
+        // locking/counting misses overlaps caused by add-on duration.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${booking.staffId}), hashtext(${booking.serviceId}))`;
 
         const used = await tx.booking.count({
           where: {
             staffId: booking.staffId,
             serviceId: booking.serviceId,
-            startTime: newStartUtc,
             status: { not: 'CANCELLED' },
             id: { not: bookingId },
+            startTime: { lt: newEndUtc },
+            endTime: { gt: newStartUtc },
           },
         });
         if (used >= booking.service.capacity) {

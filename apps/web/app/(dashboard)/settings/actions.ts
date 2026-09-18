@@ -259,26 +259,33 @@ export async function updateMemberRoleAction(
       };
     }
 
-    if (newRole !== 'OWNER') {
+    // A role can only be changed for someone already on the team. Creating a
+    // new membership here would add any existing user account this workspace
+    // ever learns the id or email of, with no invitation and no consent from
+    // them at all, bypassing the invite-accept flow entirely.
+    const targetMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: user.id } },
+    });
+    if (!targetMember) {
+      return {
+        success: false,
+        error:
+          'This person is not a member of this workspace yet. Send them an invitation instead.',
+      };
+    }
+
+    if (newRole !== 'OWNER' && targetMember.role === 'OWNER') {
       const ownerCount = await prisma.workspaceMember.count({
         where: { workspaceId, role: 'OWNER' },
       });
-      const targetMember = await prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId, userId: user.id } },
-      });
-      if (targetMember?.role === 'OWNER' && ownerCount <= 1) {
+      if (ownerCount <= 1) {
         return { success: false, error: 'Cannot demote the only workspace owner.' };
       }
     }
 
-    await prisma.workspaceMember.upsert({
+    await prisma.workspaceMember.update({
       where: { workspaceId_userId: { workspaceId, userId: user.id } },
-      update: { role: newRole },
-      create: {
-        workspaceId,
-        userId: user.id,
-        role: newRole,
-      },
+      data: { role: newRole },
     });
 
     revalidatePath('/settings');
@@ -347,22 +354,28 @@ export async function sendInvitationAction(
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
 
-    // A fresh invite replaces any earlier unaccepted one to the same address,
-    // so re-inviting someone (after a typo in the role, say) does not leave
-    // two live links where only the newest is the one anyone should use.
-    await prisma.$transaction([
-      prisma.invitation.deleteMany({ where: { workspaceId, email, acceptedAt: null } }),
-      prisma.invitation.create({
-        data: {
-          workspaceId,
-          email,
-          role: input.role,
-          tokenHash: hashSessionToken(token),
-          invitedById: session.user.id,
-          expiresAt,
-        },
-      }),
-    ]);
+    // Upserted rather than deleted-then-created: the (workspaceId, email) pair
+    // is unique for the row's whole lifetime, including after acceptance, so a
+    // second invite to someone who was invited, accepted, and later removed
+    // would otherwise collide with their original (accepted) row and fail.
+    await prisma.invitation.upsert({
+      where: { workspaceId_email: { workspaceId, email } },
+      update: {
+        role: input.role,
+        tokenHash: hashSessionToken(token),
+        invitedById: session.user.id,
+        expiresAt,
+        acceptedAt: null,
+      },
+      create: {
+        workspaceId,
+        email,
+        role: input.role,
+        tokenHash: hashSessionToken(token),
+        invitedById: session.user.id,
+        expiresAt,
+      },
+    });
 
     const link = inviteAcceptUrl(token);
     if (isMailConfigured()) {

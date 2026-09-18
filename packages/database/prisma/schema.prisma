@@ -465,11 +465,13 @@ model Booking {
 /// This does not by itself stop the *primary* staff member of one booking
 /// from being double-booked as a *participant* of a different one: that
 /// would need a single constraint spanning both tables, which Postgres
-/// cannot express. Collective bookings are staff-created (panel interviews,
-/// team meetings), not a public, high-frequency, adversarial-input path like
-/// the customer booking flow, so createCollectiveBookingAction re-checks
-/// every required staff member's schedule (including this table) before
-/// writing, rather than relying solely on a database constraint here.
+/// cannot express. createPublicBookingAction re-checks every required staff
+/// member's schedule (including this table, via loadSchedules) immediately
+/// before writing and refuses the booking if any of them is no longer free,
+/// but that check and the write are not atomic, so a concurrent request
+/// landing in between is a real, currently-accepted race — the same
+/// TOCTOU window every availability check in this codebase has before its
+/// insert, narrowed by the pre-write re-check but not closed by it.
 model BookingParticipant {
   id        String        @id @default(uuid())
   bookingId String        @map("booking_id")

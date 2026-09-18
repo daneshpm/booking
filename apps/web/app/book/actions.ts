@@ -1,8 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
-import { prisma, Prisma } from '@bookings/database';
+import { prisma } from '@bookings/database';
 import { toZonedTime, format as formatTz } from 'date-fns-tz';
 import {
   generateSlots,
@@ -13,14 +12,17 @@ import {
   type WorkingWindow,
 } from '@bookings/core';
 import { isOverlapConstraintViolation, BookingCapacityExceededError } from '@/lib/booking-errors';
+import { createBookingWithCapacityAndParticipants } from '@/lib/booking-capacity';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
 import {
   checkRateLimit,
+  callerKey,
   PUBLIC_BOOKING_LIMIT,
   PUBLIC_AVAILABILITY_LIMIT,
   PAYMENT_VERIFY_LIMIT,
   MANAGE_BOOKING_LIMIT,
+  WAITLIST_CLAIM_LIMIT,
 } from '@/lib/rate-limit';
 import {
   addToWaitlist,
@@ -107,22 +109,6 @@ function isValidTimezone(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Identify the caller for rate limiting.
- *
- * Behind a proxy the socket address is the proxy, so the forwarded header is
- * preferred. That header is client-supplied and trivially spoofed, which is why
- * the limiter is a speed bump rather than a security boundary.
- */
-async function callerKey(scope: string): Promise<string> {
-  const headerList = await headers();
-  const address =
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    headerList.get('x-real-ip') ||
-    'unknown';
-  return `${scope}:${address}`;
 }
 
 /** Calendar date as the booking UI submits it. */
@@ -251,7 +237,10 @@ async function loadSchedules(
  */
 async function candidateStaff(
   workspaceId: string,
-  service: { staffAssignments: Array<{ staff: { id: string; name: string; isActive: boolean } }> },
+  service: {
+    staffAssignments: Array<{ staff: { id: string; name: string; isActive: boolean } }>;
+    routingStrategy?: string | null;
+  },
   preferredStaffId?: string
 ): Promise<Array<{ id: string; name: string }>> {
   const assigned = service.staffAssignments.map((a) => a.staff).filter((s) => s.isActive);
@@ -265,7 +254,12 @@ async function candidateStaff(
           orderBy: { name: 'asc' },
         });
 
-  if (preferredStaffId) {
+  // A collective (ALL_REQUIRED) service needs every assigned staff member at
+  // once, not "whichever one the caller prefers" — narrowing the pool here
+  // would let any public caller collapse it to one staffId and silently turn
+  // an ALL_REQUIRED booking into a one-on-one with no other required staff
+  // ever checked or recorded.
+  if (preferredStaffId && service.routingStrategy !== 'ALL_REQUIRED') {
     const matched = pool.filter((s) => s.id === preferredStaffId);
     if (matched.length > 0) {
       return matched.map((s) => ({ id: s.id, name: s.name }));
@@ -395,7 +389,19 @@ export async function getAvailableSlotsAction(
     const isGroupService = Boolean(service.capacity && service.capacity > 1);
     // A collective service needs every assigned staff member simultaneously,
     // not "whichever one is free first" — meaningless with a single candidate.
-    const isCollective = service.routingStrategy === 'ALL_REQUIRED' && schedules.length > 1;
+    // Based on the required pool (candidates), not on how many of them ended
+    // up with a schedule that day: a panelist with no working hours at all
+    // that day must not silently drop the requirement to "whoever's left".
+    const isCollective = service.routingStrategy === 'ALL_REQUIRED' && candidates.length > 1;
+
+    if (isCollective && schedules.length < candidates.length) {
+      // At least one required staff member has no working window on this
+      // date at all, so no time can honestly be offered as "everyone is
+      // free" — the intersection below would otherwise be computed only
+      // among whoever does have a schedule, silently ignoring the missing
+      // required staff member entirely.
+      return { success: true, slots: [] };
+    }
 
     const perStaff = schedules.map((schedule) => {
       // A group service's own past bookings for this slot are capacity used,
@@ -440,25 +446,26 @@ export async function getAvailableSlotsAction(
       }
     } else {
       for (const { schedule, slots } of perStaff) {
-        // Capacity used so far at each of this group service's own exact
-        // slot starts, so a slot already full is not offered as if it were
-        // open. Grid-aligned, since every booking for a service is created
-        // at a slot the same grid produces.
-        const usedByStart = new Map<number, number>();
-        if (isGroupService) {
-          for (const b of schedule.busy) {
-            if (b.serviceId !== service.id) continue;
-            const key = b.start.getTime();
-            usedByStart.set(key, (usedByStart.get(key) || 0) + 1);
-          }
-        }
+        // Existing bookings of this same group service for this staff member,
+        // checked for actual time-range overlap against each candidate slot
+        // below rather than exact start-time equality: add-ons make effective
+        // duration vary per booking, so two bookings of the same group
+        // service can genuinely overlap while starting at different grid
+        // times, and an exact-match count would miss that entirely.
+        const ownServiceBookings = isGroupService
+          ? schedule.busy.filter((b) => b.serviceId === service.id)
+          : [];
 
         for (const slot of slots) {
           if (byTime.has(slot.localTime)) continue;
 
           let remainingCapacity: number | undefined;
           if (isGroupService) {
-            const used = usedByStart.get(slot.startUtc.getTime()) || 0;
+            const used = ownServiceBookings.filter(
+              (b) =>
+                b.start.getTime() < slot.endUtc.getTime() &&
+                b.end.getTime() > slot.startUtc.getTime()
+            ).length;
             remainingCapacity = (service.capacity as number) - used;
             if (remainingCapacity <= 0) continue;
           }
@@ -495,63 +502,6 @@ export async function getAvailableSlotsAction(
  * page. Trusting the submitted time would let a hand-built request book a rest
  * day or the middle of a lunch break.
  */
-/**
- * Creates the primary Booking row plus, for a collective service, the
- * BookingParticipant rows for every other required staff member — all in one
- * transaction so a capacity failure or a participant conflict leaves nothing
- * behind instead of an orphaned booking or a missing participant.
- *
- * Group-service capacity has no Postgres constraint to lean on the way
- * double-booking does (there's no way to express "at most N rows sharing this
- * staff+slot" in an EXCLUDE constraint), so it's enforced here: an advisory
- * lock keyed on staff+slot serializes concurrent attempts, then the current
- * seat count is checked before the insert.
- */
-async function createBookingWithCapacityAndParticipants(
-  bookingData: Prisma.BookingCreateArgs['data'],
-  opts: {
-    isGroupService: boolean;
-    serviceId: string;
-    staffId: string;
-    startUtc: Date;
-    capacity: number | null;
-    participants: Array<{ staffId: string; startUtc: Date; endUtc: Date }>;
-  }
-) {
-  return prisma.$transaction(async (tx) => {
-    if (opts.isGroupService && opts.capacity) {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${opts.staffId}), hashtext(${opts.startUtc.toISOString()}))`;
-
-      const used = await tx.booking.count({
-        where: {
-          staffId: opts.staffId,
-          serviceId: opts.serviceId,
-          startTime: opts.startUtc,
-          status: { not: 'CANCELLED' },
-        },
-      });
-      if (used >= opts.capacity) {
-        throw new BookingCapacityExceededError();
-      }
-    }
-
-    const booking = await tx.booking.create({ data: bookingData });
-
-    if (opts.participants.length > 0) {
-      await tx.bookingParticipant.createMany({
-        data: opts.participants.map((p) => ({
-          bookingId: booking.id,
-          staffId: p.staffId,
-          startTime: p.startUtc,
-          endTime: p.endUtc,
-        })),
-      });
-    }
-
-    return booking;
-  });
-}
-
 export async function createPublicBookingAction(data: BookingFormData): Promise<BookingResult> {
   try {
     const { workspaceId, serviceId, date, time } = data;
@@ -669,7 +619,17 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     const baseCombinedPrice = Number(service.price) + extraPrice;
 
     const isGroupService = Boolean(service.capacity && service.capacity > 1);
-    const isCollective = service.routingStrategy === 'ALL_REQUIRED' && schedules.length > 1;
+    // Based on the required pool (candidates), not on how many of them ended
+    // up with a schedule that day — see getAvailableSlotsAction for why.
+    const isCollective = service.routingStrategy === 'ALL_REQUIRED' && candidates.length > 1;
+
+    if (isCollective && schedules.length < candidates.length) {
+      return {
+        success: false,
+        error:
+          'One of the required team members is not working that day. Please choose another slot.',
+      };
+    }
 
     // Re-run the same engine that produced the page and match available staff
     const eligibleMatches: Array<{ staffId: string; staffName: string; slot: Slot }> = [];
@@ -710,7 +670,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     // A collective booking needs every required staff member free at once;
     // one or more having lost the slot since the page loaded means the whole
     // booking cannot go ahead, not that it proceeds with whoever is left.
-    if (isCollective && eligibleMatches.length < schedules.length) {
+    if (isCollective && eligibleMatches.length < candidates.length) {
       return {
         success: false,
         error:
@@ -846,6 +806,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
           serviceId: service.id,
           staffId: chosen.staffId,
           startUtc: chosen.slot.startUtc,
+          endUtc: chosen.slot.endUtc,
           capacity: service.capacity ?? null,
           participants: otherParticipants.map((p) => ({
             staffId: p.staffId,
@@ -951,6 +912,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
         serviceId: service.id,
         staffId: chosen.staffId,
         startUtc: chosen.slot.startUtc,
+        endUtc: chosen.slot.endUtc,
         capacity: service.capacity ?? null,
         participants: otherParticipants.map((p) => ({
           staffId: p.staffId,
@@ -1099,6 +1061,11 @@ export async function joinPublicWaitlistAction(data: JoinWaitlistInput) {
 
 export async function getClaimSpotDetailsAction(token: string) {
   try {
+    const throttle = await checkRateLimit(await callerKey('waitlist-claim'), WAITLIST_CLAIM_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const entry = await getWaitlistEntryByClaimToken(token);
     if (!entry) {
       return { success: false, error: 'Claim link is invalid or has expired.' };
@@ -1126,6 +1093,11 @@ export async function getClaimSpotDetailsAction(token: string) {
 
 export async function claimPublicWaitlistSpotAction(token: string) {
   try {
+    const throttle = await checkRateLimit(await callerKey('waitlist-claim'), WAITLIST_CLAIM_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const res = await claimWaitlistSpot(token);
     if (res.success) {
       revalidatePath('/calendar');
@@ -1329,15 +1301,19 @@ export async function rescheduleBookingByManageTokenAction(
 
     const updated = await prisma.$transaction(async (tx) => {
       if (isGroupService && booking.service.capacity) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${booking.staffId}), hashtext(${matchedSlot.startUtc.toISOString()}))`;
+        // Locked per staff+service, not per exact slot — see
+        // createBookingWithCapacityAndParticipants for why exact-start
+        // locking/counting misses overlaps caused by add-on duration.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${booking.staffId}), hashtext(${booking.serviceId}))`;
 
         const used = await tx.booking.count({
           where: {
             staffId: booking.staffId,
             serviceId: booking.serviceId,
-            startTime: matchedSlot.startUtc,
             status: { not: 'CANCELLED' },
             id: { not: booking.id },
+            startTime: { lt: matchedSlot.endUtc },
+            endTime: { gt: matchedSlot.startUtc },
           },
         });
         if (used >= booking.service.capacity) {
@@ -1610,8 +1586,13 @@ export async function verifyAndConfirmPaymentAction(
     const meetingLink =
       booking.service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
 
-    const updated = await prisma.booking.update({
-      where: { id: bookingId },
+    // Guarded on the booking still being PENDING: without this, replaying a
+    // valid payment signature (the original webhook redelivered, or a stale
+    // browser tab resubmitting) can flip a booking back to CONFIRMED/PAID
+    // after it was cancelled in between — resurrecting a booking whose
+    // capacity seat or collective participant rows were already released.
+    const updateResult = await prisma.booking.updateMany({
+      where: { id: bookingId, status: 'PENDING', paymentOrderId: orderId },
       data: {
         status: 'CONFIRMED',
         paymentStatus: 'PAID',
@@ -1619,25 +1600,34 @@ export async function verifyAndConfirmPaymentAction(
         paymentProvider: provider,
         paidAt: new Date(),
         meetingLink,
-        auditLogs: {
-          create: {
-            action: 'PAYMENT_VERIFIED_CONFIRMED',
-            actorType: 'CUSTOMER',
-            actorId: booking.customerId,
-            details: {
-              transactionId: verifyRes.transactionId,
-              orderId,
-              provider,
-              paidPrice: booking.paidPrice,
-              confirmedAt: new Date().toISOString(),
-            },
-          },
+      },
+    });
+
+    if (updateResult.count === 0) {
+      return {
+        success: false,
+        error: 'This booking is no longer pending confirmation.',
+      };
+    }
+
+    await prisma.bookingAuditLog.create({
+      data: {
+        bookingId,
+        action: 'PAYMENT_VERIFIED_CONFIRMED',
+        actorType: 'CUSTOMER',
+        actorId: booking.customerId,
+        details: {
+          transactionId: verifyRes.transactionId,
+          orderId,
+          provider,
+          paidPrice: booking.paidPrice,
+          confirmedAt: new Date().toISOString(),
         },
       },
     });
 
     // Dispatch confirmation notifications
-    await dispatchBookingNotifications(updated.id, 'BOOKING_CREATED').catch((err) =>
+    await dispatchBookingNotifications(bookingId, 'BOOKING_CREATED').catch((err) =>
       console.error('Booking notification dispatch failed after payment:', err)
     );
 
@@ -1658,8 +1648,8 @@ export async function verifyAndConfirmPaymentAction(
     return {
       success: true,
       requiresPayment: false,
-      bookingId: updated.id,
-      manageToken: updated.manageToken ?? undefined,
+      bookingId: booking.id,
+      manageToken: booking.manageToken ?? undefined,
       manageUrl,
       meetingLink: meetingLink ?? undefined,
       startTime: formatTz(toZonedTime(booking.startTime, timezone), 'EEEE, MMMM d, yyyy - h:mm a', {

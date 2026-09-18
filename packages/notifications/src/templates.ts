@@ -16,7 +16,7 @@ export interface RenderedMessage {
 
 export interface BookingTemplateSource {
   customer: { name: string; email: string };
-  staff: { name: string; email: string };
+  staff: { name: string; email: string; kind?: string };
   service: { name: string; durationMinutes: number; locationDetails: string | null };
   workspace: { name: string; timezone: string };
   startTime: Date;
@@ -103,11 +103,15 @@ export function recipientsFor(
   recipient: 'CUSTOMER' | 'STAFF' | 'BOTH',
   booking: Pick<BookingTemplateSource, 'customer' | 'staff'>
 ): string[] {
+  // A RESOURCE (a room, a piece of equipment) is a Staff row so it can be
+  // scheduled with the same machinery as a person, but it has no one reading
+  // its inbox: its placeholder email would just bounce every notification.
+  const staffEmail = booking.staff.kind === 'RESOURCE' ? null : booking.staff.email;
   switch (recipient) {
     case 'STAFF':
-      return [booking.staff.email];
+      return staffEmail ? [staffEmail] : [];
     case 'BOTH':
-      return [booking.customer.email, booking.staff.email];
+      return staffEmail ? [booking.customer.email, staffEmail] : [booking.customer.email];
     case 'CUSTOMER':
     default:
       return [booking.customer.email];

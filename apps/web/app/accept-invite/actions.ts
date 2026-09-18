@@ -3,6 +3,7 @@
 import { prisma } from '@bookings/database';
 import { hashSessionToken, hashPassword, validatePasswordPolicy } from '@bookings/auth';
 import { getSession, startSession } from '@/lib/session';
+import { checkRateLimit, callerKey, INVITE_ACCEPT_LIMIT } from '@/lib/rate-limit';
 
 export interface InvitationPreview {
   valid: boolean;
@@ -31,6 +32,11 @@ async function resolveInvitation(token: string) {
 
 /** Whether an invite link is still usable, and which form the page should show. */
 export async function checkInvitationAction(token: string): Promise<InvitationPreview> {
+  const throttle = await checkRateLimit(await callerKey('invite-accept'), INVITE_ACCEPT_LIMIT);
+  if (!throttle.allowed) {
+    return { valid: false };
+  }
+
   const invitation = await resolveInvitation(token);
   if (!invitation) return { valid: false };
 
@@ -61,6 +67,11 @@ export async function acceptInvitationAsNewUserAction(
   input: { name: string; password: string }
 ): Promise<AcceptInvitationResult> {
   try {
+    const throttle = await checkRateLimit(await callerKey('invite-accept'), INVITE_ACCEPT_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const invitation = await resolveInvitation(token);
     if (!invitation) {
       return {
@@ -146,6 +157,11 @@ export async function acceptInvitationForExistingUserAction(
   token: string
 ): Promise<AcceptInvitationResult> {
   try {
+    const throttle = await checkRateLimit(await callerKey('invite-accept'), INVITE_ACCEPT_LIMIT);
+    if (!throttle.allowed) {
+      return { success: false, error: 'Too many requests. Please wait a moment and try again.' };
+    }
+
     const invitation = await resolveInvitation(token);
     if (!invitation) {
       return {

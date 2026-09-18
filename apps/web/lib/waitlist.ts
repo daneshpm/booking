@@ -3,6 +3,7 @@ import { addMinutes } from 'date-fns';
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { generateMeetingLink } from './meeting-link';
 import { dispatchBookingNotifications } from '@bookings/notifications';
+import { createBookingWithCapacityAndParticipants } from './booking-capacity';
 
 /**
  * How long a claim link stays usable after the customer was notified.
@@ -388,6 +389,20 @@ export async function claimWaitlistSpot(token: string) {
 
   const timezone = entry.workspace.timezone || 'UTC';
   const service = entry.service;
+  const isGroupService = Boolean(service.capacity && service.capacity > 1);
+
+  // This flow has no payment step at all — claiming immediately books
+  // CONFIRMED/PAID with no price collected. That is fine for a free service,
+  // but for a paid one it was silently giving the session away for free.
+  // Rather than half-build a payment step here, a paid service is directed
+  // to the regular booking page instead, which already collects payment.
+  if (Number(service.price) > 0) {
+    return {
+      success: false as const,
+      error:
+        'This is a paid service and cannot be claimed here. Please book it from the booking page to complete payment.',
+    };
+  }
 
   // preferredDate is a DATE column, so it arrives at UTC midnight. Reading it
   // with the local accessors moves it a day back on any server west of UTC.
@@ -435,10 +450,14 @@ export async function claimWaitlistSpot(token: string) {
 
   let staffId: string | null = null;
   for (const candidate of candidates) {
+    // A group service's own other bookings at this slot are capacity used,
+    // not a conflict — the same distinction the public booking flow makes.
+    // The actual seat count is still enforced atomically below.
     const conflict = await prisma.booking.findFirst({
       where: {
         staffId: candidate.id,
         status: { notIn: ['CANCELLED'] },
+        ...(isGroupService ? { serviceId: { not: service.id } } : {}),
         AND: [{ startTime: { lt: endUtc } }, { endTime: { gt: startUtc } }],
       },
       select: { id: true },
@@ -492,9 +511,13 @@ export async function claimWaitlistSpot(token: string) {
       },
     });
 
-    // Create booking
-    const booking = await prisma.booking.create({
-      data: {
+    // Create booking. Routed through the same capacity-aware helper the
+    // public booking flow uses: a direct create here would skip both the
+    // isGroupBooking flag (letting the row wrongly participate in the
+    // no-overlap exclusion constraint) and the atomic seat-count check
+    // (letting a claim push a group class over capacity).
+    const booking = await createBookingWithCapacityAndParticipants(
+      {
         workspaceId: entry.workspaceId,
         serviceId: service.id,
         staffId,
@@ -503,6 +526,11 @@ export async function claimWaitlistSpot(token: string) {
         endTime: endUtc,
         customerTimezone: timezone,
         status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        paymentProvider: 'FREE',
+        paidAt: new Date(),
+        paidPrice: 0,
+        isGroupBooking: isGroupService,
         source: 'ONLINE',
         meetingLink: service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null,
         auditLogs: {
@@ -517,7 +545,16 @@ export async function claimWaitlistSpot(token: string) {
           },
         },
       },
-    });
+      {
+        isGroupService,
+        serviceId: service.id,
+        staffId,
+        startUtc,
+        endUtc,
+        capacity: service.capacity ?? null,
+        participants: [],
+      }
+    );
 
     await prisma.waitlistEntry.update({
       where: { id: entry.id },

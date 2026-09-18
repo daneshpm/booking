@@ -10,6 +10,17 @@ import { EXPORTABLE_FIELDS, type FieldKey } from './fields';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Neutralizes CSV/formula injection: a customer name or intake answer of
+ * `=cmd|'/c calc'!A1` is customer-controlled text, but Excel/Sheets treats a
+ * leading =, +, -, @, tab or CR as the start of a formula and executes it the
+ * moment an admin opens the exported file. Prefixing with a single quote
+ * forces every spreadsheet reader to render the cell as literal text.
+ */
+function sanitizeForSpreadsheet(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
 const FIELD_KEYS = EXPORTABLE_FIELDS.map((f) => f.key) as [FieldKey, ...FieldKey[]];
 
 const exportSchema = z.object({
@@ -157,8 +168,13 @@ export async function exportAppointmentsAction(
       const formatAnswer = (value: unknown): string =>
         typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value == null ? '' : String(value);
       return [
-        ...selectedFields.map((f) => fieldValue(booking, f.key)),
-        ...customFieldLabels.map((label) => formatAnswer(answerByLabel.get(label))),
+        ...selectedFields.map((f) => {
+          const value = fieldValue(booking, f.key);
+          return typeof value === 'string' ? sanitizeForSpreadsheet(value) : value;
+        }),
+        ...customFieldLabels.map((label) =>
+          sanitizeForSpreadsheet(formatAnswer(answerByLabel.get(label)))
+        ),
       ];
     });
 

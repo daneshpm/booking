@@ -42,7 +42,10 @@ function phoneRecipients(
 ): string[] {
   const numbers: string[] = [];
   if (recipient !== 'STAFF' && booking.customer.phone) numbers.push(booking.customer.phone);
-  if (recipient !== 'CUSTOMER' && booking.staff.phone) numbers.push(booking.staff.phone);
+  // A RESOURCE (a room, a piece of equipment) has no one to text.
+  if (recipient !== 'CUSTOMER' && booking.staff.kind !== 'RESOURCE' && booking.staff.phone) {
+    numbers.push(booking.staff.phone);
+  }
   return numbers;
 }
 

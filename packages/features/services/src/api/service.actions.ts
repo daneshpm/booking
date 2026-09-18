@@ -40,12 +40,22 @@ function safeErrorMessage(err: { message?: string } | undefined, fallback: strin
   return message;
 }
 
+/** Thrown by scopeCategoryId when a category id was given but doesn't belong to this workspace. */
+class CategoryNotFoundError extends Error {
+  constructor() {
+    super('CATEGORY_NOT_FOUND');
+  }
+}
+
 /**
  * Accept a category id only when it belongs to this workspace.
  *
  * The id arrives from a form, and service categories are per-workspace. An
  * unchecked id from another tenant would be stored and then rendered on this
  * workspace's public booking page, leaking the other tenant's category name.
+ * A category id that was given but doesn't resolve throws rather than
+ * quietly falling back to "no category": silently clearing whatever the
+ * caller actually chose is a worse failure mode than reporting the error.
  */
 async function scopeCategoryId(
   workspaceId: string,
@@ -56,7 +66,8 @@ async function scopeCategoryId(
     where: { id: categoryId, workspaceId },
     select: { id: true },
   });
-  return owned?.id;
+  if (!owned) throw new CategoryNotFoundError();
+  return owned.id;
 }
 
 export interface ActionResponse<T> {
@@ -93,12 +104,19 @@ export async function createServiceAction(
     };
   }
 
+  let categoryId: string | undefined;
+  try {
+    categoryId = await scopeCategoryId(workspaceId, parsed.data.categoryId);
+  } catch {
+    return { success: false, error: 'The selected category could not be found.' };
+  }
+
   const result = await createServiceUseCase.execute({
     workspaceId,
     name: parsed.data.name,
     slug: parsed.data.slug,
     description: parsed.data.description,
-    categoryId: await scopeCategoryId(workspaceId, parsed.data.categoryId),
+    categoryId,
     durationMinutes: parsed.data.durationMinutes,
     bufferBeforeMinutes: parsed.data.bufferBeforeMinutes,
     bufferAfterMinutes: parsed.data.bufferAfterMinutes,
@@ -186,13 +204,20 @@ export async function updateServiceAction(
     };
   }
 
+  let categoryId: string | undefined;
+  try {
+    categoryId = await scopeCategoryId(workspaceId, parsed.data.categoryId);
+  } catch {
+    return { success: false, error: 'The selected category could not be found.' };
+  }
+
   const result = await updateServiceUseCase.execute({
     id,
     workspaceId,
     name: parsed.data.name,
     slug: parsed.data.slug,
     description: parsed.data.description,
-    categoryId: await scopeCategoryId(workspaceId, parsed.data.categoryId),
+    categoryId,
     durationMinutes: parsed.data.durationMinutes,
     bufferBeforeMinutes: parsed.data.bufferBeforeMinutes,
     bufferAfterMinutes: parsed.data.bufferAfterMinutes,
@@ -224,14 +249,22 @@ export async function updateServiceAction(
   }
 
   if (parsed.data.assignedStaffIds !== undefined) {
-    const validStaff = await prisma.staff.findMany({
-      where: { id: { in: parsed.data.assignedStaffIds }, workspaceId, isActive: true },
+    const activeWorkspaceStaff = await prisma.staff.findMany({
+      where: { workspaceId, isActive: true },
       select: { id: true },
     });
-    const validIds = validStaff.map((s) => s.id);
+    const activeIds = activeWorkspaceStaff.map((s) => s.id);
+    const validIds = parsed.data.assignedStaffIds.filter((sid) => activeIds.includes(sid));
+
     await prisma.$transaction([
+      // Scoped to currently-active staff: an inactive staff member is not
+      // shown as a checkbox in the edit form at all, so their assignment can
+      // never appear in a submitted list. Deleting by plain "not in the
+      // submitted list" would treat that invisibility as "explicitly
+      // unchecked" and silently, permanently drop the assignment the next
+      // time any unrelated field on the service is saved.
       prisma.serviceStaff.deleteMany({
-        where: { serviceId: id, staffId: { notIn: validIds } },
+        where: { serviceId: id, staffId: { notIn: validIds, in: activeIds } },
       }),
       ...(validIds.length > 0
         ? [
