@@ -2,14 +2,12 @@ name: Workflow runner
 
 # Sends reminders and follow-ups configured as time-based workflows.
 #
-# GitHub's scheduler is best-effort and no finer than five minutes, so this is a
-# reasonable fallback rather than the recommended setup. For production, run
-# `npm run workflows:worker` as a long-lived process; it sweeps every minute and
-# both are safe to run at once, since deliveries are claimed through a unique
-# index.
+# The scheduled trigger is disabled: production runs `npm run workflows:worker`
+# as a long-lived process in the `worker` container, which already sweeps
+# every minute, making this cron fallback pure redundancy. It's kept as
+# workflow_dispatch only, runnable by hand if the worker process is ever down
+# and reminders need a manual nudge.
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 concurrency:
