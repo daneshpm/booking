@@ -1,10 +1,12 @@
 name: Session cleanup
 
 # Expired sessions are already rejected on sight, but the rows stay behind and
-# the table grows without bound. This removes them on a schedule.
+# the table grows without bound. This used to run on a daily schedule; the
+# schedule is disabled for now and it's triggered by hand instead (see repo
+# notes on the GitHub Actions billing block). No functional loss beyond
+# needing to remember to run it occasionally — old session rows are inert,
+# just unpurged.
 on:
-  schedule:
-    - cron: '17 3 * * *'
   workflow_dispatch:
 
 jobs:
