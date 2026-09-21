@@ -23,6 +23,18 @@ export interface ResetResult {
   fieldErrors?: Record<string, string[]>;
 }
 
+/**
+ * Pause for roughly as long as the work this request deliberately skipped.
+ *
+ * Every branch of a password-reset request returns the same neutral reply,
+ * which is worth nothing if the branches take visibly different amounts of
+ * time. Not exported: a 'use server' module may only export async functions
+ * that are safe to call from a browser, and this is neither.
+ */
+function neutralDelay(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 120 + Math.random() * 80));
+}
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
@@ -75,9 +87,7 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
     });
 
     if (!user || !user.isActive) {
-      // Spend a comparable amount of time to the registered path, so the
-      // response time does not reveal which addresses have accounts.
-      await new Promise((resolve) => setTimeout(resolve, 120 + Math.random() * 80));
+      await neutralDelay();
       return { success: true };
     }
 
@@ -89,10 +99,24 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
     // is told through the logs instead.
     if (!isMailConfigured()) {
       console.error('Password reset requested but SMTP is not configured; no link was sent.');
+      // Delayed like every other branch. Returning straight away here would
+      // make a registered address the *fastest* reply rather than the
+      // slowest, which is the same oracle wearing a different hat.
+      await neutralDelay();
       return { success: true };
     }
 
-    const result = await sendMail({
+    // Dispatched without awaiting. The SMTP round trip is the one part of
+    // this path whose duration depends on the address being registered, and
+    // it is measured in seconds against the unregistered path's ~150 ms — so
+    // awaiting it here is precisely what turned the carefully neutral reply
+    // into a timing oracle for "is this address a customer of ours".
+    //
+    // The floating promise is safe because this runs in a long-lived Node
+    // server rather than a per-request lambda, and its outcome is only ever
+    // logged: the caller gets the same neutral reply whether delivery
+    // succeeds or fails, so there is nothing to wait for.
+    void sendMail({
       to: user.email,
       subject: 'Reset your Rooman Bookings password',
       text:
@@ -101,12 +125,13 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
         `${link}\n\n` +
         `The link expires in ${RESET_TTL_MINUTES} minutes and can be used once.\n\n` +
         `If this was not you, no action is needed: your password has not changed.\n`,
-    });
+    })
+      .then((result) => {
+        if (!result.delivered) console.error('Password reset email failed:', result.error);
+      })
+      .catch((err) => console.error('Password reset email threw:', err));
 
-    if (!result.delivered) {
-      // Same reasoning: the caller gets the neutral reply either way.
-      console.error('Password reset email failed:', result.error);
-    }
+    await neutralDelay();
 
     return { success: true };
   } catch (err) {
