@@ -25,9 +25,13 @@
     "sessions:purge": "npm --workspace=@bookings/database run purge:sessions",
     "audit": "node scripts/audit.mjs",
     "workflows:run": "npm --workspace=@bookings/notifications run workflows:run",
-    "workflows:worker": "npm --workspace=@bookings/notifications run workflows:worker"
+    "workflows:worker": "npm --workspace=@bookings/notifications run workflows:worker",
+    "test:e2e": "playwright test",
+    "test:e2e:seed": "tsx apps/web/e2e/fixtures.ts",
+    "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitest/coverage-v8": "^5.0.0",
     "prettier": "^3.5.3",
     "turbo": "^2.10.12",
