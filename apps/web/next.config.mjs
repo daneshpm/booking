@@ -104,15 +104,23 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
-    const pythonApiUrl = process.env.PYTHON_API_URL || 'http://127.0.0.1:8000';
-    return [
-      {
-        source: '/api/py/:path*',
-        destination: `${pythonApiUrl}/api/:path*`,
-      },
-    ];
-  },
+  // No rewrites.
+  //
+  // There was a `/api/py/:path*` proxy to the FastAPI service (apps/api) here.
+  // It was removed because nothing in this app ever called it — every booking
+  // and auth flow goes through server actions and Prisma — while it exposed,
+  // unauthenticated and straight to the internet:
+  //
+  //   POST /api/py/auth/register  -> creates a User + Workspace + an OWNER
+  //                                  membership, and issues an rb_session
+  //                                  cookie valid for this entire dashboard
+  //   POST /api/py/auth/login     -> mints that same cookie
+  //   POST /api/py/bookings       -> writes a confirmed booking
+  //
+  // The middleware matcher excludes `api/` (see middleware.ts), so none of it
+  // was gated at the edge either. Re-adding this proxy means re-exposing
+  // unauthenticated tenant creation; if the Python service is ever needed,
+  // put authentication in front of it first.
 };
 
 export default nextConfig;
