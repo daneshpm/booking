@@ -3,6 +3,7 @@ import { isMailConfigured, sendMail } from './channels/email';
 import { isSmsConfigured, sendSms } from './channels/sms';
 import { sendWebhook } from './channels/webhook';
 import type { DeliveryResult } from './channels/types';
+import { logger } from '@bookings/core';
 import {
   buildTemplateContext,
   defaultMessage,
@@ -167,7 +168,7 @@ async function recordResult(
           sentAt: result.delivered ? new Date() : null,
         },
       })
-      .catch((err) => console.error('Could not update notification log:', err));
+      .catch((err) => logger.error('Could not update notification log', { err }));
     return;
   }
 
@@ -186,7 +187,7 @@ async function recordResult(
         sentAt: result.delivered ? new Date() : null,
       },
     })
-    .catch((err) => console.error('Could not record notification log:', err));
+    .catch((err) => logger.error('Could not record notification log', { err }));
 }
 
 /** Turn one workflow into the deliveries it implies for a booking. */
@@ -542,7 +543,7 @@ export async function retryStalledDeliveries(now: Date = new Date()): Promise<Di
           sentAt: result.delivered ? new Date() : null,
         },
       })
-      .catch((err) => console.error('Could not update notification log:', err));
+      .catch((err) => logger.error('Could not update notification log', { err }));
   }
 
   return { attempted, delivered, skipped };

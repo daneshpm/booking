@@ -7,28 +7,29 @@
  */
 import { loadEnvFile } from './load-env';
 import { prisma } from './client';
+import { logger } from '@bookings/core';
 
 loadEnvFile();
 
 async function main() {
   const now = new Date();
 
+  // Counts as fields rather than in the sentence: this runs unattended, so the
+  // output is read by whatever collects logs, not by a person at a terminal.
   const sessions = await prisma.session.deleteMany({ where: { expiresAt: { lte: now } } });
-  console.log(`Removed ${sessions.count} expired session${sessions.count === 1 ? '' : 's'}.`);
+  logger.info('Expired sessions purged', { removed: sessions.count });
 
   // Used and expired reset tokens are dead weight; a used one can never be
   // replayed, so keeping it serves no purpose.
   const tokens = await prisma.passwordResetToken.deleteMany({
     where: { OR: [{ expiresAt: { lte: now } }, { usedAt: { not: null } }] },
   });
-  console.log(
-    `Removed ${tokens.count} spent password reset token${tokens.count === 1 ? '' : 's'}.`
-  );
+  logger.info('Spent password reset tokens purged', { removed: tokens.count });
 }
 
 main()
   .catch((err) => {
-    console.error('Session purge failed:', err instanceof Error ? err.message : err);
+    logger.error('Session purge failed', { err: err instanceof Error ? err.message : err });
     process.exitCode = 1;
   })
   .finally(async () => {

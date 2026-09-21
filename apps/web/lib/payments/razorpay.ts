@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger } from '@bookings/core';
 import type {
   CreatePaymentOrderInput,
   PaymentOrderResult,
@@ -30,8 +31,8 @@ export async function createRazorpayOrder(
         error: 'Payment is not available for this workspace yet. Please contact the business.',
       };
     }
-    console.info(
-      'RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not found. Emulating Razorpay order in test sandbox mode.'
+    logger.warn(
+      'RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET not found; emulating Razorpay order in sandbox mode'
     );
     const mockOrderId = `order_mock_${crypto.randomUUID().replace(/-/g, '').slice(0, 14)}`;
     return {
@@ -76,7 +77,7 @@ export async function createRazorpayOrder(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Razorpay order creation failed:', errorText);
+      logger.error('Razorpay order creation failed', { err: errorText });
       return {
         success: false,
         provider: 'RAZORPAY',
@@ -98,7 +99,7 @@ export async function createRazorpayOrder(
       metadata: orderData,
     };
   } catch (err: any) {
-    console.error('Error connecting to Razorpay API:', err);
+    logger.error('Error connecting to Razorpay API', { err });
     return {
       success: false,
       provider: 'RAZORPAY',
@@ -170,7 +171,7 @@ export async function verifyRazorpayPayment(
       transactionId: input.transactionId,
     };
   } catch (err: any) {
-    console.error('Error verifying Razorpay signature:', err);
+    logger.error('Error verifying Razorpay signature', { err });
     return {
       success: false,
       transactionId: input.transactionId || '',

@@ -4,6 +4,7 @@ import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { generateMeetingLink } from './meeting-link';
 import { dispatchBookingNotifications } from '@bookings/notifications';
 import { createBookingWithCapacityAndParticipants } from './booking-capacity';
+import { logger } from '@bookings/core';
 
 /**
  * How long a claim link stays usable after the customer was notified.
@@ -210,7 +211,7 @@ export async function triggerWaitlistRecovery(
         },
       })
       .catch((err) => {
-        console.warn('Failed to log waitlist notification record:', err);
+        logger.warn('Failed to log waitlist notification record', { err });
       });
 
     return {
@@ -224,7 +225,7 @@ export async function triggerWaitlistRecovery(
       },
     };
   } catch (err) {
-    console.error('Waitlist recovery error:', err);
+    logger.error('Waitlist recovery error', { err });
     return { recovered: false, notifiedCount: 0 };
   }
 }
@@ -305,7 +306,7 @@ export async function notifyWaitlistEntry(entryId: string, workspaceId: string) 
       },
     })
     .catch((err) => {
-      console.warn('Failed to log waitlist notification record:', err);
+      logger.warn('Failed to log waitlist notification record', { err });
     });
 
   return {
@@ -563,7 +564,7 @@ export async function claimWaitlistSpot(token: string) {
 
     // Send booking confirmation notification
     await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-      console.error('Waitlist claim booking notification failed:', err)
+      logger.error('Waitlist claim booking notification failed', { err })
     );
 
     return {
@@ -582,10 +583,10 @@ export async function claimWaitlistSpot(token: string) {
         data: { status: 'NOTIFIED', claimToken: token },
       })
       .catch((restoreErr) =>
-        console.error('Failed to restore waitlist entry after claim failure:', restoreErr)
+        logger.error('Failed to restore waitlist entry after claim failure', { err: restoreErr })
       );
 
-    console.error('Waitlist claim failed:', err);
+    logger.error('Waitlist claim failed', { err });
     return {
       success: false as const,
       error: 'We could not confirm that spot. Please try again or book another time.',

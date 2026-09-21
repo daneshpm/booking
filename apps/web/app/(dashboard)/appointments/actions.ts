@@ -16,6 +16,7 @@ import {
   cancelWaitlistEntry,
 } from '@/lib/waitlist';
 import { isValidPhoneNumber, isValidName } from '@/lib/validation';
+import { logger } from '@bookings/core';
 
 export interface CreateAppointmentInput {
   workspaceId: string;
@@ -180,7 +181,7 @@ export async function createDashboardAppointmentAction(
 
     // Notifications must never fail the booking that already committed.
     await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-      console.error('Booking notification dispatch failed:', err)
+      logger.error('Booking notification dispatch failed', { err })
     );
 
     revalidatePath('/appointments');
@@ -269,12 +270,12 @@ export async function updateAppointmentStatusAction(
 
     if (status === 'CANCELLED') {
       await dispatchBookingNotifications(bookingId, 'BOOKING_CANCELLED').catch((err) =>
-        console.error('Cancellation notification dispatch failed:', err)
+        logger.error('Cancellation notification dispatch failed', { err })
       );
 
       // Auto-recovery: Check waitlist for this slot and notify the earliest waiting client
       await triggerWaitlistRecovery(bookingId).catch((err) =>
-        console.error('Waitlist recovery trigger failed:', err)
+        logger.error('Waitlist recovery trigger failed', { err })
       );
     }
 
@@ -591,7 +592,7 @@ export async function createFastPassBookingAction(
     // Send notifications only if not an anonymous local walk-in address
     if (!resolvedEmail.endsWith('@walkin.local')) {
       await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-        console.error('Fast pass notification dispatch failed:', err)
+        logger.error('Fast pass notification dispatch failed', { err })
       );
     }
 

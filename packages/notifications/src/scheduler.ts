@@ -1,5 +1,6 @@
 import { prisma } from '@bookings/database';
 import { dispatchScheduledWorkflow, retryStalledDeliveries } from './dispatch';
+import { logger } from '@bookings/core';
 
 /**
  * Time-based workflow runner.
@@ -76,7 +77,9 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
   // PENDING. Picking those up first means a crash delays a reminder rather
   // than losing it silently.
   const retried = await retryStalledDeliveries(now).catch((err) => {
-    console.error('Retrying stalled deliveries failed:', err instanceof Error ? err.message : err);
+    logger.error('Retrying stalled deliveries failed', {
+      err: err instanceof Error ? err.message : err,
+    });
     return { attempted: 0, delivered: 0, skipped: 0 };
   });
 
@@ -130,10 +133,11 @@ export async function runScheduledWorkflows(options: SweepOptions = {}): Promise
         summary.skipped += result.skipped;
       } catch (err) {
         summary.failed += 1;
-        console.error(
-          `Workflow ${workflow.id} could not be delivered for booking ${booking.id}:`,
-          err instanceof Error ? err.message : err
-        );
+        logger.error('Workflow delivery failed', {
+          workflowId: workflow.id,
+          bookingId: booking.id,
+          err: err instanceof Error ? err.message : err,
+        });
       }
     }
 

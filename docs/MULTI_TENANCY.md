@@ -1,0 +1,94 @@
+# Multi-Tenancy
+
+How one deployment serves several independent businesses without leaking between them.
+
+## Strategy
+
+**Shared database, shared schema.** One PostgreSQL database, one set of tables, and a `workspace_id` column on every tenant-owned row.
+
+This was the right call for this deployment and would be the wrong call for some others, so the reasoning matters: a database per tenant would multiply migration and backup work by the tenant count, and a schema per tenant would break Prisma's single generated client. The cost is that isolation becomes a property of the queries rather than of the connection — get a query wrong and there is no second wall behind it. That cost is paid down with the guard below and the tests in `apps/web/test/integration/cross-tenant-actions.spec.ts`.
+
+## The tenant
+
+`Workspace` is the tenant. Everything a business owns hangs off it:
+
+```
+Workspace
+├── WorkspaceMember  → User (with a Role)
+├── Staff            → StaffWorkingHours, StaffBreak, StaffOverride
+├── Service          → ServiceStaff, ServiceCategory
+├── Customer
+├── Booking          → BookingParticipant, BookingAuditLog, NotificationLog
+├── WaitlistEntry
+├── Workflow
+├── BookingPage, RoutingForm
+└── Invitation
+```
+
+A `User` is a login and is **not** tenant-owned — the same person can be a member of several workspaces. This is why authorisation is `WorkspaceMember`, not a column on `User`.
+
+## Roles
+
+| Role           | Rank | Intended for                                                       |
+| -------------- | ---- | ------------------------------------------------------------------ |
+| `OWNER`        | 40   | The person who created the workspace. Can grant roles and invite.  |
+| `ADMIN`        | 30   | Runs the business day to day: services, staff, analytics, exports. |
+| `STAFF`        | 20   | Sees and manages appointments.                                     |
+| `RECEPTIONIST` | 10   | Front desk: books and reschedules.                                 |
+
+Ranks are numeric so a check reads as "at least this much authority" rather than an enumeration that has to be updated every time a role is added.
+
+## How isolation is enforced
+
+Every request follows the same path:
+
+```
+Request
+  → session cookie (rb_session, SHA-256 hashed at rest)
+  → resolveSession()      reads the user and their memberships, live from the database
+  → requireWorkspace(id, minRole)
+        · is the caller signed in?
+        · are they a member of *this* workspace?
+        · does their role meet the minimum?
+  → the query, scoped by workspaceId
+```
+
+`requireWorkspace` lives in `apps/web/lib/session.ts`. Two rules make it work, and both are load-bearing:
+
+**1. Never trust a client-supplied id.** `workspaceId` arrives from the browser on most server actions. It is a claim, not a fact, until `requireWorkspace` has checked it against the caller's memberships.
+
+**2. Re-scope the id in the query, not just in the guard.** This is the subtle one. Passing the guard proves the caller belongs to workspace A. It proves nothing about the `bookingId` they also sent. So:
+
+```ts
+// Wrong — the guard passed, but this booking could belong to anyone
+await requireWorkspace(workspaceId, 'STAFF');
+const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+
+// Right — the row cannot resolve outside the caller's workspace
+await requireWorkspace(workspaceId, 'STAFF');
+const booking = await prisma.booking.findFirst({ where: { id: bookingId, workspaceId } });
+```
+
+Where an action takes only a resource id and no `workspaceId` (the calendar and appointments status actions, for instance), it loads the row first, reads the `workspaceId` off it, and calls the guard with that — so the check is still against the row's real owner.
+
+Memberships are re-read from the database on every request rather than carried in the session, which is why removing someone or changing their role takes effect on their next request with no session rotation.
+
+## What is deliberately not tenant-scoped
+
+- `User` — a login can belong to several workspaces.
+- `Session` — belongs to a user, not a workspace.
+- `PasswordResetToken` — likewise.
+- The public booking flow resolves the workspace **from the URL slug**, not from a session, because the customer has no account. Everything downstream is then scoped to that resolved workspace.
+
+## Verification
+
+Isolation is asserted in two places, and the distinction matters:
+
+- `test/integration/tenant-isolation.spec.ts` — the guard itself rejects a foreign workspace id.
+- `test/integration/cross-tenant-actions.spec.ts` — **the real server actions** refuse a foreign resource, covering both attack shapes (foreign `workspaceId`, and own `workspaceId` with a foreign resource id). Includes positive controls proving the same calls succeed on the caller's own resources, so a refusal cannot pass for the wrong reason.
+
+The second exists because the first is not sufficient: the guarantee in practice depends on every author remembering to call the guard _and_ scope the query, and only a test at the call site can see that.
+
+## Known limitation
+
+There is no database-level enforcement — no row-level security policies. A query that forgets its `workspaceId` filter will return another tenant's rows and nothing below the application will stop it. RLS would be the belt to this braces, and is the obvious next hardening step if the tenant count or the team size grows.

@@ -19,6 +19,9 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './apps/web/e2e',
+  // Seeds on every run. The integration suite truncates every table in the
+  // same database, so fixtures seeded by hand earlier cannot be relied on.
+  globalSetup: './apps/web/e2e/global-setup.ts',
   // The suite shares one database and one server, so files do not overlap.
   fullyParallel: false,
   workers: 1,

@@ -12,7 +12,9 @@ import {
   hashSessionToken,
 } from '@bookings/auth';
 import { sendMail, isMailConfigured } from '@bookings/notifications';
+import { validateImageValue } from '@/lib/image-value';
 import { checkRateLimit, PASSWORD_CHANGE_LIMIT, INVITE_LIMIT } from '@/lib/rate-limit';
+import { logger } from '@bookings/core';
 
 /**
  * Reject a timezone the scheduling engine cannot resolve.
@@ -26,9 +28,30 @@ function isValidTimezone(value: string): boolean {
   }
 }
 
+/**
+ * Shared by the logo and avatar fields.
+ *
+ * Both are submitted as base64 data URLs and written straight to a text
+ * column, so without this a caller bypassing the browser could persist an
+ * arbitrarily large string, or a document type that is not an image at all.
+ */
+const imageValue = z
+  .string()
+  .optional()
+  .nullable()
+  .superRefine((value, ctx) => {
+    const result = validateImageValue(value);
+    if (!result.valid) {
+      ctx.addIssue({
+        code: 'custom',
+        message: result.error ?? 'That image could not be accepted.',
+      });
+    }
+  });
+
 const settingsSchema = z.object({
   name: z.string().trim().min(2, 'Organization name must be at least 2 characters'),
-  logoUrl: z.string().optional().nullable(),
+  logoUrl: imageValue,
   timezone: z
     .string()
     .trim()
@@ -98,7 +121,7 @@ const profileSchema = z.object({
   linkedin: z.string().trim().optional(),
   twitter: z.string().trim().optional(),
   website: z.string().trim().optional(),
-  avatarUrl: z.string().trim().optional(),
+  avatarUrl: imageValue,
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
@@ -389,10 +412,12 @@ export async function sendInvitationAction(
           `This invitation expires in ${INVITE_TTL_HOURS / 24} days.\n`,
       });
       if (!result.delivered) {
-        console.error('Invitation email failed:', result.error);
+        logger.error('Invitation email failed', { err: result.error });
       }
     } else {
-      console.error('Invitation created but SMTP is not configured; no email was sent.', link);
+      logger.error('Invitation created but SMTP is not configured; no email was sent.', {
+        err: link,
+      });
     }
 
     revalidatePath('/settings');

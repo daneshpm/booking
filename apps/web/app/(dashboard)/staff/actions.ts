@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@bookings/database';
 import { z } from 'zod';
 import { requireWorkspace, toActionError } from '@/lib/session';
+import { validateImageValue } from '@/lib/image-value';
 
 /**
  * Shared result shape for every staff action, so callers can narrow on
@@ -42,7 +43,21 @@ const staffSchema = z.object({
     .refine((val) => !val || !val.trim() || isValidPhoneNumber(val.trim()), {
       message: 'Please enter a valid phone number with at least 10 digits',
     }),
-  avatarUrl: z.string().optional().nullable(),
+  // Submitted as a base64 data URL and written straight to a text column, so
+  // the browser's own size and type checks are not a control.
+  avatarUrl: z
+    .string()
+    .optional()
+    .nullable()
+    .superRefine((value, ctx) => {
+      const result = validateImageValue(value);
+      if (!result.valid) {
+        ctx.addIssue({
+          code: 'custom',
+          message: result.error ?? 'That image could not be accepted.',
+        });
+      }
+    }),
   timezone: z.string().default('UTC'),
   isActive: z.boolean().default(true),
   assignedServiceIds: z.array(z.string()).default([]),

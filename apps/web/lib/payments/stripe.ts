@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger } from '@bookings/core';
 import type {
   CreatePaymentOrderInput,
   PaymentOrderResult,
@@ -29,7 +30,7 @@ export async function createStripePaymentSession(
         error: 'Payment is not available for this workspace yet. Please contact the business.',
       };
     }
-    console.info('STRIPE_SECRET_KEY not found. Emulating Stripe payment in test sandbox mode.');
+    logger.warn('STRIPE_SECRET_KEY not found; emulating Stripe payment in sandbox mode');
     const mockSessionId = `cs_test_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
     return {
       success: true,
@@ -77,7 +78,7 @@ export async function createStripePaymentSession(
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Stripe session creation failed:', errorData);
+      logger.error('Stripe session creation failed', { err: errorData });
       return {
         success: false,
         provider: 'STRIPE',
@@ -103,7 +104,7 @@ export async function createStripePaymentSession(
       metadata: session,
     };
   } catch (err: any) {
-    console.error('Error connecting to Stripe API:', err);
+    logger.error('Error connecting to Stripe API', { err });
     return {
       success: false,
       provider: 'STRIPE',
@@ -166,7 +167,7 @@ export async function verifyStripePayment(input: VerifyPaymentInput): Promise<Ve
       transactionId: session.payment_intent || session.id,
     };
   } catch (err: any) {
-    console.error('Error verifying Stripe payment:', err);
+    logger.error('Error verifying Stripe payment', { err });
     return {
       success: false,
       transactionId: input.transactionId || '',

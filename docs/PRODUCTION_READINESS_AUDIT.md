@@ -6,34 +6,35 @@
 
 ## Status
 
-| #   | Finding                                       | Severity       | Status                                                                                     |
-| --- | --------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
-| A-1 | Unauthenticated tenant-creating API surface   | HIGH (latent)  | **Fixed & deployed** — PR #53. `/api/py/*` now returns 404 in production, verified live    |
-| E-1 | Payment verification untested                 | HIGH           | **Fixed** — PR #53, 18 tests                                                               |
-| D-1 | Group capacity: no backstop, no tests         | HIGH           | **Fixed** — PR #53, 9 tests incl. 8-way concurrency                                        |
-| D-2 | Two EXCLUDE constraints unverified            | MEDIUM         | **Fixed** — PR #53, existence + type asserted                                              |
-| F-1 | Two thirds of the suite never ran locally     | HIGH (process) | **Fixed** — all three suites now run; see Testing below                                    |
-| B-1 | Isolation tested at the guard, not call sites | MEDIUM         | **Fixed** — PR #54, 17 tests incl. positive controls                                       |
-| C-1 | Password reset timing oracle                  | MEDIUM         | **Fixed** — PR #55, 22.6 s vs 150 ms differential closed                                   |
-| C-2 | Signup states whether an email is registered  | MEDIUM         | **Accepted** — see note below                                                              |
-| C-3 | Rate-limit key is attacker-controlled         | MEDIUM         | **Fixed** — PR #56, rightmost hop trusted, 9 tests                                         |
-| A-3 | Superuser database credentials                | MEDIUM         | **Fixed & deployed** — PR #57, app runs as `bookings_app`; DROP and COPY TO PROGRAM denied |
-| F-2 | Zero E2E/browser tests                        | MEDIUM         | **Fixed** — PR #58, 24 Chromium tests                                                      |
-| H-1 | CI/CD non-functional (Actions billing)        | HIGH (process) | Open — external blocker, nothing in the repo can fix it                                    |
-| H-2 | Production disk at 75–92%                     | MEDIUM         | Open — needs a Proxmox-host resize, outside the container                                  |
+| #   | Finding                                            | Severity       | Status                                                                                     |
+| --- | -------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
+| A-1 | Unauthenticated tenant-creating API surface        | HIGH (latent)  | **Fixed & deployed** — PR #53. `/api/py/*` now returns 404 in production, verified live    |
+| E-1 | Payment verification untested                      | HIGH           | **Fixed** — PR #53, 18 tests                                                               |
+| D-1 | Group capacity: no backstop, no tests              | HIGH           | **Fixed** — PR #53, 9 tests incl. 8-way concurrency                                        |
+| D-2 | Two EXCLUDE constraints unverified                 | MEDIUM         | **Fixed** — PR #53, existence + type asserted                                              |
+| F-1 | Two thirds of the suite never ran locally          | HIGH (process) | **Fixed** — all three suites now run; see Testing below                                    |
+| B-1 | Isolation tested at the guard, not call sites      | MEDIUM         | **Fixed** — PR #54, 17 tests incl. positive controls                                       |
+| C-1 | Password reset timing oracle                       | MEDIUM         | **Fixed** — PR #55, 22.6 s vs 150 ms differential closed                                   |
+| C-2 | Signup states whether an email is registered       | MEDIUM         | **Accepted** — see note below                                                              |
+| C-3 | Rate-limit key is attacker-controlled              | MEDIUM         | **Fixed** — PR #56, rightmost hop trusted, 9 tests                                         |
+| A-3 | Superuser database credentials                     | MEDIUM         | **Fixed & deployed** — PR #57, app runs as `bookings_app`; DROP and COPY TO PROGRAM denied |
+| F-2 | Zero E2E/browser tests                             | MEDIUM         | **Fixed** — PR #58, 24 Chromium tests                                                      |
+| G-1 | No structured logging; logs leaked PII and secrets | MEDIUM         | **Fixed** — PR #60, JSON lines, request ids, redaction by key, 10 tests                    |
+| H-1 | CI/CD non-functional (Actions billing)             | HIGH (process) | Open — external blocker, nothing in the repo can fix it                                    |
+| H-2 | Production disk at 75–92%                          | MEDIUM         | **Fixed** — resized 7.8 GB → 16 GB on 2026-09-21; now 38%, 9.4 GB free, no downtime        |
 
 **On C-2 (signup enumeration):** deliberately not "fixed". Removing "an account with this email already exists" degrades signup UX badly for every honest user, and the same information is obtainable from the login form in any product that reports a wrong password distinctly. GitHub, Google and most mainstream products make the same trade. The timing oracle in C-1 was worth closing because it cost nothing to close; this one is not.
 
 ### Test suite as it stands
 
-| Suite                       | Before           | Now       | Command                                     |
-| --------------------------- | ---------------- | --------- | ------------------------------------------- |
-| Unit                        | 193              | **211**   | `npx vitest run`                            |
-| Integration (real Postgres) | 77               | **116**   | `npm run test:integration`                  |
-| E2E (Chromium)              | 0                | **24**    | `npm run test:e2e:seed && npm run test:e2e` |
-| Python                      | 42 (+14 skipped) | unchanged | `cd apps/api && python -m pytest tests/ -q` |
+| Suite                       | Before           | Now       | Command                                                   |
+| --------------------------- | ---------------- | --------- | --------------------------------------------------------- |
+| Unit                        | 193              | **233**   | `npx vitest run`                                          |
+| Integration (real Postgres) | 77               | **133**   | `npm run test:integration`                                |
+| E2E (Chromium)              | 0                | **36**    | `npm run test:e2e`                                        |
+| Python                      | 42 (+14 skipped) | unchanged | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
-**351 tests, all green** as of `f61810c`, up from 312 of which only 193 were ever being run locally.
+**444 tests, all green**, up from 312 of which only 193 were ever being run locally. The Python suite is unchanged in count but previously could not run at all — see [TESTING.md](./TESTING.md#running-the-python-suite).
 
 The integration and E2E suites both need `DATABASE_URL` pointing at a **disposable** database — integration `TRUNCATE`s every table and E2E drops and recreates its own workspace. `REDIS_URL` is needed for the Redis limiter suite. E2E additionally needs a build (`npm run build`), since it runs against `next start`.
 

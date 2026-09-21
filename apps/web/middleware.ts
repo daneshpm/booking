@@ -7,6 +7,13 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 const SESSION_COOKIE = 'rb_session';
 
+/**
+ * Correlation id header. Duplicated from lib/request-context for the same
+ * reason as the cookie name: that module imports `next/headers`, which the
+ * Edge runtime cannot load.
+ */
+const REQUEST_ID_HEADER = 'x-request-id';
+
 /** Routes that require a signed-in user. */
 const PROTECTED_PREFIXES = [
   '/analytics',
@@ -47,27 +54,49 @@ export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSessionCookie = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
 
+  // Reuse the id if something upstream already assigned one, so a single
+  // request keeps one id across nginx and the application rather than
+  // acquiring a second one here.
+  const requestId = request.headers.get(REQUEST_ID_HEADER) || crypto.randomUUID();
+
   if (isProtected(pathname) && !hasSessionCookie) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
+    const redirect = NextResponse.redirect(loginUrl);
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
   }
 
   if (AUTH_ROUTES.includes(pathname) && hasSessionCookie) {
-    return NextResponse.redirect(new URL('/appointments', request.url));
+    const redirect = NextResponse.redirect(new URL('/appointments', request.url));
+    redirect.headers.set(REQUEST_ID_HEADER, requestId);
+    return redirect;
   }
 
-  return NextResponse.next();
+  // Forwarded on the request so server components and server actions can read
+  // it, and echoed on the response so a report of "my booking failed" can be
+  // tied to the exact lines the failure wrote.
+  const forwarded = new Headers(request.headers);
+  forwarded.set(REQUEST_ID_HEADER, requestId);
+
+  const response = NextResponse.next({ request: { headers: forwarded } });
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
 }
 
 export const config = {
   /*
-   * Run on everything except Next internals, the public booking flow, and
-   * static assets. Public booking pages stay reachable without a session.
+   * Run on every application route, excluding only Next internals, static
+   * assets and `api/`.
+   *
+   * The public routes — the booking flow, health, reset-password — were once
+   * excluded here as well. They are not gated by this middleware (nothing
+   * outside PROTECTED_PREFIXES ever redirects), so excluding them bought no
+   * protection; it only meant the most exposed code in the product was the
+   * one part with no request id to trace a failure by. They now pass through
+   * and are assigned one.
    */
   matcher: [
-    // `book` is anchored so it matches the public booking routes only, and not
-    // /booking-pages, which is a protected dashboard route.
-    '/((?!_next/static|_next/image|favicon.ico|book(?:/|$)|reset-password(?:/|$)|api/|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)',
   ],
 };

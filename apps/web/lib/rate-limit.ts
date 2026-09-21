@@ -1,5 +1,6 @@
 import { createClient, type RedisClientType } from 'redis';
 import { headers } from 'next/headers';
+import { logger } from '@bookings/core';
 
 /**
  * Fixed-window rate limiter.
@@ -157,17 +158,16 @@ async function getRedis(): Promise<RedisClientType | null> {
 
       // Without a listener an emitted error would take the process down.
       client.on('error', (err) => {
-        console.error('Rate limiter Redis error:', err instanceof Error ? err.message : err);
+        logger.error('Rate limiter Redis error', { err: err instanceof Error ? err.message : err });
       });
 
       await client.connect();
       redis = client;
       return redis;
     } catch (err) {
-      console.error(
-        'Rate limiter could not reach Redis, using per-instance limits for now:',
-        err instanceof Error ? err.message : err
-      );
+      logger.error('Rate limiter could not reach Redis, using per-instance limits for now', {
+        err: err instanceof Error ? err.message : err,
+      });
       // Release the half-built client rather than leaving it reconnecting.
       try {
         client?.destroy();
@@ -241,10 +241,9 @@ export async function checkRateLimit(
     return await checkRedis(client, key, options);
   } catch (err) {
     // A Redis hiccup must not fail the request; the local counter still applies.
-    console.error(
-      'Rate limiter Redis command failed, using per-instance limits:',
-      err instanceof Error ? err.message : err
-    );
+    logger.error('Rate limiter Redis command failed, using per-instance limits', {
+      err: err instanceof Error ? err.message : err,
+    });
     return checkInMemory(key, options);
   }
 }

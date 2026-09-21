@@ -10,6 +10,7 @@ import {
   RESET_TTL_MINUTES,
 } from '@bookings/auth';
 import { sendMail, isMailConfigured } from '@bookings/notifications';
+import { logger } from '@bookings/core';
 import {
   checkRateLimit,
   callerAddress,
@@ -89,7 +90,7 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
     // address, turning any mail outage into a membership oracle. The operator
     // is told through the logs instead.
     if (!isMailConfigured()) {
-      console.error('Password reset requested but SMTP is not configured; no link was sent.');
+      logger.error('Password reset requested but SMTP is not configured; no link was sent.');
       // Delayed like every other branch. Returning straight away here would
       // make a registered address the *fastest* reply rather than the
       // slowest, which is the same oracle wearing a different hat.
@@ -118,15 +119,15 @@ export async function requestPasswordResetAction(email: string): Promise<ResetRe
         `If this was not you, no action is needed: your password has not changed.\n`,
     })
       .then((result) => {
-        if (!result.delivered) console.error('Password reset email failed:', result.error);
+        if (!result.delivered) logger.error('Password reset email failed', { err: result.error });
       })
-      .catch((err) => console.error('Password reset email threw:', err));
+      .catch((err) => logger.error('Password reset email threw', { err }));
 
     await neutralDelay();
 
     return { success: true };
   } catch (err) {
-    console.error('Password reset request failed:', err);
+    logger.error('Password reset request failed', { err });
     return { success: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -172,7 +173,7 @@ export async function confirmPasswordResetAction(
 
     return { success: true };
   } catch (err) {
-    console.error('Password reset confirmation failed:', err);
+    logger.error('Password reset confirmation failed', { err });
     return { success: false, error: 'Something went wrong. Please try again.' };
   }
 }

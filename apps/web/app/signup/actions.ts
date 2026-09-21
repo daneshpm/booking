@@ -9,6 +9,7 @@ import {
   validatePasswordPolicy,
 } from '@bookings/auth';
 import { startSession, endSession, getSession } from '@/lib/session';
+import { logger } from '@bookings/core';
 import {
   checkRateLimit,
   callerAddress,
@@ -166,7 +167,7 @@ export async function signupUserAction(data: SignupInput): Promise<AuthResult> {
 
     return { success: true, workspaceSlug: slug };
   } catch (err) {
-    console.error('Signup failed:', err);
+    logger.error('Signup failed', { err });
     return { success: false, error: 'Could not create your account. Please try again.' };
   }
 }
@@ -234,7 +235,7 @@ export async function loginUserAction(email: string, password: string): Promise<
 
     return { success: true, workspaceSlug: user.memberships[0].workspace.slug };
   } catch (err) {
-    console.error('Login failed:', err);
+    logger.error('Login failed', { err });
     return { success: false, error: 'Could not sign you in. Please try again.' };
   }
 }
@@ -304,7 +305,7 @@ export async function changePasswordAction(
     await startSession(user.id);
     return { success: true };
   } catch (err) {
-    console.error('Password change failed:', err);
+    logger.error('Password change failed', { err });
     return { success: false, error: 'Could not change your password. Please try again.' };
   }
 }

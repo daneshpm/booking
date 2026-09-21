@@ -11,6 +11,7 @@ import { GetServicesUseCase } from '../application/get-services/GetServicesUseCa
 import { GetServiceByIdUseCase } from '../application/get-service-by-id/GetServiceByIdUseCase';
 import { serviceFormSchema, type ServiceFormData } from './service.schema';
 import type { ServiceOutputDTO } from '../application/create-service/CreateServiceDTO';
+import { logger } from '@bookings/core';
 
 // Instantiate dependency injection container for services feature
 const serviceRepository = new PrismaServiceRepository();
@@ -34,7 +35,7 @@ function safeErrorMessage(err: { message?: string } | undefined, fallback: strin
     /prisma|invalid `|constraint|column|relation|P\d{4}|\bSQL\b/i.test(message) ||
     message.length > 200;
   if (!message || looksInternal) {
-    if (message) console.error('Service action failed:', message);
+    if (message) logger.error('Service action failed', { err: message });
     return fallback;
   }
   return message;

@@ -4,6 +4,7 @@ import { prisma } from '@bookings/database';
 import { hashSessionToken, hashPassword, validatePasswordPolicy } from '@bookings/auth';
 import { getSession, startSession } from '@/lib/session';
 import { checkRateLimit, callerKey, INVITE_ACCEPT_LIMIT } from '@/lib/rate-limit';
+import { logger } from '@bookings/core';
 
 export interface InvitationPreview {
   valid: boolean;
@@ -142,7 +143,7 @@ export async function acceptInvitationAsNewUserAction(
     if (err instanceof Error && err.message === 'ALREADY_ACCEPTED') {
       return { success: false, error: 'This invitation has already been accepted.' };
     }
-    console.error('Accepting invitation failed:', err);
+    logger.error('Accepting invitation failed', { err });
     return { success: false, error: 'Something went wrong. Please try again.' };
   }
 }
@@ -216,7 +217,7 @@ export async function acceptInvitationForExistingUserAction(
     if (err instanceof Error && err.message === 'ALREADY_ACCEPTED') {
       return { success: false, error: 'This invitation has already been accepted.' };
     }
-    console.error('Accepting invitation failed:', err);
+    logger.error('Accepting invitation failed', { err });
     return { success: false, error: 'Something went wrong. Please try again.' };
   }
 }

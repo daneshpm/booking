@@ -7,6 +7,7 @@ import { fromZonedTime } from 'date-fns-tz';
 import { requireWorkspace, toActionError } from '@/lib/session';
 import { isOverlapConstraintViolation, BookingCapacityExceededError } from '@/lib/booking-errors';
 import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
+import { logger } from '@bookings/core';
 
 /**
  * Statuses a dashboard user may set.
@@ -116,7 +117,7 @@ export async function updateBookingStatusAction(
     // cancelling from the appointments page does.
     if (status === 'CANCELLED') {
       await dispatchBookingNotifications(bookingId, 'BOOKING_CANCELLED').catch((err) =>
-        console.error('Cancellation notification dispatch failed:', err)
+        logger.error('Cancellation notification dispatch failed', { err })
       );
     }
 
@@ -277,12 +278,12 @@ export async function rescheduleBookingAction(
     // no time component, so leaving them would block any reminder for the new
     // time from ever being sent.
     await clearScheduledNotifications(bookingId).catch((err) =>
-      console.error('Could not clear reminders for the previous slot:', err)
+      logger.error('Could not clear reminders for the previous slot', { err })
     );
 
     // The customer is holding a time that just moved, so they are told.
     await dispatchBookingNotifications(bookingId, 'BOOKING_RESCHEDULED').catch((err) =>
-      console.error('Reschedule notification dispatch failed:', err)
+      logger.error('Reschedule notification dispatch failed', { err })
     );
 
     revalidatePath('/calendar');

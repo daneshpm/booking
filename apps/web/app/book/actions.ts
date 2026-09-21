@@ -7,11 +7,13 @@ import {
   generateSlots,
   resolveWorkingWindow,
   localTimeToUtc,
+  logger,
   type Slot,
   type TimeRange,
   type WorkingWindow,
 } from '@bookings/core';
 import { isOverlapConstraintViolation, BookingCapacityExceededError } from '@/lib/booking-errors';
+import { requestId } from '@/lib/request-context';
 import { createBookingWithCapacityAndParticipants } from '@/lib/booking-capacity';
 import { generateMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
@@ -101,6 +103,22 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Log a failure with the id of the request that caused it.
+ *
+ * This is the most exposed code in the product and the least observable: every
+ * failure here used to be a bare sentence on stdout, so a customer reporting
+ * "it would not let me book" could not be matched to the line it wrote. The
+ * logger redacts the payloads, which routinely carry customer names, addresses
+ * and phone numbers.
+ *
+ * Not exported: a `'use server'` module may only export async functions that
+ * are safe to expose as endpoints.
+ */
+async function logFailure(message: string, fields: Record<string, unknown>): Promise<void> {
+  logger.error(message, { requestId: await requestId(), ...fields });
+}
+
 /** Reject a timezone the formatter cannot resolve, before it is persisted. */
 function isValidTimezone(value: string): boolean {
   try {
@@ -162,38 +180,66 @@ async function loadSchedules(
   const nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
 
   const schedules: StaffSchedule[] = [];
+  const staffIds = candidates.map((staff) => staff.id);
+  if (staffIds.length === 0) return [];
 
+  // Four queries for the whole candidate set rather than four per candidate.
+  // Collective and resource bookings can make that set large, and the old
+  // per-candidate loop was sequential, so its cost grew with the pool.
+  const [weeklyRows, overrideRows, bookingRows, participationRows] = await Promise.all([
+    prisma.staffWorkingHours.findMany({
+      where: { staffId: { in: staffIds }, dayOfWeek },
+      include: { breaks: true },
+    }),
+    prisma.staffOverride.findMany({
+      where: { staffId: { in: staffIds }, date: { gte: targetDate, lt: nextDate } },
+    }),
+    prisma.booking.findMany({
+      where: {
+        staffId: { in: staffIds },
+        status: { notIn: ['CANCELLED'] },
+        startTime: { lt: windowEnd },
+        endTime: { gt: windowStart },
+      },
+      select: { staffId: true, startTime: true, endTime: true, serviceId: true },
+    }),
+    // A collective booking elsewhere commits this staff member's time just
+    // as much as one of their own bookings does, even though it lives in a
+    // different table.
+    prisma.bookingParticipant.findMany({
+      where: {
+        staffId: { in: staffIds },
+        status: { notIn: ['CANCELLED'] },
+        startTime: { lt: windowEnd },
+        endTime: { gt: windowStart },
+      },
+      select: { staffId: true, startTime: true, endTime: true },
+    }),
+  ]);
+
+  const weeklyByStaff = new Map(weeklyRows.map((row) => [row.staffId, row]));
+  // First row wins, matching the findFirst this replaced.
+  const overrideByStaff = new Map<string, (typeof overrideRows)[number]>();
+  for (const row of overrideRows) {
+    if (!overrideByStaff.has(row.staffId)) overrideByStaff.set(row.staffId, row);
+  }
+  const busyByStaff = new Map<string, StaffSchedule['busy']>();
+  for (const row of bookingRows) {
+    const list = busyByStaff.get(row.staffId) ?? [];
+    list.push({ start: row.startTime, end: row.endTime, serviceId: row.serviceId });
+    busyByStaff.set(row.staffId, list);
+  }
+  for (const row of participationRows) {
+    const list = busyByStaff.get(row.staffId) ?? [];
+    list.push({ start: row.startTime, end: row.endTime, serviceId: null });
+    busyByStaff.set(row.staffId, list);
+  }
+
+  // Iterating the candidates, not the rows, so the order the caller gave is
+  // preserved — the routing strategy depends on it.
   for (const staff of candidates) {
-    const [weekly, override, bookings, participations] = await Promise.all([
-      prisma.staffWorkingHours.findUnique({
-        where: { staffId_dayOfWeek: { staffId: staff.id, dayOfWeek } },
-        include: { breaks: true },
-      }),
-      prisma.staffOverride.findFirst({
-        where: { staffId: staff.id, date: { gte: targetDate, lt: nextDate } },
-      }),
-      prisma.booking.findMany({
-        where: {
-          staffId: staff.id,
-          status: { notIn: ['CANCELLED'] },
-          startTime: { lt: windowEnd },
-          endTime: { gt: windowStart },
-        },
-        select: { startTime: true, endTime: true, serviceId: true },
-      }),
-      // A collective booking elsewhere commits this staff member's time just
-      // as much as one of their own bookings does, even though it lives in a
-      // different table.
-      prisma.bookingParticipant.findMany({
-        where: {
-          staffId: staff.id,
-          status: { notIn: ['CANCELLED'] },
-          startTime: { lt: windowEnd },
-          endTime: { gt: windowStart },
-        },
-        select: { startTime: true, endTime: true },
-      }),
-    ]);
+    const weekly = weeklyByStaff.get(staff.id) ?? null;
+    const override = overrideByStaff.get(staff.id) ?? null;
 
     const window = resolveWorkingWindow(
       weekly
@@ -218,10 +264,7 @@ async function loadSchedules(
       staffId: staff.id,
       staffName: staff.name,
       window,
-      busy: [
-        ...bookings.map((b) => ({ start: b.startTime, end: b.endTime, serviceId: b.serviceId })),
-        ...participations.map((p) => ({ start: p.startTime, end: p.endTime, serviceId: null })),
-      ],
+      busy: busyByStaff.get(staff.id) ?? [],
     });
   }
 
@@ -488,7 +531,7 @@ export async function getAvailableSlotsAction(
   } catch (error) {
     // The raw message can carry query or schema detail, so it is logged rather
     // than returned to the browser.
-    console.error('Error calculating availability:', error);
+    await logFailure('Error calculating availability', { err: error });
     return { success: false, slots: [], error: 'Could not load available times.' };
   }
 }
@@ -817,8 +860,8 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
       );
 
       // A failed email must not undo a booking the customer already completed.
-      await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch((err) =>
-        console.error('Booking notification dispatch failed:', err)
+      await dispatchBookingNotifications(booking.id, 'BOOKING_CREATED').catch(
+        (err) => void logFailure('Booking notification dispatch failed', { err })
       );
 
       revalidatePath('/calendar');
@@ -988,7 +1031,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
         error: 'This time slot was just booked. Please select another slot.',
       };
     }
-    console.error('Error creating booking:', error);
+    await logFailure('Error creating booking', { err: error });
     return { success: false, error: 'We could not complete your booking. Please try again.' };
   }
 }
@@ -1054,7 +1097,7 @@ export async function joinPublicWaitlistAction(data: JoinWaitlistInput) {
 
     return await addToWaitlist({ ...data, staffId });
   } catch (err) {
-    console.error('Join waitlist failed:', err);
+    await logFailure('Join waitlist failed', { err });
     return { success: false, error: 'Failed to join the waitlist. Please try again.' };
   }
 }
@@ -1086,7 +1129,7 @@ export async function getClaimSpotDetailsAction(token: string) {
       },
     };
   } catch (err) {
-    console.error('Claim spot lookup failed:', err);
+    await logFailure('Claim spot lookup failed', { err });
     return { success: false, error: 'Failed to load spot details.' };
   }
 }
@@ -1105,7 +1148,7 @@ export async function claimPublicWaitlistSpotAction(token: string) {
     }
     return res;
   } catch (err) {
-    console.error('Claim waitlist spot failed:', err);
+    await logFailure('Claim waitlist spot failed', { err });
     return { success: false, error: 'Could not claim the appointment slot. Please try again.' };
   }
 }
@@ -1202,7 +1245,7 @@ export async function getBookingByManageTokenAction(token: string) {
       },
     };
   } catch (err: any) {
-    console.error('Error fetching booking by manage token:', err);
+    await logFailure('Error fetching booking by manage token', { err });
     return { success: false, error: 'Could not load appointment details.' };
   }
 }
@@ -1344,18 +1387,18 @@ export async function rescheduleBookingByManageTokenAction(
     // Reminders already recorded refer to the old slot. The delivery claim has
     // no time component, so leaving them would block any reminder for the new
     // time from ever being sent.
-    await clearScheduledNotifications(updated.id).catch((e) =>
-      console.error('Could not clear reminders for the previous slot:', e)
+    await clearScheduledNotifications(updated.id).catch(
+      (e) => void logFailure('Could not clear reminders for the previous slot', { err: e })
     );
 
     // Notify of reschedule
-    await dispatchBookingNotifications(updated.id, 'BOOKING_RESCHEDULED').catch((e) =>
-      console.error('Notification failed:', e)
+    await dispatchBookingNotifications(updated.id, 'BOOKING_RESCHEDULED').catch(
+      (e) => void logFailure('Notification failed', { err: e })
     );
 
     // Trigger waitlist recovery for the vacated slot
-    await triggerWaitlistRecovery(booking.id, previousStartTime).catch((e) =>
-      console.error('Waitlist recovery check failed:', e)
+    await triggerWaitlistRecovery(booking.id, previousStartTime).catch(
+      (e) => void logFailure('Waitlist recovery check failed', { err: e })
     );
 
     revalidatePath('/calendar');
@@ -1379,7 +1422,7 @@ export async function rescheduleBookingByManageTokenAction(
     if (isOverlapConstraintViolation(err)) {
       return { success: false, error: 'That slot was just booked by someone else.' };
     }
-    console.error('Error rescheduling booking:', err);
+    await logFailure('Error rescheduling booking', { err });
     return { success: false, error: 'Failed to reschedule appointment. Please try again.' };
   }
 }
@@ -1436,13 +1479,13 @@ export async function cancelBookingByManageTokenAction(token: string, reason?: s
     ]);
 
     // Dispatch cancellation notifications
-    await dispatchBookingNotifications(booking.id, 'BOOKING_CANCELLED').catch((e) =>
-      console.error('Cancel notification error:', e)
+    await dispatchBookingNotifications(booking.id, 'BOOKING_CANCELLED').catch(
+      (e) => void logFailure('Cancel notification error', { err: e })
     );
 
     // Immediately trigger priority waitlist recovery!
-    await triggerWaitlistRecovery(booking.id).catch((e) =>
-      console.error('Waitlist recovery error on cancel:', e)
+    await triggerWaitlistRecovery(booking.id).catch(
+      (e) => void logFailure('Waitlist recovery error on cancel', { err: e })
     );
 
     revalidatePath('/calendar');
@@ -1450,7 +1493,7 @@ export async function cancelBookingByManageTokenAction(token: string, reason?: s
 
     return { success: true, message: 'Your appointment has been cancelled.' };
   } catch (err: any) {
-    console.error('Error cancelling booking:', err);
+    await logFailure('Error cancelling booking', { err });
     return { success: false, error: 'Failed to cancel appointment. Please try again.' };
   }
 }
@@ -1627,8 +1670,8 @@ export async function verifyAndConfirmPaymentAction(
     });
 
     // Dispatch confirmation notifications
-    await dispatchBookingNotifications(bookingId, 'BOOKING_CREATED').catch((err) =>
-      console.error('Booking notification dispatch failed after payment:', err)
+    await dispatchBookingNotifications(bookingId, 'BOOKING_CREATED').catch(
+      (err) => void logFailure('Booking notification dispatch failed after payment', { err })
     );
 
     revalidatePath('/calendar');
@@ -1669,7 +1712,7 @@ export async function verifyAndConfirmPaymentAction(
       icsContent: generateICSContent(calendarEvent),
     };
   } catch (error: any) {
-    console.error('Error verifying payment:', error);
+    await logFailure('Error verifying payment', { err: error });
     return {
       success: false,
       error: 'Payment confirmation encountered an error. Please try again.',

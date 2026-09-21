@@ -1,5 +1,6 @@
 import { prisma } from '@bookings/database';
 import { generateSessionToken, hashSessionToken } from './tokens';
+import { logger } from '@bookings/core';
 
 /**
  * Password reset tokens.
@@ -100,7 +101,7 @@ export async function consumePasswordResetToken(
 
     return outcome;
   } catch (err) {
-    console.error('Password reset failed:', err);
+    logger.error('Password reset failed', { err });
     return false;
   }
 }

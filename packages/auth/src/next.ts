@@ -10,6 +10,7 @@ import {
   AuthorizationError,
 } from './authorization';
 import type { Role } from '@bookings/database';
+import { logger } from '@bookings/core';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -164,7 +165,7 @@ export function toActionError(err: unknown): { success: false; error: string } {
     return { success: false, error: err.message };
   }
   // Never surface a raw internal error message to the browser.
-  console.error('Unhandled server action error:', err);
+  logger.error('Unhandled server action error', { err });
   return { success: false, error: 'Something went wrong. Please try again.' };
 }
 
