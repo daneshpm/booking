@@ -64,7 +64,14 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      # Runtime services connect as the least-privilege application role (see
+      # deploy/least-privilege-role.sql): rows only, no DDL, and crucially no
+      # superuser, which would carry COPY ... FROM PROGRAM and so turn any
+      # foothold here into command execution on the database container.
+      # Only `migrate` keeps the superuser URL, because it creates objects.
+      # Falls back to the superuser URL so an environment that has not yet
+      # created the role still starts.
+      DATABASE_URL: ${APP_DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public}
       CORS_ORIGINS: ${NEXT_PUBLIC_APP_URL}
       REDIS_URL: redis://redis:6379
     depends_on:
@@ -83,7 +90,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      # Least-privilege application role; see the note on the api service.
+      DATABASE_URL: ${APP_DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public}
       REDIS_URL: redis://redis:6379
       WORKFLOW_INTERVAL_SECONDS: ${WORKFLOW_INTERVAL_SECONDS:-60}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -112,7 +120,8 @@ services:
     ports:
       - '3000:3000'
     environment:
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public
+      # Least-privilege application role; see the note on the api service.
+      DATABASE_URL: ${APP_DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/bookings_prod?schema=public}
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
