@@ -98,6 +98,39 @@ export function defaultMessage(
   }
 }
 
+/**
+ * The staff-facing counterpart to defaultMessage.
+ *
+ * defaultMessage is written entirely in second-person customer voice ("Your
+ * appointment is confirmed") — sending that text to the staff member it was
+ * booked with would read as if they had booked an appointment with
+ * themselves. Only the two lifecycle events with a guaranteed customer email
+ * (see dispatch.ts) have a staff-facing counterpart; reminders and follow-ups
+ * remain configurable per-workflow rather than built in for both audiences.
+ */
+export function defaultStaffMessage(
+  trigger: WorkflowTrigger,
+  context: Record<string, string>
+): RenderedMessage {
+  const when = `${context.date} at ${context.time} (${context.timezone})`;
+  const joinLine = context.meetingLink ? `\n\nJoin here: ${context.meetingLink}` : '';
+  const locationLine = context.location ? `\n\nLocation: ${context.location}` : '';
+
+  switch (trigger) {
+    case 'BOOKING_CANCELLED':
+      return {
+        subject: `Cancelled: ${context.serviceName} with ${context.customerName} on ${context.date}`,
+        text: `Hello ${context.staffName},\n\nThe ${context.serviceName} appointment with ${context.customerName} on ${when} has been cancelled.\n\n- ${context.workspaceName}`,
+      };
+    case 'BOOKING_CREATED':
+    default:
+      return {
+        subject: `New appointment: ${context.serviceName} with ${context.customerName} on ${context.date}`,
+        text: `Hello ${context.staffName},\n\nA new ${context.serviceName} appointment with ${context.customerName} is confirmed for ${when}.\n\nDuration: ${context.durationMinutes} minutes.${joinLine}${locationLine}\n\n- ${context.workspaceName}`,
+      };
+  }
+}
+
 /** Resolve the address list for a workflow's recipient setting. */
 export function recipientsFor(
   recipient: 'CUSTOMER' | 'STAFF' | 'BOTH',

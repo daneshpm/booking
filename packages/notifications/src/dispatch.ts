@@ -6,6 +6,7 @@ import type { DeliveryResult } from './channels/types';
 import {
   buildTemplateContext,
   defaultMessage,
+  defaultStaffMessage,
   recipientsFor,
   renderTemplate,
   type RenderedMessage,
@@ -326,6 +327,28 @@ export async function dispatchBookingNotifications(
       channel: 'EMAIL',
       recipient: booking.customer.email,
       message: defaultMessage(trigger, context),
+      claim: false,
+    });
+  }
+
+  // Same guarantee, mirrored for the staff member the appointment is actually
+  // on: without this, whoever is booked only learns about a new or cancelled
+  // appointment if the business separately built a workflow for it. A
+  // RESOURCE (a room, a piece of equipment) has no one to read an inbox.
+  const staffAlreadyEmailed = jobs.some(
+    (job) => job.channel === 'EMAIL' && job.recipient === booking.staff.email
+  );
+
+  if (
+    !staffAlreadyEmailed &&
+    booking.staff.kind !== 'RESOURCE' &&
+    (trigger === 'BOOKING_CREATED' || trigger === 'BOOKING_CANCELLED')
+  ) {
+    jobs.push({
+      workflowId: null,
+      channel: 'EMAIL',
+      recipient: booking.staff.email,
+      message: defaultStaffMessage(trigger, context),
       claim: false,
     });
   }
