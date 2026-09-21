@@ -1,6 +1,5 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { prisma } from '@bookings/database';
 import {
   createPasswordResetToken,
@@ -13,6 +12,7 @@ import {
 import { sendMail, isMailConfigured } from '@bookings/notifications';
 import {
   checkRateLimit,
+  callerAddress,
   PASSWORD_RESET_LIMIT,
   PASSWORD_RESET_PER_ACCOUNT_LIMIT,
 } from '@/lib/rate-limit';
@@ -45,15 +45,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 const NEUTRAL_REPLY =
   'If that email address has an account, a reset link is on its way. The link expires in an hour.';
-
-async function callerAddress(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    headerList.get('x-real-ip') ||
-    'unknown'
-  );
-}
 
 function resetUrl(token: string): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');

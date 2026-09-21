@@ -4,6 +4,36 @@
 **Commit audited:** `30f6e46`
 **Scope:** Whole repository — Next.js web app, FastAPI service, worker, shared packages, database, CI/CD, deployment.
 
+## Status
+
+| #   | Finding                                       | Severity       | Status                                                                                  |
+| --- | --------------------------------------------- | -------------- | --------------------------------------------------------------------------------------- |
+| A-1 | Unauthenticated tenant-creating API surface   | HIGH (latent)  | **Fixed & deployed** — PR #53. `/api/py/*` now returns 404 in production, verified live |
+| E-1 | Payment verification untested                 | HIGH           | **Fixed** — PR #53, 18 tests                                                            |
+| D-1 | Group capacity: no backstop, no tests         | HIGH           | **Fixed** — PR #53, 9 tests incl. 8-way concurrency                                     |
+| D-2 | Two EXCLUDE constraints unverified            | MEDIUM         | **Fixed** — PR #53, existence + type asserted                                           |
+| F-1 | Two thirds of the suite never ran locally     | HIGH (process) | **Fixed** — all three suites now run; see Testing below                                 |
+| B-1 | Isolation tested at the guard, not call sites | MEDIUM         | **Fixed** — PR #54, 17 tests incl. positive controls                                    |
+| C-1 | Password reset timing oracle                  | MEDIUM         | **Fixed** — PR #55, 22.6 s vs 150 ms differential closed                                |
+| C-2 | Signup states whether an email is registered  | MEDIUM         | **Accepted** — see note below                                                           |
+| C-3 | Rate-limit key is attacker-controlled         | MEDIUM         | **Fixed** — PR #56, rightmost hop trusted, 9 tests                                      |
+| A-3 | Superuser database credentials                | MEDIUM         | Open — needs server access                                                              |
+| H-1 | CI/CD non-functional (Actions billing)        | HIGH (process) | Open — external blocker                                                                 |
+| H-2 | Production disk at 75–92%                     | MEDIUM         | Open — needs Proxmox resize                                                             |
+| F-2 | Zero E2E/browser tests                        | MEDIUM         | Open                                                                                    |
+
+**On C-2 (signup enumeration):** deliberately not "fixed". Removing "an account with this email already exists" degrades signup UX badly for every honest user, and the same information is obtainable from the login form in any product that reports a wrong password distinctly. GitHub, Google and most mainstream products make the same trade. The timing oracle in C-1 was worth closing because it cost nothing to close; this one is not.
+
+### Test suite as it stands
+
+| Suite                       | Before           | Now       | Command                                                 |
+| --------------------------- | ---------------- | --------- | ------------------------------------------------------- |
+| Unit                        | 193              | **211**   | `npx vitest run`                                        |
+| Integration (real Postgres) | 77               | **107**   | `npx vitest run --config vitest.integration.config.mts` |
+| Python                      | 42 (+14 skipped) | unchanged | `cd apps/api && python -m pytest tests/ -q`             |
+
+All green as of `d222603`. The integration suite needs `DATABASE_URL` pointing at a **disposable** database — it `TRUNCATE`s every table — and `REDIS_URL`.
+
 ## How to read this
 
 Every finding is marked with how it was established:

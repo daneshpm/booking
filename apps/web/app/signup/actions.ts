@@ -11,12 +11,12 @@ import {
 import { startSession, endSession, getSession } from '@/lib/session';
 import {
   checkRateLimit,
+  callerAddress,
   LOGIN_LIMIT,
   LOGIN_PER_ACCOUNT_LIMIT,
   SIGNUP_LIMIT,
   PASSWORD_CHANGE_LIMIT,
 } from '@/lib/rate-limit';
-import { headers } from 'next/headers';
 
 export interface SignupInput {
   name: string;
@@ -33,22 +33,6 @@ export interface AuthResult {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * Caller address, used to throttle authentication attempts.
- *
- * The forwarded header is client-supplied, so this is not proof of identity.
- * Login is additionally throttled per account below, which no header can
- * sidestep.
- */
-async function callerAddress(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    headerList.get('x-real-ip') ||
-    'unknown'
-  );
-}
 
 const THROTTLED = 'Too many attempts. Please wait a few minutes and try again.';
 

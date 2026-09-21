@@ -345,17 +345,48 @@ export const INVITE_ACCEPT_LIMIT: RateLimitOptions = { limit: 20, windowMs: 60 *
 export const WAITLIST_CLAIM_LIMIT: RateLimitOptions = { limit: 10, windowMs: 60 * 60 * 1000 };
 
 /**
- * Identify the caller for rate limiting.
+ * The address to attribute a request to.
  *
- * Behind a proxy the socket address is the proxy, so the forwarded header is
- * preferred. That header is client-supplied and trivially spoofed, which is why
- * the limiter is a speed bump rather than a security boundary.
+ * X-Forwarded-For is a list, oldest hop first, and only the entries a proxy
+ * we control appended can be believed — everything to the left of those was
+ * supplied by the caller. The *rightmost* entry is therefore the trustworthy
+ * one, and this reads it rather than the leftmost.
+ *
+ * That holds for either way nginx is usually configured:
+ *
+ *   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+ *       appends the address it sees, so the last entry is the real client
+ *       and anything the caller pre-loaded sits harmlessly to its left
+ *   proxy_set_header X-Forwarded-For $remote_addr;
+ *       replaces the header outright, leaving a single entry that is both
+ *       first and last
+ *
+ * Reading the leftmost entry, as this used to, meant a caller could set the
+ * header themselves and be attributed to a fresh address on every request,
+ * which defeats every limit built on top of it.
+ *
+ * This still is not an authentication boundary. The web container publishes
+ * port 3000 on all interfaces, so anything already on the LAN can bypass the
+ * proxy and present whatever header it likes; and X-Real-IP is only as
+ * trustworthy as the hop that set it. Treat the limiter as a deterrent
+ * against ordinary abuse rather than a control.
  */
-export async function callerKey(scope: string): Promise<string> {
+export async function callerAddress(): Promise<string> {
   const headerList = await headers();
-  const address =
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    headerList.get('x-real-ip') ||
-    'unknown';
-  return `${scope}:${address}`;
+
+  const forwarded = headerList.get('x-forwarded-for');
+  if (forwarded) {
+    const hops = forwarded
+      .split(',')
+      .map((hop) => hop.trim())
+      .filter(Boolean);
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+
+  return headerList.get('x-real-ip') || 'unknown';
+}
+
+/** Identify the caller for rate limiting, namespaced by what is being limited. */
+export async function callerKey(scope: string): Promise<string> {
+  return `${scope}:${await callerAddress()}`;
 }
