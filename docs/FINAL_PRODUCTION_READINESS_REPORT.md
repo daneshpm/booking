@@ -10,9 +10,11 @@ Companion documents: [PRODUCTION_READINESS_AUDIT.md](./PRODUCTION_READINESS_AUDI
 
 ## Summary
 
-Fifteen findings. Thirteen closed, one accepted with reasoning, one blocked outside the repository. The test suite went from 312 tests — of which only 193 were ever actually being run — to 444, all green.
+Sixteen findings. Fourteen closed, one accepted with reasoning, one blocked outside the repository. The test suite went from 312 tests — of which only 193 were ever actually being run — to 473, all green.
 
-The two most consequential fixes were an unauthenticated endpoint that created tenants with OWNER access, and the application running as a database superuser. Both are live in production. The last batch of work (PR #60) is verified locally but still open for review, so read the sections below as describing the repository unless they say otherwise.
+The two most consequential fixes were an unauthenticated endpoint that created tenants with OWNER access, and the application running as a database superuser. Both are live in production.
+
+PR #60 was merged as `0829fa8` on 2026-09-21 and deployed: all four images were rebuilt from that commit, pushed to GHCR, and the running container digests were checked against the built ones. A later hardening batch (request-id validation and escalation tests) is **open for review and not deployed** — it is called out where it applies.
 
 ---
 
@@ -39,6 +41,8 @@ The two most consequential fixes were an unauthenticated endpoint that created t
 **What was missing was proof.** Isolation was asserted only at the guard function, not at the roughly forty call sites that must remember to use it — so a single omission in a future change would have been a tenant breach nothing would catch.
 
 Added `cross-tenant-actions.spec.ts`: 17 tests driving the **real server actions** as a signed-in user of another tenant, covering both attack shapes — presenting a foreign `workspaceId`, and presenting one's own `workspaceId` alongside a foreign resource id. The export test decodes the CSV and asserts the other tenant's rows are absent rather than trusting a status code. Four positive controls run the same calls against the caller's own resources and assert success, so a refusal cannot pass for the wrong reason.
+
+**Privilege escalation is now covered too.** Tenant isolation asks whether alpha can reach beta's data; it does not ask whether a STAFF member inside one workspace can promote themselves. Nothing tested that. `role-escalation.spec.ts` adds 14 tests driving the real actions: STAFF and RECEPTIONIST cannot promote themselves, demote the owner, invite anyone, change workspace settings or delete staff; ADMIN cannot reach OWNER; and OWNER is never grantable by invitation, even by an owner. Three positive controls confirm the owner genuinely can do these things, so the refusals are not passing for the wrong reason. Verified with teeth: downgrading the OWNER guard on role changes to STAFF turns three of them red.
 
 **Remaining limitation:** no row-level security. Isolation is an application property only.
 
@@ -106,11 +110,11 @@ Timezones are stored as `timestamptz` throughout and resolved at the boundary wi
 
 | Category                      |   Tests |  Passed | Failed |
 | ----------------------------- | ------: | ------: | -----: |
-| Unit                          |     233 |     233 |      0 |
-| Integration (real PostgreSQL) |     133 |     133 |      0 |
-| E2E (Chromium)                |      36 |      36 |      0 |
+| Unit                          |     246 |     246 |      0 |
+| Integration (real PostgreSQL) |     147 |     147 |      0 |
+| E2E (Chromium)                |      38 |      38 |      0 |
 | Python (pytest)               |      42 |      42 |      0 |
-| **Total**                     | **444** | **444** |  **0** |
+| **Total**                     | **473** | **473** |  **0** |
 
 (14 further Python tests skip without a database.)
 
@@ -160,11 +164,13 @@ Redaction is **by key, not by discipline** — anything matching password, token
 
 The middleware matcher was widened as part of this. The public booking flow had been excluded from it, which bought no protection — nothing outside `PROTECTED_PREFIXES` was ever gated — while leaving the most exposed code in the product as the one part with no id to trace by.
 
+**An unvalidated upstream request id was accepted verbatim.** Probed against production, a 3000-character `x-request-id` was echoed back and would have been stamped onto every log line that request wrote — unauthenticated log amplification aimed at a 16 GB disk shared with the database. The id is now reused only when it is plausibly an id (≤128 chars, no whitespace or control characters); anything else is replaced with a fresh UUID. 5 unit tests and 2 E2E tests, the latter asserting over real HTTP. Severity LOW: noisy and cheap to abuse, not a path to data.
+
 **Coverage.** Every server-side call site is converted — 60 of them across the web app, the notification dispatcher, the auth package and the scheduled jobs. The exceptions are deliberate and listed in DEPLOYMENT.md: two interactive CLIs, the E2E fixtures, and the `.tsx` client components, which log in the viewer's own browser where there is no shared stream.
 
 The logger lives in `@bookings/core` rather than the web app, because every other package depends on core and core depends on none of them. It reaches `process` through `globalThis` instead of importing it, so core stays platform-neutral — it is bundled into client components, and forcing Node types into it would either break that or push `@types/node` onto every consumer.
 
-**One honest gap:** `requestId` is attached on the public booking path, where a failure is most likely to be reported by a customer. Dashboard server actions get structure and redaction but not yet the id, because binding it there means threading an `await` through call sites that are not all async. Worth finishing; not finished.
+**Still an honest gap:** `requestId` is attached on the public booking path, where a failure is most likely to be reported by a customer. Dashboard server actions get structure and redaction but not yet the id, because binding it there means threading an `await` through call sites that are not all async. Worth finishing; not finished.
 
 **Still missing:** metrics, tracing, and any alerting. The logs are now worth reading, but nothing reads them. An exception in production still reaches a human only via a customer complaint, and that is the top remaining recommendation below.
 

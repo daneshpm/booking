@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { isSafeRequestId } from '@bookings/core';
 
 /**
  * Name of the session cookie. Duplicated from @bookings/auth rather than
@@ -56,8 +57,12 @@ export function middleware(request: NextRequest) {
 
   // Reuse the id if something upstream already assigned one, so a single
   // request keeps one id across nginx and the application rather than
-  // acquiring a second one here.
-  const requestId = request.headers.get(REQUEST_ID_HEADER) || crypto.randomUUID();
+  // acquiring a second one here -- but only when it is plausibly an id.
+  // The header is attacker-controlled and ends up both echoed in the
+  // response and stamped on every log line this request writes, so an
+  // oversized or arbitrary value is a cheap way to inflate the logs.
+  const upstreamId = request.headers.get(REQUEST_ID_HEADER);
+  const requestId = isSafeRequestId(upstreamId) ? upstreamId : crypto.randomUUID();
 
   if (isProtected(pathname) && !hasSessionCookie) {
     const loginUrl = new URL('/login', request.url);

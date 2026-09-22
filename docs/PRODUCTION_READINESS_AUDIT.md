@@ -20,7 +20,9 @@
 | A-3 | Superuser database credentials                     | MEDIUM         | **Fixed & deployed** — PR #57, app runs as `bookings_app`; DROP and COPY TO PROGRAM denied |
 | F-2 | Zero E2E/browser tests                             | MEDIUM         | **Fixed** — PR #58, 24 Chromium tests                                                      |
 | G-1 | No structured logging; logs leaked PII and secrets | MEDIUM         | **Fixed** — PR #60, JSON lines, request ids, redaction by key, 10 tests                    |
-| H-1 | CI/CD non-functional (Actions billing)             | HIGH (process) | Open — external blocker, nothing in the repo can fix it                                    |
+| G-2 | Unvalidated upstream `x-request-id`                | LOW            | **Fixed** — oversized/hostile ids replaced; 5 unit + 2 E2E tests                           |
+| I-1 | No privilege-escalation tests                      | MEDIUM         | **Fixed** — 14 tests across STAFF/RECEPTIONIST/ADMIN, with positive controls               |
+| H-1 | CI/CD non-functional (Actions billing)             | HIGH (process) | Open — external blocker; verified 0 jobs execute, so repo-side tuning saves nothing        |
 | H-2 | Production disk at 75–92%                          | MEDIUM         | **Fixed** — resized 7.8 GB → 16 GB on 2026-09-21; now 38%, 9.4 GB free, no downtime        |
 
 **On C-2 (signup enumeration):** deliberately not "fixed". Removing "an account with this email already exists" degrades signup UX badly for every honest user, and the same information is obtainable from the login form in any product that reports a wrong password distinctly. GitHub, Google and most mainstream products make the same trade. The timing oracle in C-1 was worth closing because it cost nothing to close; this one is not.
@@ -29,12 +31,12 @@
 
 | Suite                       | Before           | Now       | Command                                                   |
 | --------------------------- | ---------------- | --------- | --------------------------------------------------------- |
-| Unit                        | 193              | **233**   | `npx vitest run`                                          |
-| Integration (real Postgres) | 77               | **133**   | `npm run test:integration`                                |
-| E2E (Chromium)              | 0                | **36**    | `npm run test:e2e`                                        |
+| Unit                        | 193              | **246**   | `npx vitest run`                                          |
+| Integration (real Postgres) | 77               | **147**   | `npm run test:integration`                                |
+| E2E (Chromium)              | 0                | **38**    | `npm run test:e2e`                                        |
 | Python                      | 42 (+14 skipped) | unchanged | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
-**444 tests, all green**, up from 312 of which only 193 were ever being run locally. The Python suite is unchanged in count but previously could not run at all — see [TESTING.md](./TESTING.md#running-the-python-suite).
+**473 tests, all green**, up from 312 of which only 193 were ever being run locally. The Python suite is unchanged in count but previously could not run at all — see [TESTING.md](./TESTING.md#running-the-python-suite).
 
 The integration and E2E suites both need `DATABASE_URL` pointing at a **disposable** database — integration `TRUNCATE`s every table and E2E drops and recreates its own workspace. `REDIS_URL` is needed for the Redis limiter suite. E2E additionally needs a build (`npm run build`), since it runs against `next start`.
 

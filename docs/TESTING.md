@@ -6,9 +6,9 @@ Four suites, three of which need something running. The commands below are the r
 
 | Suite       | Tests            | Needs                                       | Command                                                   |
 | ----------- | ---------------- | ------------------------------------------- | --------------------------------------------------------- |
-| Unit        | 233              | nothing                                     | `npx vitest run`                                          |
-| Integration | 133              | PostgreSQL, Redis                           | `npm run test:integration`                                |
-| E2E         | 36               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
+| Unit        | 246              | nothing                                     | `npx vitest run`                                          |
+| Integration | 147              | PostgreSQL, Redis                           | `npm run test:integration`                                |
+| E2E         | 38               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
 | Python      | 42 (+14 skipped) | its own venv (skipped ones need a database) | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
 **`npm test` does not run all of these.** It maps to `turbo run test`, which only reaches the three packages that define a `test` script — `@bookings/core`, `@bookings/auth`, `@bookings/notifications`. `apps/web` has no `test` script, so its unit tests run only through the root `npx vitest run`. This has bitten before; assume any "tests pass" claim covers only what was actually invoked.
@@ -43,7 +43,9 @@ REDIS_URL="redis://localhost:6379" \
 
 Files run serially (`fileParallelism: false`) because they share one database.
 
-**Known intermittent:** `group-capacity.spec.ts` has been seen to fail once in `resetDatabase()` — the `TRUNCATE` in `beforeEach` — under heavy load from other processes, and pass on repeated runs. It looks like harness contention rather than an application fault, but that has not been proven. Re-run before investigating; if it becomes frequent, that is a real finding.
+**Known intermittent — measured, not hand-waved.** Across three consecutive full runs of the integration suite on the same commit, two were clean (147/147) and one failed 4 tests: the cross-tenant export-leak test and three in `scheduled-workflows.spec.ts`. Every one of them passed when its file was run alone. `group-capacity.spec.ts` has failed the same way before, in `resetDatabase()`.
+
+The common factor is the shared database and the `TRUNCATE` in `beforeEach`, so this looks like harness contention rather than an application fault — but that is a hypothesis, not a diagnosis, and it has not been root-caused. **Roughly a 1-in-3 chance of a red full run.** Re-run before investigating, and treat a repeat of the _same_ test failing as a real finding rather than noise.
 
 ## Running the E2E suite
 
@@ -84,6 +86,9 @@ The venv also isolates `app` from anything on the system path. `apps/api/app/__i
 - Payment signature verification and fail-closed behaviour
 - Route protection across all 14 dashboard routes
 - Availability across a multi-staff pool, including per-staff overrides and collective participations
+- Privilege escalation inside a workspace (STAFF/RECEPTIONIST/ADMIN reaching above their rank)
+- Log redaction asserted on the serialised output line, not just the redactor's return value
+- Upstream `x-request-id` validation, including oversized and hostile values
 
 **Not covered**
 

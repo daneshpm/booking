@@ -1,5 +1,7 @@
 # Multi-Tenancy
 
+> Isolation between tenants and privilege escalation inside one tenant are different questions. Both are now tested against the real server actions — `cross-tenant-actions.spec.ts` (17) and `role-escalation.spec.ts` (14). See [TESTING.md](./TESTING.md).
+
 How one deployment serves several independent businesses without leaking between them.
 
 ## Strategy
