@@ -1,5 +1,7 @@
 # Security
 
+> **Request correlation ids are validated.** `x-request-id` arrives from the caller, is echoed in the response and is stamped onto every log line for that request. An unvalidated one was accepted verbatim at 3000 characters — cheap, unauthenticated log amplification. Upstream ids are now reused only when ≤128 characters and free of whitespace and control characters; anything else is replaced. See `packages/core/src/logging/request-id.ts`.
+
 What protects this application, what deliberately does not, and where the edges are.
 
 ## Authentication

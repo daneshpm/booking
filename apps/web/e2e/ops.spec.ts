@@ -105,6 +105,33 @@ test.describe('request correlation', () => {
     expect(headers['x-request-id']).toBe(upstream);
   });
 
+  test('replaces an oversized upstream id instead of echoing it', async ({ request }) => {
+    // Unvalidated, this value is echoed to the caller and stamped onto every
+    // log line the request writes: a cheap way to inflate logs on a box whose
+    // disk is shared with the database. Production accepted 3000 characters
+    // verbatim before this was fixed.
+    const oversized = 'A'.repeat(3000);
+    const headers = (
+      await request.get('/health', { headers: { 'x-request-id': oversized } })
+    ).headers();
+
+    expect(headers['x-request-id']).not.toBe(oversized);
+    expect(headers['x-request-id']).toMatch(UUID);
+  });
+
+  test('replaces an upstream id containing characters an id should not have', async ({
+    request,
+  }) => {
+    for (const hostile of ['abc def', 'abc<script>', 'a;b', 'a,b']) {
+      const headers = (
+        await request.get('/health', { headers: { 'x-request-id': hostile } })
+      ).headers();
+
+      expect(headers['x-request-id'], hostile).not.toBe(hostile);
+      expect(headers['x-request-id'], hostile).toMatch(UUID);
+    }
+  });
+
   test('redirects carry an id as well', async ({ request }) => {
     // A redirect to /login is exactly the response worth tracing when someone
     // reports being logged out unexpectedly.

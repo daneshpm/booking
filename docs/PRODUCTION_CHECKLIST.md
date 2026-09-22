@@ -9,7 +9,8 @@ Because CI is not currently running, every one of these has to be done by hand. 
 ### Verify
 
 - [ ] `npx turbo run lint` — typecheck passes
-- [ ] `npx vitest run` — unit suite
+- [ ] `npx vitest run` — unit suite (246)
+- [ ] Integration is intermittently red (~1 run in 3) from shared-database contention, not application faults — re-run once before investigating, and treat the _same_ test failing twice as real
 - [ ] `npm run test:integration` — needs a disposable database; this is the one most often skipped and it covers the double-booking and tenant-isolation guarantees
 - [ ] `npm run test:e2e` — needs a build first
 - [ ] `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` — if `apps/api` changed. Use the venv, not the system interpreter: the system one here has a FastAPI far older than `requirements.txt` allows and collection fails before any test runs
@@ -55,7 +56,7 @@ It is now the _only_ item in this category.
 - **No error tracking.** No Sentry or equivalent. The logs are structured and carry request ids now, but nothing reads them — nobody learns about a production exception unless a customer complains. This is the biggest remaining gap after CI.
 - **No metrics or tracing.** No request rates, latencies or error rates over time.
 - **No backups verified.** PostgreSQL runs in a container with a volume. Whether it is backed up, and whether a restore has ever been tested, is unknown — untested backups are not backups.
-- **Pagination.** Several dashboard lists load every row for the workspace. Fine at current volume, not fine at 10,000 customers.
+- **Pagination — deliberately deferred, with numbers.** 26 of 28 dashboard `findMany` calls specify no `take:`. Measured against production on 2026-09-22: 55 bookings in total, and the **largest single workspace holds 11**; 41 customers, 24 staff, 23 services across 17 workspaces. An unbounded list returning 11 rows does not need pagination, and adding it now would be speculative complexity. Revisit when any single workspace passes a few thousand rows. The data export is already bounded at 50,000 rows and warns when it truncates.
 - **Row-level security.** Tenant isolation is enforced in application queries only.
 
 ### Accepted, not forgotten
