@@ -20,8 +20,8 @@
 | A-3 | Superuser database credentials                     | MEDIUM         | **Fixed & deployed** — PR #57, app runs as `bookings_app`; DROP and COPY TO PROGRAM denied |
 | F-2 | Zero E2E/browser tests                             | MEDIUM         | **Fixed** — PR #58, 24 Chromium tests                                                      |
 | G-1 | No structured logging; logs leaked PII and secrets | MEDIUM         | **Fixed** — PR #60, JSON lines, request ids, redaction by key, 10 tests                    |
-| G-2 | Unvalidated upstream `x-request-id`                | LOW            | **Fixed** — oversized/hostile ids replaced; 5 unit + 2 E2E tests                           |
-| I-1 | No privilege-escalation tests                      | MEDIUM         | **Fixed** — 14 tests across STAFF/RECEPTIONIST/ADMIN, with positive controls               |
+| G-2 | Unvalidated upstream `x-request-id`                | LOW            | **Fixed in PR #61 (open, not deployed)** — 5 unit + 2 E2E tests                            |
+| I-1 | No privilege-escalation tests                      | MEDIUM         | **Closed in PR #61 (open)** — no vulnerability found; 14 tests now prove it                |
 | H-1 | CI/CD non-functional (Actions billing)             | HIGH (process) | Open — external blocker; verified 0 jobs execute, so repo-side tuning saves nothing        |
 | H-2 | Production disk at 75–92%                          | MEDIUM         | **Fixed** — resized 7.8 GB → 16 GB on 2026-09-21; now 38%, 9.4 GB free, no downtime        |
 
