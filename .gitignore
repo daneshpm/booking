@@ -9,6 +9,9 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+# Saved browser sessions written by the E2E suite's beforeAll. Contain a live
+# session cookie for the fixture owner, so never committed.
+apps/web/e2e/.auth/
 
 # Next.js
 .next/

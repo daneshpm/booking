@@ -10,11 +10,11 @@ Companion documents: [PRODUCTION_READINESS_AUDIT.md](./PRODUCTION_READINESS_AUDI
 
 ## Summary
 
-Sixteen findings. Fourteen closed, one accepted with reasoning, one blocked outside the repository. The test suite went from 312 tests — of which only 193 were ever actually being run — to 473, all green.
+Sixteen findings. Fourteen closed, one accepted with reasoning, one blocked outside the repository. The test suite went from 312 tests — of which only 193 were ever actually being run — to 480, all green.
 
 The two most consequential fixes were an unauthenticated endpoint that created tenants with OWNER access, and the application running as a database superuser. Both are live in production.
 
-PR #60 was merged as `0829fa8` on 2026-09-21 and deployed: all four images were rebuilt from that commit, pushed to GHCR, and the running container digests were checked against the built ones. A later hardening batch (request-id validation and escalation tests) is **open for review and not deployed** — it is called out where it applies.
+PR #60 was merged as `0829fa8` on 2026-09-21 and deployed: all four images were rebuilt from that commit, pushed to GHCR, and the running container digests were checked against the built ones. PR #61 (request-id validation and escalation tests) was merged as `ce06d78` on 2026-09-22 and deployed the same way; the 3000-character request-id probe that found the issue was re-run against production afterwards and now returns a UUID.
 
 ---
 
@@ -112,9 +112,9 @@ Timezones are stored as `timestamptz` throughout and resolved at the boundary wi
 | ----------------------------- | ------: | ------: | -----: |
 | Unit                          |     246 |     246 |      0 |
 | Integration (real PostgreSQL) |     147 |     147 |      0 |
-| E2E (Chromium)                |      38 |      38 |      0 |
+| E2E (Chromium)                |      45 |      45 |      0 |
 | Python (pytest)               |      42 |      42 |      0 |
-| **Total**                     | **473** | **473** |  **0** |
+| **Total**                     | **480** | **480** |  **0** |
 
 (14 further Python tests skip without a database.)
 
