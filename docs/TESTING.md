@@ -8,7 +8,7 @@ Four suites, three of which need something running. The commands below are the r
 | ----------- | ---------------- | ------------------------------------------- | --------------------------------------------------------- |
 | Unit        | 246              | nothing                                     | `npx vitest run`                                          |
 | Integration | 147              | PostgreSQL, Redis                           | `npm run test:integration`                                |
-| E2E         | 38               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
+| E2E         | 45               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
 | Python      | 42 (+14 skipped) | its own venv (skipped ones need a database) | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
 **`npm test` does not run all of these.** It maps to `turbo run test`, which only reaches the three packages that define a `test` script — `@bookings/core`, `@bookings/auth`, `@bookings/notifications`. `apps/web` has no `test` script, so its unit tests run only through the root `npx vitest run`. This has bitten before; assume any "tests pass" claim covers only what was actually invoked.
@@ -89,6 +89,7 @@ The venv also isolates `app` from anything on the system path. `apps/api/app/__i
 - Privilege escalation inside a workspace (STAFF/RECEPTIONIST/ADMIN reaching above their rank)
 - Log redaction asserted on the serialised output line, not just the redactor's return value
 - Upstream `x-request-id` validation, including oversized and hostile values
+- Phone-width layout (375px): no sideways document scroll, and no control clipped by the right edge, on the public booking page, login, and both appointments views
 
 **Not covered**
 
@@ -100,8 +101,10 @@ The venv also isolates `app` from anything on the system path. `apps/api/app/__i
 ## Conventions
 
 - **No mocking.** `vi.mock` is used nowhere. Unit tests import pure functions; anything needing a database goes in the integration suite. The one fake is `InMemoryServiceRepository`.
+- **Know what a check can and cannot see.** The phone-width suite has two checks because they catch different failures. `document.scrollWidth` catches a page that scrolls sideways -- and passed with the toolbar bug present, because the dashboard shell clips overflow instead of scrolling. Bounding boxes catch a control pushed past the right edge whether or not anything scrolls, and are the check that went red when the fix was reverted. Controls inside an `overflow-x: auto` ancestor are exempt: a swipeable tab strip is reachable, not clipped, and the Smart Waitlist tab was flagged as a bug for exactly that reason before the exemption existed.
 - **Tests must be able to fail.** Several suites here were validated by deliberately breaking the code they cover and confirming the expected tests went red — the capacity guard, the `X-Forwarded-For` hop selection, the password-reset `await`, and the availability busy-range grouping. A test that has only ever passed has not been shown to test anything. This is also how the multi-staff availability gap was found: discarding every busy interval in the engine was caught by exactly one test, because nothing covered a pool of more than one staff member.
 - **Positive controls where a test asserts a refusal.** `cross-tenant-actions.spec.ts` runs the same calls against the caller's own resources and asserts success, so a refusal cannot pass for the wrong reason (malformed arguments, for instance).
+- **Sign in once per spec file, not once per test.** Login is rate-limited to 10 attempts per 15 minutes per address, and the buckets live in Redis so they outlast a run. A spec that signs in per test exhausts that on its own, and the failure looks like a broken page (`waitForURL` timing out after submit) rather than a throttle -- which is exactly how it presented. `mobile.spec.ts` shows the pattern: one login in `beforeAll`, saved with `storageState`, shared by every test in the block. `globalSetup` also resets the buckets at the start of each run so back-to-back runs cannot poison each other. One caveat learned the hard way: the `browser` fixture merges the block's `test.use({ storageState })` into every `newContext()` made inside it, so the login context must pass `storageState: undefined` explicitly or it tries to load the file it is about to create.
 - **Assert on the outcome, not the status code.** The export isolation test decodes the CSV and checks the other tenant's data is absent, rather than trusting a 403.
 
 ## CI

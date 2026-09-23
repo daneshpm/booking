@@ -839,10 +839,10 @@ export function AppointmentsClient({
         </div>
       ) : isCalendarView ? (
         /* CALENDAR WEEK GRID VIEW (clview=true) */
-        <div className="flex-1 p-6 flex flex-col space-y-4 max-w-7xl w-full self-start">
+        <div className="flex-1 p-4 sm:p-6 flex flex-col space-y-4 max-w-7xl w-full self-start">
           {/* Calendar Header with Week Controls */}
-          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setWeekOffset((prev) => prev - 1)}
@@ -1077,7 +1077,7 @@ export function AppointmentsClient({
           ) : (
             /* APPOINTMENTS LIST TABLE (WHEN APPOINTMENTS EXIST) */
             <div className="w-full max-w-5xl self-start space-y-4">
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {filteredAppointments.length} appointment
                   {filteredAppointments.length > 1 ? 's' : ''} found

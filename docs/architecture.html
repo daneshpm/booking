@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rooman Bookings Blueprint</title>
+<meta name="description" content="Interactive 3D model of the Rooman Bookings stack, with workflow diagrams for making a booking and for shipping code to production.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;600&display=swap">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --ground: #eef2f6;
+    --surface: #ffffff;
+    --surface-sunk: #e4eaf1;
+    --ink: #101820;
+    --ink-soft: #465666;
+    --ink-faint: #6e8093;
+    --line: #cfd9e4;
+    --line-strong: #aebccd;
+    --accent: #b25c00;
+    --accent-soft: #fdf3e6;
+    --danger: #a3271c;
+    --danger-soft: #fceceb;
+    --canvas: #fbfcfe;
+
+    --serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --ground: #0d141b;
+      --surface: #151e27;
+      --surface-sunk: #101922;
+      --ink: #e7eef5;
+      --ink-soft: #a9bbcc;
+      --ink-faint: #7e91a4;
+      --line: #27333f;
+      --line-strong: #3a4956;
+      --accent: #f0a04b;
+      --accent-soft: #2a1f12;
+      --danger: #f08a80;
+      --danger-soft: #2b1512;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    --ground: #0d141b;
+    --surface: #151e27;
+    --surface-sunk: #101922;
+    --ink: #e7eef5;
+    --ink-soft: #a9bbcc;
+    --ink-faint: #7e91a4;
+    --line: #27333f;
+    --line-strong: #3a4956;
+    --accent: #f0a04b;
+    --accent-soft: #2a1f12;
+    --danger: #f08a80;
+    --danger-soft: #2b1512;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 44px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+
+  .lede { margin: 0; max-width: 62ch; color: var(--ink-soft); font-size: 16px; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+
+  .section-note {
+    margin: 0 0 18px;
+    color: var(--ink-faint);
+    font-size: 14px;
+    max-width: 70ch;
+  }
+
+  /* 3D viewport keeps one fixed dark ground in both themes: the scene is lit
+     for a dark background and cannot be re-lit on a theme toggle. */
+  .stage {
+    position: relative;
+    background: #0b131c;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    max-width: 100%;
+  }
+
+  .stage canvas { display: block; width: 100%; height: 100%; }
+
+  .stage-controls { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+
+  .stage button {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #cfe0ef;
+    background: rgba(18, 30, 42, 0.86);
+    border: 1px solid rgba(140, 170, 195, 0.4);
+    border-radius: 4px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+
+  .stage button:hover { background: rgba(30, 48, 66, 0.95); color: #fff; }
+  .stage button:focus-visible { outline: 2px solid #f0a04b; outline-offset: 2px; }
+
+  .stage-hint {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: rgba(190, 210, 228, 0.75);
+    margin: 0;
+  }
+
+  .fallback { display: none; padding: 28px; color: #cfe0ef; font-size: 14px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 14px; }
+
+  .legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+
+  .sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+  .canvas2d {
+    background: var(--canvas);
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    padding: 20px 12px;
+    overflow-x: auto;
+  }
+
+  .canvas2d pre.mermaid {
+    margin: 0;
+    min-width: 720px;
+    background: transparent;
+    text-align: center;
+    border: 0;
+  }
+
+  .cap { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 10px 2px 0; }
+
+  .spof {
+    border: 1px solid var(--danger);
+    border-left-width: 4px;
+    border-radius: 6px;
+    background: var(--danger-soft);
+    padding: 18px 22px;
+  }
+
+  .spof .tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--danger);
+    margin: 0 0 6px;
+  }
+
+  .spof h2 { margin: 0 0 8px; }
+  .spof p { margin: 0; color: var(--ink-soft); max-width: 70ch; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.89em;
+    background: var(--surface-sunk);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--ink);
+  }
+
+  .spof code { background: rgba(163, 39, 28, 0.1); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 18px;
+    color: var(--ink-faint);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Interactive model &amp; workflows</p>
+    <h1>Rooman Bookings Blueprint</h1>
+    <p class="lede">
+      The platform as a stack you can turn over, plus the two workflows that matter:
+      how a booking gets made, and how code reaches production.
+    </p>
+  </header>
+
+  <section>
+    <h2>The stack in three dimensions</h2>
+    <p class="section-note">
+      Four floors, stacked in the order a request travels them, with external services
+      and the deploy path set off to either side. Drag to orbit, scroll to zoom.
+    </p>
+    <div class="stage" id="stage">
+      <div class="stage-controls">
+        <button type="button" id="spinBtn">Pause spin</button>
+        <button type="button" id="resetBtn">Reset view</button>
+      </div>
+      <p class="stage-hint">drag &middot; orbit &nbsp;|&nbsp; scroll &middot; zoom</p>
+      <div class="fallback" id="fallback">
+        <strong>WebGL is unavailable in this browser.</strong><br>
+        The workflow diagrams below carry the same information in 2D.
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:#4d86e8"></i> Clients</span>
+      <span><i class="sw" style="background:#d98324"></i> Edge</span>
+      <span><i class="sw" style="background:#35a06a"></i> Application</span>
+      <span><i class="sw" style="background:#c9463a"></i> Data &mdash; PostgreSQL is the SPOF</span>
+      <span><i class="sw" style="background:#7f8fa0"></i> External</span>
+      <span><i class="sw" style="background:#5f6b78"></i> Deploy</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Workflow &middot; a booking being made</h2>
+    <p class="section-note">
+      The public path, which is the most exposed code in the product. Note that payment
+      confirmation is <em>pull-based</em> &mdash; the server re-fetches the order rather than
+      trusting anything the browser reports.
+    </p>
+    <div class="canvas2d">
+<pre class="mermaid">
+flowchart TD
+  A["Customer opens /book/:slug"] --> B["Middleware assigns x-request-id"]
+  B --> C["getAvailableSlotsAction<br/>rate limit 120/min"]
+  C --> D{"Redis limiter<br/>allows?"}
+  D -->|no| D1["Refuse, neutral message"]
+  D -->|yes| E["loadSchedules<br/>4 queries for whole staff pool"]
+  E --> F["Slots returned<br/>with remainingCapacity"]
+  F --> G["Customer submits booking<br/>rate limit 10/hr"]
+  G --> H{"Group service?"}
+  H -->|yes| I["pg_advisory_xact_lock<br/>count seats, compare capacity"]
+  H -->|no| J["Insert booking"]
+  I --> J
+  J --> K{"EXCLUDE gist constraint<br/>bookings_no_staff_overlap"}
+  K -->|violation 23P01| K1["Slot already taken<br/>safe message, no SQL detail"]
+  K -->|ok| L{"Service has a price?"}
+  L -->|no| N["CONFIRMED"]
+  L -->|yes| M1["1 - create order at gateway"]
+  M1 --> M2["2 - customer pays in gateway UI"]
+  M2 --> M3["3 - server re-fetches order<br/>status must still be PENDING"]
+  M3 --> N
+  N --> O["Meeting link generated<br/>96 bits of room name"]
+  O --> P["Notifications dispatched<br/>email, SMS, webhook"]
+  N --> Q["Worker sweeps later<br/>for reminders"]
+
+  classDef ok fill:#e3f3e8,stroke:#2e8b57,color:#101820
+  classDef bad fill:#fbe4e2,stroke:#a3271c,color:#101820
+  classDef gate fill:#fdf0dd,stroke:#b25c00,color:#101820
+  class N,O,P,Q ok
+  class D1,K1 bad
+  class D,H,K,L gate
+</pre>
+    </div>
+    <p class="cap">Diagrams keep a light canvas in both themes &mdash; Mermaid renders once and cannot re-theme on a toggle.</p>
+  </section>
+
+  <section>
+    <h2>Workflow &middot; code reaching production</h2>
+    <p class="section-note">
+      Manual by necessity: GitHub Actions is billing-blocked, so every run reaches
+      <code>startup_failure</code> with zero jobs executed. The dashed branch is what
+      <em>should</em> happen and currently does not.
+    </p>
+    <div class="canvas2d">
+<pre class="mermaid">
+flowchart LR
+  A["Open PR"] --> B["CI workflow triggers"]
+  B -.->|"blocked: startup_failure<br/>0 jobs, 0 billable minutes"| B1["No automated verification"]
+  B1 --> C["Run 473 tests by hand<br/>unit, integration, E2E, Python"]
+  C --> D["Human review, then merge"]
+  D --> E["docker build x4<br/>NEXT_PUBLIC_APP_URL as build arg"]
+  E --> F["Push to GHCR<br/>tagged latest and sha"]
+  F --> G["systemd timer polls<br/>every 2 minutes"]
+  G --> H["Run migrate to completion"]
+  H --> I{"Migration ok?"}
+  I -->|no| I1["Abort - previous images keep serving"]
+  I -->|yes| J["compose up -d, cut over"]
+  J --> K["Verify by image digest,<br/>not by tag"]
+  K --> L["Probe /health and a real booking page"]
+
+  classDef ok fill:#e3f3e8,stroke:#2e8b57,color:#101820
+  classDef bad fill:#fbe4e2,stroke:#a3271c,color:#101820
+  classDef gate fill:#fdf0dd,stroke:#b25c00,color:#101820
+  class J,K,L ok
+  class B1,I1 bad
+  class I gate
+</pre>
+    </div>
+  </section>
+
+  <section class="spof">
+    <p class="tag">Single point of failure</p>
+    <h2>PostgreSQL</h2>
+    <p>
+      One container, no replica, no failover, and backups never verified restorable &mdash; it sits
+      on the same floor as everything else in LXC 110. Every other component can be rebuilt
+      and re-pulled from GHCR in minutes. This one cannot.
+    </p>
+  </section>
+
+  <footer>
+    Drawn from the repository at merge commit <code>ce06d78</code>. Verified against production:
+    five containers up, disk 38% of 16&nbsp;GB, 473 tests passing.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: 'loose',
+      theme: 'base',
+      themeVariables: {
+        background: '#fbfcfe',
+        primaryColor: '#ffffff',
+        primaryTextColor: '#101820',
+        primaryBorderColor: '#aebccd',
+        lineColor: '#5b6b7c',
+        fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+        fontSize: '13px',
+        clusterBkg: '#f4f7fa',
+        clusterBorder: '#c3cfdc'
+      }
+    });
+  }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  (function () {
+    var stage = document.getElementById('stage');
+    var fallback = document.getElementById('fallback');
+
+    if (typeof THREE === 'undefined') { fallback.style.display = 'block'; return; }
+
+    var renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    } catch (e) {
+      fallback.style.display = 'block';
+      return;
+    }
+
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b131c);
+    scene.fog = new THREE.Fog(0x0b131c, 44, 96);
+
+    var camera = new THREE.PerspectiveCamera(42, 16 / 10, 0.1, 400);
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    stage.insertBefore(renderer.domElement, stage.firstChild);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+    var key = new THREE.DirectionalLight(0xffffff, 0.85);
+    key.position.set(14, 22, 12);
+    scene.add(key);
+    var rim = new THREE.DirectionalLight(0x86b8ff, 0.3);
+    rim.position.set(-16, 6, -14);
+    scene.add(rim);
+
+    var world = new THREE.Group();
+    scene.add(world);
+
+    function label(text, size) {
+      var lines = text.split('\n');
+      var pad = 16;
+      var fs = 40;
+      var c = document.createElement('canvas');
+      var ctx = c.getContext('2d');
+      ctx.font = '500 ' + fs + 'px "IBM Plex Sans", system-ui, sans-serif';
+      var w = 0;
+      for (var i = 0; i < lines.length; i++) w = Math.max(w, ctx.measureText(lines[i]).width);
+      c.width = Math.ceil(w) + pad * 2;
+      c.height = lines.length * (fs + 8) + pad * 2;
+
+      ctx = c.getContext('2d');
+      ctx.font = '500 ' + fs + 'px "IBM Plex Sans", system-ui, sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.lineJoin = 'round';
+      for (var j = 0; j < lines.length; j++) {
+        var y = pad + j * (fs + 8);
+        ctx.strokeStyle = 'rgba(6,12,18,0.92)';
+        ctx.lineWidth = 7;
+        ctx.strokeText(lines[j], pad, y);
+        ctx.fillStyle = '#f2f7fc';
+        ctx.fillText(lines[j], pad, y);
+      }
+
+      var tex = new THREE.CanvasTexture(c);
+      tex.minFilter = THREE.LinearFilter;
+      var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+      var scale = (size || 1) * 0.011;
+      sp.scale.set(c.width * scale, c.height * scale, 1);
+      sp.renderOrder = 10;
+      return sp;
+    }
+
+    function plate(cx, cz, w, d, y, color, name) {
+      var g = new THREE.Mesh(
+        new THREE.BoxGeometry(w, 0.28, d),
+        new THREE.MeshLambertMaterial({ color: color, transparent: true, opacity: 0.16 })
+      );
+      g.position.set(cx, y, cz);
+      world.add(g);
+
+      var edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 0.28, d)),
+        new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.55 })
+      );
+      edges.position.copy(g.position);
+      world.add(edges);
+
+      var tag = label(name, 1.15);
+      tag.position.set(cx - w / 2 + 2.6, y + 1.1, cz - d / 2 - 0.4);
+      world.add(tag);
+      return g;
+    }
+
+    var nodes = {};
+
+    function node(id, text, x, y, z, color, w, d) {
+      w = w || 4.2; d = d || 2.2;
+      var h = 1.5;
+      var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: color }));
+      mesh.position.set(x, y + h / 2 + 0.14, z);
+      world.add(mesh);
+
+      var edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(w, h, d)),
+        new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 })
+      );
+      edges.position.copy(mesh.position);
+      world.add(edges);
+
+      var tag = label(text, 0.82);
+      tag.position.set(x, y + h + 0.95, z);
+      world.add(tag);
+
+      nodes[id] = mesh.position.clone();
+      return mesh;
+    }
+
+    function link(aId, bId, color, dashed) {
+      var a = nodes[aId], b = nodes[bId];
+      if (!a || !b) return;
+      var mid = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2 + 1.1, (a.z + b.z) / 2);
+      var curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+      var geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(36));
+      var mat = dashed
+        ? new THREE.LineDashedMaterial({ color: color, dashSize: 0.5, gapSize: 0.38, transparent: true, opacity: 0.75 })
+        : new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.68 });
+      var line = new THREE.Line(geo, mat);
+      if (dashed) line.computeLineDistances();
+      world.add(line);
+    }
+
+    var C_CLIENT = 0x4d86e8, C_EDGE = 0xd98324, C_APP = 0x35a06a,
+        C_DATA = 0xc9463a, C_EXT = 0x7f8fa0, C_DEP = 0x5f6b78;
+
+    plate(0, 0, 15, 8, 10, C_CLIENT, 'CLIENTS');
+    plate(0, 0, 15, 8, 5.2, C_EDGE, 'EDGE');
+    plate(0, 0, 19, 10, 0.4, C_APP, 'APPLICATION  -  LXC 110');
+    plate(0, 0, 15, 8, -4.4, C_DATA, 'DATA');
+    plate(17.5, 0, 11, 13, 0.4, C_EXT, 'EXTERNAL');
+    plate(-17.5, 0, 11, 8, 0.4, C_DEP, 'DEPLOY');
+
+    node('dash', 'Dashboard\nbrowser', -3.6, 10, 0, C_CLIENT);
+    node('pub', 'Public booking\npages', 3.6, 10, 0, C_CLIENT);
+    node('nginx', 'nginx - .52\nTLS', -3.6, 5.2, 0, C_EDGE);
+    node('mw', 'middleware\nx-request-id', 3.6, 5.2, 0, C_EDGE);
+    node('web', 'apps/web\nNext.js 16', -5.6, 0.4, -2.2, C_APP, 5, 2.4);
+    node('guard', 'requireWorkspace\ntenant + RBAC', 0.4, 0.4, -2.2, C_APP, 5, 2.4);
+    node('worker', 'apps/worker\nsweep', -5.6, 0.4, 2.4, C_APP, 5, 2.4);
+    node('api', 'apps/api\nnot routed', 0.4, 0.4, 2.4, C_APP, 5, 2.4);
+    node('core', '@bookings/core\nlogger - redaction', 6.4, 0.4, 0.1, C_APP, 5, 2.4);
+    node('pg', 'PostgreSQL 16\nEXCLUDE gist  -  SPOF', -3.4, -4.4, 0, C_DATA, 6.2, 2.4);
+    node('redis', 'Redis 7\nrate limits', 4.2, -4.4, 0, C_DATA);
+    node('pay', 'Razorpay\nStripe', 17.5, 0.4, -3.9, C_EXT);
+    node('mail', 'SMTP - SMS', 17.5, 0.4, -0.1, C_EXT);
+    node('hook', 'Webhooks\noutbound', 17.5, 0.4, 3.7, C_EXT);
+    node('ghcr', 'GHCR', -17.5, 0.4, -2.1, C_DEP);
+    node('poll', 'systemd poller', -17.5, 0.4, 2.1, C_DEP);
+
+    link('dash', 'nginx', C_CLIENT);
+    link('pub', 'nginx', C_CLIENT);
+    link('nginx', 'mw', C_EDGE);
+    link('mw', 'web', C_EDGE);
+    link('web', 'guard', C_APP);
+    link('guard', 'pg', C_DATA);
+    link('web', 'redis', C_DATA);
+    link('worker', 'pg', C_DATA);
+    link('web', 'core', C_APP);
+    link('web', 'pay', C_EXT);
+    link('web', 'mail', C_EXT);
+    link('web', 'hook', C_EXT);
+    link('poll', 'ghcr', C_DEP);
+    link('poll', 'web', C_DEP, true);
+
+    var az = -0.62, pol = 1.06, dist = 52;
+    var target = new THREE.Vector3(0, 1.4, 0);
+    var HOME = { az: az, pol: pol, dist: dist };
+
+    function place() {
+      pol = Math.max(0.22, Math.min(1.46, pol));
+      dist = Math.max(26, Math.min(96, dist));
+      camera.position.set(
+        target.x + dist * Math.sin(pol) * Math.sin(az),
+        target.y + dist * Math.cos(pol),
+        target.z + dist * Math.sin(pol) * Math.cos(az)
+      );
+      camera.lookAt(target);
+    }
+
+    var dragging = false, lx = 0, ly = 0;
+
+    renderer.domElement.addEventListener('pointerdown', function (e) {
+      dragging = true; lx = e.clientX; ly = e.clientY;
+      renderer.domElement.setPointerCapture(e.pointerId);
+    });
+    renderer.domElement.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      az -= (e.clientX - lx) * 0.006;
+      pol -= (e.clientY - ly) * 0.005;
+      lx = e.clientX; ly = e.clientY;
+      place();
+    });
+    renderer.domElement.addEventListener('pointerup', function (e) {
+      dragging = false;
+      try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (err) {}
+    });
+    renderer.domElement.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      dist += e.deltaY * 0.035;
+      place();
+    }, { passive: false });
+
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var spinning = !reduce;
+    var spinBtn = document.getElementById('spinBtn');
+    spinBtn.textContent = spinning ? 'Pause spin' : 'Resume spin';
+    spinBtn.addEventListener('click', function () {
+      spinning = !spinning;
+      spinBtn.textContent = spinning ? 'Pause spin' : 'Resume spin';
+    });
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      az = HOME.az; pol = HOME.pol; dist = HOME.dist; place();
+    });
+
+    function resize() {
+      var w = stage.clientWidth, h = stage.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    place();
+
+    (function loop() {
+      requestAnimationFrame(loop);
+      if (spinning && !dragging) { az += 0.0016; place(); }
+      renderer.render(scene, camera);
+    })();
+  })();
+</script>
+</body>
+</html>
