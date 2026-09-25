@@ -32,9 +32,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@vitest/coverage-v8": "^5.0.0",
-    "prettier": "^3.5.3",
-    "turbo": "^2.10.12",
+    "@vitest/coverage-v8": "^5.0.1",
+    "prettier": "^3.9.8",
+    "turbo": "^2.11.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   },
@@ -159,7 +159,7 @@
     "sharp": "^0.35.4"
   },
   "dependencies": {
-    "framer-motion": "^13.2.0",
+    "framer-motion": "^13.4.0",
     "motion-dom": "^13.2.0",
     "motion-utils": "^13.0.0"
   }
