@@ -1,6 +1,13 @@
 fastapi>=0.141.1
 uvicorn[standard]>=0.52.4
-sqlalchemy>=2.0.54
+# The [asyncio] extra pins in greenlet explicitly, rather than relying on it
+# arriving as an implicit transitive dependency. Bare sqlalchemy>=2.0.54
+# resolved greenlet on Python 3.10 but not on 3.12 or newer during testing —
+# this app uses SQLAlchemy's async engine throughout, so it needs greenlet
+# unconditionally, and the extra is SQLAlchemy's own documented way to
+# declare that rather than depending on how a given Python version happens
+# to resolve it.
+sqlalchemy[asyncio]>=2.0.54
 asyncpg>=0.31.0
 pydantic>=2.8.0
 pydantic-settings>=2.3.0
