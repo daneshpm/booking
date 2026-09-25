@@ -9,7 +9,7 @@ uvicorn[standard]>=0.52.4
 # to resolve it.
 sqlalchemy[asyncio]>=2.0.54
 asyncpg>=0.31.0
-pydantic>=2.8.0
+pydantic>=2.13.5
 pydantic-settings>=2.3.0
 bcrypt>=4.0.1
 python-multipart>=0.0.32
