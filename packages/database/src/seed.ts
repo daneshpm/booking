@@ -64,7 +64,15 @@ async function main() {
   const workspace = await prisma.workspace.upsert({
     where: { slug: workspaceSlug },
     update: { name: workspaceName, timezone, currency },
-    create: { name: workspaceName, slug: workspaceSlug, timezone, currency },
+    // Admin-provisioned via this script, not self-service signup, so it is
+    // treated as already-paying rather than starting a trial clock.
+    create: {
+      name: workspaceName,
+      slug: workspaceSlug,
+      timezone,
+      currency,
+      billingStatus: 'SUBSCRIBED',
+    },
   });
 
   // Only the owner named by ADMIN_EMAIL is provisioned. Named personal

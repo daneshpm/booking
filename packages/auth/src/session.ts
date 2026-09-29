@@ -119,6 +119,7 @@ export async function resolveSession(
   }
 
   const workspaces: SessionWorkspace[] = session.user.memberships
+    .filter((m) => m.workspace.isActive)
     .map((m) => ({
       id: m.workspace.id,
       name: m.workspace.name,

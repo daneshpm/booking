@@ -72,6 +72,16 @@ enum StaffKind {
   RESOURCE
 }
 
+/// Manually toggled by a platform admin (see requirePlatformAdmin). There is no
+/// payment processor wired up for organization-level billing today, so this is
+/// not derived from any webhook or invoice — a workspace starts on TRIAL and is
+/// flipped to SUBSCRIBED by hand once payment happens through whatever
+/// real-world process is actually used.
+enum BillingStatus {
+  TRIAL
+  SUBSCRIBED
+}
+
 // ----------------------------------------------------
 // AUTH & TENANCY
 // ----------------------------------------------------
@@ -188,6 +198,12 @@ model Workspace {
   brandColor            String?  @map("brand_color")
   bookingWelcomeTitle   String?  @map("booking_welcome_title")
   bookingWelcomeMessage String?  @map("booking_welcome_message")
+  /// Soft-delete flag set by a platform admin. A deactivated workspace is
+  /// hidden from its members' sessions and its public booking page 404s, but
+  /// every booking, customer and staff record stays intact and recoverable.
+  isActive              Boolean       @default(true) @map("is_active")
+  billingStatus         BillingStatus @default(TRIAL) @map("billing_status")
+  trialEndsAt           DateTime?     @map("trial_ends_at") @db.Timestamptz
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

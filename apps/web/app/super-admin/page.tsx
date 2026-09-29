@@ -2,6 +2,7 @@ import { Building2, LogOut, Users, Calendar } from 'lucide-react';
 import { requirePlatformAdmin } from '@/lib/session';
 import { logoutAction } from '../signup/actions';
 import { getOrganizationsAction } from './actions';
+import { OrganizationActions, OrganizationStatusBadges } from './OrganizationActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,6 +97,7 @@ export default async function SuperAdminPage() {
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
               <tr>
                 <th className="px-4 py-3">Organization</th>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Owner</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3 text-right">Members</th>
@@ -103,12 +105,13 @@ export default async function SuperAdminPage() {
                 <th className="px-4 py-3 text-right">Services</th>
                 <th className="px-4 py-3 text-right">Bookings</th>
                 <th className="px-4 py-3">Last booking</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {organizations.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
                     No organizations yet.
                   </td>
                 </tr>
@@ -119,6 +122,13 @@ export default async function SuperAdminPage() {
                       <div className="font-bold text-slate-900">{org.name}</div>
                       <div className="text-slate-400">{org.slug}</div>
                     </td>
+                    <td className="px-4 py-3">
+                      <OrganizationStatusBadges
+                        isActive={org.isActive}
+                        billingStatus={org.billingStatus}
+                        trialEndsAt={org.trialEndsAt}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{org.ownerEmail ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{formatDate(org.createdAt)}</td>
                     <td className="px-4 py-3 text-right text-slate-700">{org.memberCount}</td>
@@ -127,6 +137,15 @@ export default async function SuperAdminPage() {
                     <td className="px-4 py-3 text-right text-slate-700">{org.bookingCount}</td>
                     <td className="px-4 py-3 text-slate-600">
                       {org.lastBookingAt ? formatDate(org.lastBookingAt) : 'None yet'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <OrganizationActions
+                        workspaceId={org.id}
+                        workspaceName={org.name}
+                        isActive={org.isActive}
+                        billingStatus={org.billingStatus}
+                        trialEndsAt={org.trialEndsAt}
+                      />
                     </td>
                   </tr>
                 ))

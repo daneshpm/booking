@@ -19,6 +19,9 @@ import {
   PASSWORD_CHANGE_LIMIT,
 } from '@/lib/rate-limit';
 
+/** How long a self-service workspace gets before a platform admin must mark it Subscribed. */
+const TRIAL_PERIOD_DAYS = 14;
+
 export interface SignupInput {
   name: string;
   email: string;
@@ -125,6 +128,7 @@ export async function signupUserAction(data: SignupInput): Promise<AuthResult> {
           slug,
           timezone: 'Asia/Kolkata',
           currency: 'INR',
+          trialEndsAt: new Date(Date.now() + TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000),
           members: { create: { userId: createdUser.id, role: 'OWNER' } },
         },
         select: { id: true },
