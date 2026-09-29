@@ -19,7 +19,7 @@ redis>=8.1.0
 email-validator>=2.3.0
 # zoneinfo has no bundled timezone database on Windows, so availability
 # calculations fail without this.
-tzdata>=2026.3
+tzdata>=2026.4
 
 # Testing
 pytest>=9.1.1
