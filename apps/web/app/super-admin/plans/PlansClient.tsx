@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge, Button, Input, Label, Modal, Select, Textarea } from '@bookings/ui';
 import type { BillingPeriod } from '@bookings/database';
 import {
@@ -16,6 +16,10 @@ import {
 interface PlansClientProps {
   initialPlans: PlanSummary[];
 }
+
+/** Overrides the shared Button's generic blue "primary" with the app's actual brand purple. */
+const BRAND_BUTTON =
+  'bg-none bg-[#5c34ad] hover:bg-[#4d2994] shadow-[#5c34ad]/25 focus:ring-[#5c34ad]';
 
 const EMPTY_FORM: PlanInput = {
   name: '',
@@ -111,7 +115,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} className={BRAND_BUTTON}>
           <Plus className="h-4 w-4" />
           New plan
         </Button>
@@ -125,7 +129,12 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
             {plans.map((plan) => (
               <div key={plan.id} className="flex items-center justify-between px-5 py-4 gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <GripVertical className="h-4 w-4 text-slate-300 shrink-0" />
+                  <span
+                    className="h-6 w-6 rounded-full bg-[#5c34ad]/10 text-[#5c34ad] text-[11px] font-bold flex items-center justify-center shrink-0"
+                    title="Display order (edit to reorder)"
+                  >
+                    {plan.displayOrder}
+                  </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-900 text-sm">{plan.name}</span>
@@ -241,7 +250,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
               type="checkbox"
               checked={form.isPublished}
               onChange={(e) => setForm({ ...form, isPublished: e.target.checked })}
-              className="h-4 w-4 rounded border-slate-300 text-[#5c34ad] focus:ring-[#5c34ad]"
+              className="h-4 w-4 rounded border-slate-300 accent-[#5c34ad] focus:ring-[#5c34ad]"
             />
             <span className="text-sm text-slate-700">Published (visible on the landing page)</span>
           </label>
@@ -252,7 +261,7 @@ export function PlansClient({ initialPlans }: PlansClientProps) {
             <Button variant="secondary" onClick={closeForm}>
               Cancel
             </Button>
-            <Button onClick={submit} disabled={pending}>
+            <Button onClick={submit} disabled={pending} className={BRAND_BUTTON}>
               {editingId ? 'Save' : 'Create'}
             </Button>
           </div>

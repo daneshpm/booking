@@ -17,16 +17,18 @@ export default async function PlansPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
+          <img src="/rooman-logo.png" alt="" className="h-7 w-auto object-contain" />
+          <div className="h-6 w-px bg-slate-200" />
           <div>
             <Link
               href="/super-admin"
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-1"
+              className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-widest text-[#5c34ad] bg-purple-50 border border-purple-100/80 px-1.5 py-0.5 rounded mb-0.5 hover:bg-purple-100/60 transition-colors"
             >
               <ArrowLeft className="h-3 w-3" />
               Platform Admin
             </Link>
-            <h1 className="text-lg font-extrabold text-slate-900">Pricing plans</h1>
+            <h1 className="text-lg font-extrabold text-slate-900 leading-none">Pricing plans</h1>
           </div>
         </div>
       </header>
