@@ -15,7 +15,7 @@ import {
 import { isOverlapConstraintViolation, BookingCapacityExceededError } from '@/lib/booking-errors';
 import { requestId } from '@/lib/request-context';
 import { createBookingWithCapacityAndParticipants } from '@/lib/booking-capacity';
-import { generateMeetingLink } from '@/lib/meeting-link';
+import { resolveMeetingLink } from '@/lib/meeting-link';
 import { dispatchBookingNotifications, clearScheduledNotifications } from '@/lib/notifications';
 import {
   checkRateLimit,
@@ -767,7 +767,16 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
 
     // meetingLink holds a URL, so a non-online service leaves it null and the
     // service's own location details are shown to the customer instead.
-    const meetingLink = service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
+    const meetingLink =
+      service.locationType === 'ONLINE_MEETING'
+        ? await resolveMeetingLink({
+            summary: `${service.name} with ${chosen.staffName}`,
+            description: `Appointment for ${service.name} at ${workspace.name}.`,
+            startTime: chosen.slot.startUtc,
+            endTime: chosen.slot.endUtc,
+            timezone,
+          })
+        : null;
 
     // Dynamic Off-Peak Yield Pricing calculation for persisted booking
     let paidPrice: number = baseCombinedPrice;
@@ -1627,7 +1636,15 @@ export async function verifyAndConfirmPaymentAction(
     }
 
     const meetingLink =
-      booking.service.locationType === 'ONLINE_MEETING' ? generateMeetingLink() : null;
+      booking.service.locationType === 'ONLINE_MEETING'
+        ? await resolveMeetingLink({
+            summary: `${booking.service.name} with ${booking.staff.name}`,
+            description: `Appointment for ${booking.service.name} at ${booking.workspace.name}.`,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            timezone,
+          })
+        : null;
 
     // Guarded on the booking still being PENDING: without this, replaying a
     // valid payment signature (the original webhook redelivered, or a stale

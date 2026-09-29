@@ -38,28 +38,33 @@ export default async function SuperAdminPage() {
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
-              Platform Admin
-            </p>
-            <h1 className="text-lg font-extrabold text-slate-900">Organizations</h1>
+          <div className="flex items-center gap-3">
+            <img src="/rooman-logo.png" alt="" className="h-7 w-auto object-contain" />
+            <div className="h-6 w-px bg-slate-200" />
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5c34ad] bg-purple-50 border border-purple-100/80 px-1.5 py-0.5 rounded inline-block mb-0.5">
+                Platform Admin
+              </p>
+              <h1 className="text-lg font-extrabold text-slate-900 leading-none">Organizations</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/super-admin/plans"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
             >
               <Tag className="h-3.5 w-3.5" />
               Pricing plans
             </Link>
+            <div className="h-4 w-px bg-slate-200" />
             <span className="text-xs text-slate-500">{session.user.email}</span>
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+                title="Sign out"
+                className="h-8 w-8 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 flex items-center justify-center text-slate-500 transition-colors"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Sign out
               </button>
             </form>
           </div>
@@ -77,24 +82,36 @@ export default async function SuperAdminPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
-              <Building2 className="h-4 w-4" />
-              <span className="text-[10px] font-bold uppercase tracking-wide">Organizations</span>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center gap-2 text-[#5c34ad] mb-2">
+              <div className="h-8 w-8 rounded-lg bg-[#5c34ad]/10 flex items-center justify-center">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Organizations
+              </span>
             </div>
             <p className="text-2xl font-extrabold text-slate-900">{totals.workspaces}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
-              <Users className="h-4 w-4" />
-              <span className="text-[10px] font-bold uppercase tracking-wide">Total members</span>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center gap-2 text-[#5c34ad] mb-2">
+              <div className="h-8 w-8 rounded-lg bg-[#5c34ad]/10 flex items-center justify-center">
+                <Users className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Total members
+              </span>
             </div>
             <p className="text-2xl font-extrabold text-slate-900">{totals.members}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5">
-            <div className="flex items-center gap-2 text-slate-400 mb-1">
-              <Calendar className="h-4 w-4" />
-              <span className="text-[10px] font-bold uppercase tracking-wide">Total bookings</span>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center gap-2 text-[#5c34ad] mb-2">
+              <div className="h-8 w-8 rounded-lg bg-[#5c34ad]/10 flex items-center justify-center">
+                <Calendar className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Total bookings
+              </span>
             </div>
             <p className="text-2xl font-extrabold text-slate-900">{totals.bookings}</p>
           </div>
@@ -119,34 +136,34 @@ export default async function SuperAdminPage() {
             <tbody className="divide-y divide-slate-100">
               {organizations.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-400">
                     No organizations yet.
                   </td>
                 </tr>
               ) : (
                 organizations.map((org) => (
                   <tr key={org.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                       <div className="font-bold text-slate-900">{org.name}</div>
                       <div className="text-slate-400">{org.slug}</div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-4">
                       <OrganizationStatusBadges
                         isActive={org.isActive}
                         billingStatus={org.billingStatus}
                         trialEndsAt={org.trialEndsAt}
                       />
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{org.ownerEmail ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatDate(org.createdAt)}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{org.memberCount}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{org.staffCount}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{org.serviceCount}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">{org.bookingCount}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-4 text-slate-600">{org.ownerEmail ?? '—'}</td>
+                    <td className="px-4 py-4 text-slate-600">{formatDate(org.createdAt)}</td>
+                    <td className="px-4 py-4 text-right text-slate-700">{org.memberCount}</td>
+                    <td className="px-4 py-4 text-right text-slate-700">{org.staffCount}</td>
+                    <td className="px-4 py-4 text-right text-slate-700">{org.serviceCount}</td>
+                    <td className="px-4 py-4 text-right text-slate-700">{org.bookingCount}</td>
+                    <td className="px-4 py-4 text-slate-600">
                       {org.lastBookingAt ? formatDate(org.lastBookingAt) : 'None yet'}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-4 text-right">
                       <OrganizationActions
                         workspaceId={org.id}
                         workspaceName={org.name}

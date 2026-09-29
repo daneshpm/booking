@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { createGoogleMeetEvent, isGoogleMeetConfigured } from './google-calendar';
 
 /**
  * Base URL for generated video rooms.
@@ -23,4 +24,27 @@ const ROOM_PREFIX = process.env.VIDEO_MEETING_ROOM_PREFIX || 'rooman';
  */
 export function generateMeetingLink(): string {
   return `${BASE_URL}/${ROOM_PREFIX}-${randomBytes(12).toString('hex')}`;
+}
+
+export interface MeetingDetails {
+  summary: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  timezone: string;
+}
+
+/**
+ * Resolve the meeting link for a confirmed online booking.
+ *
+ * A real Google Meet link when Calendar credentials are configured; a Jitsi
+ * room otherwise, and automatically on any Calendar API failure too, so a
+ * booking never fails just because Google is unreachable.
+ */
+export async function resolveMeetingLink(details: MeetingDetails): Promise<string> {
+  if (isGoogleMeetConfigured()) {
+    const event = await createGoogleMeetEvent(details);
+    if (event) return event.meetingLink;
+  }
+  return generateMeetingLink();
 }

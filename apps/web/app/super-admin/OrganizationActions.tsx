@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { SlidersHorizontal, RefreshCw, Ban, Power } from 'lucide-react';
 import { Badge, Button, Modal } from '@bookings/ui';
 import type { BillingStatus } from '@bookings/database';
 import {
@@ -9,6 +10,8 @@ import {
   updateOrganizationFeatureAction,
   type OrganizationFeature,
 } from './actions';
+
+const BRAND = '#5c34ad';
 
 const FEATURE_TOGGLES: { key: OrganizationFeature; label: string }[] = [
   { key: 'workflowsEnabled', label: 'Workflows' },
@@ -43,17 +46,21 @@ export function OrganizationStatusBadges({
   trialEndsAt,
 }: Pick<OrganizationActionsProps, 'isActive' | 'billingStatus' | 'trialEndsAt'>) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <Badge variant={isActive ? 'success' : 'default'}>
-        {isActive ? 'Active' : 'Deactivated'}
-      </Badge>
-      <Badge variant={billingStatus === 'SUBSCRIBED' ? 'success' : 'warning'}>
-        {billingStatus === 'SUBSCRIBED'
-          ? 'Subscribed'
-          : trialEndsAt
-            ? `Trial · ends ${formatDate(trialEndsAt)}`
-            : 'Trial'}
-      </Badge>
+    <div className="flex flex-col gap-1 items-start">
+      <div className="flex items-center gap-1.5">
+        <Badge variant={isActive ? 'success' : 'default'} className="whitespace-nowrap">
+          {isActive ? 'Active' : 'Deactivated'}
+        </Badge>
+        <Badge
+          variant={billingStatus === 'SUBSCRIBED' ? 'success' : 'warning'}
+          className="whitespace-nowrap"
+        >
+          {billingStatus === 'SUBSCRIBED' ? 'Subscribed' : 'Trial'}
+        </Badge>
+      </div>
+      {billingStatus === 'TRIAL' && trialEndsAt && (
+        <span className="text-[10px] text-slate-400">Ends {formatDate(trialEndsAt)}</span>
+      )}
     </div>
   );
 }
@@ -111,33 +118,40 @@ export function OrganizationActions({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           disabled={pending}
           onClick={() => setEditingFeatures(true)}
-          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 disabled:opacity-50"
+          title="Features"
+          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-[#5c34ad] hover:border-[#5c34ad]/40 hover:bg-[#5c34ad]/5 disabled:opacity-50 transition-colors"
         >
-          Features
+          <SlidersHorizontal className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={toggleBilling}
-          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+          title={billingStatus === 'SUBSCRIBED' ? 'Mark Trial' : 'Mark Subscribed'}
+          className="h-8 w-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:text-[#5c34ad] hover:border-[#5c34ad]/40 hover:bg-[#5c34ad]/5 disabled:opacity-50 transition-colors"
         >
-          Mark {billingStatus === 'SUBSCRIBED' ? 'Trial' : 'Subscribed'}
+          <RefreshCw className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={() => (isActive ? setConfirmingDeactivate(true) : toggleActive())}
-          className="text-[11px] font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+          title={isActive ? 'Deactivate' : 'Reactivate'}
+          className={`h-8 w-8 rounded-lg border flex items-center justify-center disabled:opacity-50 transition-colors ${
+            isActive
+              ? 'border-rose-200 bg-white text-rose-500 hover:bg-rose-50'
+              : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50'
+          }`}
         >
-          {isActive ? 'Deactivate' : 'Reactivate'}
+          {isActive ? <Ban className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
         </button>
       </div>
-      {error && <span className="text-[10px] text-rose-600">{error}</span>}
+      {error && <span className="text-[10px] text-rose-600 max-w-[160px] text-right">{error}</span>}
 
       <Modal
         isOpen={editingFeatures}
@@ -158,13 +172,17 @@ export function OrganizationActions({
                 checked={features[f.key]}
                 disabled={pending}
                 onChange={() => toggleFeature(f.key)}
-                className="h-4 w-4 rounded border-slate-300 text-[#5c34ad] focus:ring-[#5c34ad]"
+                className="h-4 w-4 rounded border-slate-300 accent-[#5c34ad] focus:ring-[#5c34ad]"
               />
             </label>
           ))}
         </div>
         <div className="flex justify-end mt-4">
-          <Button variant="secondary" onClick={() => setEditingFeatures(false)}>
+          <Button
+            onClick={() => setEditingFeatures(false)}
+            style={{ background: BRAND }}
+            className="bg-none hover:opacity-90 shadow-[#5c34ad]/20 focus:ring-[#5c34ad]"
+          >
             Done
           </Button>
         </div>
