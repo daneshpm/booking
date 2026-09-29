@@ -33,9 +33,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@vitest/coverage-v8": "^5.0.1",
-    "prettier": "^3.9.8",
-    "turbo": "^2.11.2",
+    "@vitest/coverage-v8": "^5.0.2",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.4",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   },
@@ -95,14 +95,14 @@
     "@img/sharp-win32-arm64": "^0.35.4",
     "@img/sharp-win32-ia32": "^0.35.4",
     "@img/sharp-win32-x64": "^0.35.4",
-    "@next/swc-darwin-arm64": "^16.3.5",
-    "@next/swc-darwin-x64": "^16.3.5",
-    "@next/swc-linux-arm64-gnu": "^16.3.5",
-    "@next/swc-linux-arm64-musl": "^16.3.5",
-    "@next/swc-linux-x64-gnu": "^16.3.5",
-    "@next/swc-linux-x64-musl": "^16.3.5",
-    "@next/swc-win32-arm64-msvc": "^16.3.5",
-    "@next/swc-win32-x64-msvc": "^16.3.5",
+    "@next/swc-darwin-arm64": "^16.3.6",
+    "@next/swc-darwin-x64": "^16.3.6",
+    "@next/swc-linux-arm64-gnu": "^16.3.6",
+    "@next/swc-linux-arm64-musl": "^16.3.6",
+    "@next/swc-linux-x64-gnu": "^16.3.6",
+    "@next/swc-linux-x64-musl": "^16.3.6",
+    "@next/swc-win32-arm64-msvc": "^16.3.6",
+    "@next/swc-win32-x64-msvc": "^16.3.6",
     "@rolldown/binding-android-arm-eabi": "^1.2.5",
     "@rolldown/binding-android-arm64": "^1.2.5",
     "@rolldown/binding-darwin-arm64": "^1.2.5",
@@ -160,7 +160,7 @@
     "sharp": "^0.35.4"
   },
   "dependencies": {
-    "framer-motion": "^13.4.0",
+    "framer-motion": "^13.4.4",
     "motion-dom": "^13.2.0",
     "motion-utils": "^13.0.0"
   }
