@@ -25,6 +25,7 @@ export function __resetRequestContext(): void {
 export async function headers() {
   return {
     get: (name: string) => requestHeaders.get(name.toLowerCase()) ?? null,
+    has: (name: string) => requestHeaders.has(name.toLowerCase()),
   };
 }
 

@@ -29,6 +29,7 @@ const PROTECTED_PREFIXES = [
   '/services',
   '/settings',
   '/staff',
+  '/super-admin',
   '/users',
   '/workflows',
 ];

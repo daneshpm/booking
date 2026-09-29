@@ -16,6 +16,8 @@ export interface SessionUser {
   email: string;
   name: string;
   avatarUrl: string | null;
+  /** See User.isPlatformAdmin in the schema: the one deliberate exception to tenant isolation. */
+  isPlatformAdmin: boolean;
 }
 
 export interface SessionWorkspace {
@@ -135,6 +137,7 @@ export async function resolveSession(
       email: session.user.email,
       name: session.user.name,
       avatarUrl: session.user.avatarUrl,
+      isPlatformAdmin: session.user.isPlatformAdmin,
     },
     workspaces,
     expiresAt: session.expiresAt,

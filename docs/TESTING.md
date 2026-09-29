@@ -7,7 +7,7 @@ Four suites, three of which need something running. The commands below are the r
 | Suite       | Tests            | Needs                                       | Command                                                   |
 | ----------- | ---------------- | ------------------------------------------- | --------------------------------------------------------- |
 | Unit        | 246              | nothing                                     | `npx vitest run`                                          |
-| Integration | 147              | PostgreSQL, Redis                           | `npm run test:integration`                                |
+| Integration | 152              | PostgreSQL, Redis                           | `npm run test:integration`                                |
 | E2E         | 45               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
 | Python      | 42 (+14 skipped) | its own venv (skipped ones need a database) | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
@@ -87,6 +87,7 @@ The venv also isolates `app` from anything on the system path. `apps/api/app/__i
 - Route protection across all 14 dashboard routes
 - Availability across a multi-staff pool, including per-staff overrides and collective participations
 - Privilege escalation inside a workspace (STAFF/RECEPTIONIST/ADMIN reaching above their rank)
+- The platform-admin boundary: an ordinary workspace owner refused the cross-tenant `/super-admin` view, a genuine platform admin seeing real data for every organization
 - Log redaction asserted on the serialised output line, not just the redactor's return value
 - Upstream `x-request-id` validation, including oversized and hostile values
 - Phone-width layout (375px): no sideways document scroll, and no control clipped by the right edge, on the public booking page, login, and both appointments views
