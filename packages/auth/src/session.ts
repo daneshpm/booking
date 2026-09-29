@@ -28,6 +28,10 @@ export interface SessionWorkspace {
   timezone: string;
   currency: string;
   role: Role;
+  workflowsEnabled: boolean;
+  analyticsEnabled: boolean;
+  dataExportEnabled: boolean;
+  bookingPagesEnabled: boolean;
 }
 
 export interface AuthSession {
@@ -128,6 +132,10 @@ export async function resolveSession(
       timezone: m.workspace.timezone,
       currency: m.workspace.currency,
       role: m.role,
+      workflowsEnabled: m.workspace.workflowsEnabled,
+      analyticsEnabled: m.workspace.analyticsEnabled,
+      dataExportEnabled: m.workspace.dataExportEnabled,
+      bookingPagesEnabled: m.workspace.bookingPagesEnabled,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 

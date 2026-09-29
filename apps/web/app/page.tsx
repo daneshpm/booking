@@ -1,5 +1,10 @@
 import { prisma } from '@bookings/database';
-import { ApexLandingPage, LandingService, LandingStaff } from './components/ApexLandingPage';
+import {
+  ApexLandingPage,
+  LandingService,
+  LandingStaff,
+  LandingPlan,
+} from './components/ApexLandingPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,5 +98,28 @@ export default async function HomePage() {
     isOwner: (st.user?.memberships || []).some((m) => m.workspaceId === workspace!.id),
   }));
 
-  return <ApexLandingPage defaultWorkspaceSlug={defaultSlug} services={services} staff={staff} />;
+  const publishedPlans = await prisma.plan.findMany({
+    where: { isPublished: true },
+    orderBy: { displayOrder: 'asc' },
+  });
+
+  const plans: LandingPlan[] = publishedPlans.map((p) => ({
+    id: p.id,
+    name: p.name,
+    // Prisma's Decimal.toString() drops trailing zeros (999 rather than
+    // 999.00); a price is always shown to 2 places regardless of storage.
+    price: Number(p.price).toFixed(2),
+    currency: p.currency,
+    billingPeriod: p.billingPeriod,
+    features: p.features,
+  }));
+
+  return (
+    <ApexLandingPage
+      defaultWorkspaceSlug={defaultSlug}
+      services={services}
+      staff={staff}
+      plans={plans}
+    />
+  );
 }

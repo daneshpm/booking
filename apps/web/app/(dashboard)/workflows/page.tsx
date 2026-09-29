@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { prisma } from '@bookings/database';
-import { requireWorkspace } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
 import { isMailConfigured, isSmsConfigured } from '@/lib/notifications';
 import { WorkflowsClient, type WorkflowItem } from './WorkflowsClient';
 
@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function WorkflowsPage() {
   const { workspace } = await requireWorkspace();
+  await requireWorkspaceFeature(workspace, 'workflows');
 
   const [workflows, recentDeliveries, services] = await Promise.all([
     prisma.workflow.findMany({

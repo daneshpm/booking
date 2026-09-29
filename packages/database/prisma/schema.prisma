@@ -82,6 +82,33 @@ enum BillingStatus {
   SUBSCRIBED
 }
 
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+/// Marketing content for the public landing page's pricing section, managed
+/// by a platform admin. Purely descriptive — assigning an organization to a
+/// plan is not modeled here; Workspace.billingStatus and the per-feature
+/// toggles are what actually gate anything. A Plan is what a prospect sees
+/// before they sign up, not a row an existing org points at.
+model Plan {
+  id            String        @id @default(uuid())
+  name          String
+  price         Decimal       @db.Decimal(10, 2)
+  currency      String        @default("INR")
+  billingPeriod BillingPeriod @default(MONTHLY) @map("billing_period")
+  /// Marketing bullet points, in display order.
+  features      String[]
+  displayOrder  Int           @default(0) @map("display_order")
+  isPublished   Boolean       @default(true) @map("is_published")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([displayOrder])
+  @@map("plans")
+}
+
 // ----------------------------------------------------
 // AUTH & TENANCY
 // ----------------------------------------------------
@@ -204,6 +231,14 @@ model Workspace {
   isActive              Boolean       @default(true) @map("is_active")
   billingStatus         BillingStatus @default(TRIAL) @map("billing_status")
   trialEndsAt           DateTime?     @map("trial_ends_at") @db.Timestamptz
+  /// Per-organization module toggles, set by a platform admin
+  /// (updateOrganizationFeaturesAction). Each one gates both the nav entry
+  /// and the underlying pages/actions via requireWorkspaceFeature() — hiding
+  /// the link is not the enforcement, it is a courtesy on top of it.
+  workflowsEnabled      Boolean       @default(true) @map("workflows_enabled")
+  analyticsEnabled      Boolean       @default(true) @map("analytics_enabled")
+  dataExportEnabled     Boolean       @default(true) @map("data_export_enabled")
+  bookingPagesEnabled   Boolean       @default(true) @map("booking_pages_enabled")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

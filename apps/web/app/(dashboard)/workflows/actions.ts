@@ -8,7 +8,7 @@ import {
   type WorkflowRecipient,
 } from '@bookings/database';
 import { z } from 'zod';
-import { requireWorkspace, toActionError } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature, toActionError } from '@/lib/session';
 
 export interface WorkflowActionResult {
   success: boolean;
@@ -90,7 +90,8 @@ export async function createWorkflowAction(
   input: WorkflowInput
 ): Promise<WorkflowActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'workflows');
     const data = workflowSchema.parse(input);
 
     const conflict = crossFieldError(data);
@@ -141,7 +142,8 @@ export async function updateWorkflowAction(
   input: WorkflowInput
 ): Promise<WorkflowActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'workflows');
     const data = workflowSchema.parse(input);
 
     const conflict = crossFieldError(data);
@@ -192,7 +194,8 @@ export async function toggleWorkflowAction(
   isActive: boolean
 ): Promise<WorkflowActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'workflows');
 
     const updated = await prisma.workflow.updateMany({
       where: { id: workflowId, workspaceId },
@@ -215,7 +218,8 @@ export async function deleteWorkflowAction(
   workflowId: string
 ): Promise<WorkflowActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'workflows');
 
     const deleted = await prisma.workflow.deleteMany({
       where: { id: workflowId, workspaceId },

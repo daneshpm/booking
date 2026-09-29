@@ -33,6 +33,10 @@ export interface ShellWorkspace {
   slug: string;
   role: string;
   logoUrl?: string | null;
+  workflowsEnabled?: boolean;
+  analyticsEnabled?: boolean;
+  dataExportEnabled?: boolean;
+  bookingPagesEnabled?: boolean;
 }
 
 export interface ShellUser {
@@ -54,11 +58,28 @@ const NAV_ITEMS = [
   { label: 'Appointments', href: '/appointments', icon: CalendarCheck },
   { label: 'Event Types', href: '/event-types', icon: Tag },
   { label: 'Schedules', href: '/schedules', icon: Clock },
-  { label: 'Workflows', href: '/workflows', icon: Activity },
+  { label: 'Workflows', href: '/workflows', icon: Activity, feature: 'workflowsEnabled' as const },
   { label: 'Users', href: '/users', icon: Users },
-  { label: 'Booking Pages', href: '/booking-pages', icon: Layers },
-  { label: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
-  { label: 'Export Data', href: '/export', icon: Download, adminOnly: true },
+  {
+    label: 'Booking Pages',
+    href: '/booking-pages',
+    icon: Layers,
+    feature: 'bookingPagesEnabled' as const,
+  },
+  {
+    label: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
+    adminOnly: true,
+    feature: 'analyticsEnabled' as const,
+  },
+  {
+    label: 'Export Data',
+    href: '/export',
+    icon: Download,
+    adminOnly: true,
+    feature: 'dataExportEnabled' as const,
+  },
 ];
 
 export function DashboardShell({
@@ -232,9 +253,10 @@ export function DashboardShell({
           <nav className="px-3 space-y-1 mt-1">
             {NAV_ITEMS.filter(
               (item) =>
-                !item.adminOnly ||
-                activeWorkspace.role === 'OWNER' ||
-                activeWorkspace.role === 'ADMIN'
+                (!item.adminOnly ||
+                  activeWorkspace.role === 'OWNER' ||
+                  activeWorkspace.role === 'ADMIN') &&
+                (!item.feature || activeWorkspace[item.feature] !== false)
             ).map((item) => {
               const Icon = item.icon;
               const isActive =

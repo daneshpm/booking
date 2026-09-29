@@ -96,6 +96,14 @@ A platform admin can deactivate an organization (`setOrganizationActiveAction` i
 
 Billing status (`Workspace.billingStatus`, `TRIAL | SUBSCRIBED`) is a manual toggle, not a real subscription state — there is no payment processor wired up for organization-level billing, so a platform admin flips it by hand once payment happens through whatever real-world process is actually used (`updateBillingStatusAction`). A new workspace starts on `TRIAL` with a `trialEndsAt` date; marking it `SUBSCRIBED` clears that date rather than leaving a stale one behind.
 
+### Per-organization feature toggles
+
+A platform admin can turn four dashboard modules (Workflows, Analytics, Data export, Booking pages) on or off per organization (`updateOrganizationFeatureAction`), each backed by its own `Workspace.*Enabled` boolean. This is deliberately "hide + block", not "hide" alone: `DashboardShell` hides the disabled module's nav entry as a courtesy, but the actual enforcement is `requireWorkspaceFeature()` (`packages/auth/src/next.ts`), called after `requireWorkspace` at every page and server action that module owns. It is a small function layered on top of `requireWorkspace` rather than folded into it — the same reasoning as `requirePlatformAdmin` being a separate function: a bug in the feature gate must not be able to widen tenant isolation, and vice versa. A caller who hits a disabled module directly (bypassing the hidden nav link entirely) gets exactly the same redirect/refusal as a role check failure — nothing in the response reveals whether the module is disabled versus simply not something they have the role for.
+
+### Pricing plans
+
+`Plan` (`packages/database/prisma/schema.prisma`) is unrelated to the two features above — it is marketing content for the public landing page's pricing section (name, price, billing period, feature bullets), managed by a platform admin at `/super-admin/plans`. Assigning a real organization to a plan is not modeled: a prospect sees these before they sign up, and `Workspace.billingStatus`/the feature toggles are what actually gate anything for an organization that already exists.
+
 ## Verification
 
 Isolation is asserted in two places, and the distinction matters:
@@ -104,6 +112,8 @@ Isolation is asserted in two places, and the distinction matters:
 - `test/integration/cross-tenant-actions.spec.ts` — **the real server actions** refuse a foreign resource, covering both attack shapes (foreign `workspaceId`, and own `workspaceId` with a foreign resource id). Includes positive controls proving the same calls succeed on the caller's own resources, so a refusal cannot pass for the wrong reason.
 - `test/integration/platform-admin.spec.ts` — the mirror image of the above: proves an ordinary workspace owner, even the owner of one of several seeded tenants, is refused the cross-tenant view, and that a genuine platform admin sees real data (not a placeholder) for every one of them.
 - `test/integration/organization-lifecycle.spec.ts` — deactivation and the billing toggle both refuse a non-admin caller; deactivation removes the workspace from its owner's session without touching its rows, and restores it on reactivation; `public-booking.spec.ts` covers the same deactivated-workspace refusal at the two internal booking call sites.
+- `test/integration/organization-features.spec.ts` — a non-admin caller cannot flip a feature flag; disabling a module blocks its real server action (workflows, data export, booking-page branding) even when called by the organization's own owner, not just a hidden nav link, and re-enabling restores access.
+- `test/integration/plans.spec.ts` — an ordinary workspace owner is refused every plan action; a platform admin can create, list, update and delete a plan; an invalid price is rejected rather than stored.
 
 The second and third exist because the first is not sufficient: the guarantee in practice depends on every author remembering to call the guard _and_ scope the query, and only a test at the call site can see that.
 

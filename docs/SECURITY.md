@@ -29,7 +29,9 @@ There are **no `route.ts` API handlers** other than `/health`, which is a read-o
 
 **One account type sits outside that model entirely.** `User.isPlatformAdmin` grants read-only access to `/super-admin`, a cross-tenant list of every organization — the single query in the codebase that is not scoped to one workspace. It cannot be granted through signup, invites, or any role-management action; only `npm run db:seed-platform-admin`, run directly against the database, can set it, and that script never touches an existing account's password. See MULTI_TENANCY.md's "the one deliberate exception" for the full reasoning and its test coverage.
 
-The same account type is the only one that can deactivate an organization (soft delete, not a real delete — every row stays) or change its billing status between Trial and Subscribed. Both are gated by the same `requirePlatformAdmin()` guard, so nothing new was added to the authorization surface — see MULTI_TENANCY.md's "organization lifecycle" section.
+The same account type is the only one that can deactivate an organization (soft delete, not a real delete — every row stays), change its billing status between Trial and Subscribed, turn its per-module feature toggles on or off, or manage the public pricing plans shown on the landing page. All of these are gated by the same `requirePlatformAdmin()` guard, so nothing new was added to the authorization surface — see MULTI_TENANCY.md's "organization lifecycle", "per-organization feature toggles" and "pricing plans" sections.
+
+A disabled feature module is enforced by a second, deliberately separate guard, `requireWorkspaceFeature()`, checked after `requireWorkspace` at every page and action the module owns — not just hidden from the sidebar. Calling the underlying server action directly, bypassing the hidden nav link, gets refused exactly the same way.
 
 ## Rate limiting
 

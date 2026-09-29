@@ -8,6 +8,7 @@ import { HowItWorksSection } from './landing/HowItWorksSection';
 import { CentersOfExcellenceSection } from './landing/CentersOfExcellenceSection';
 import { ExpertsSection, StaffMemberData } from './landing/ExpertsSection';
 import { WhyRoomanSection } from './landing/WhyRoomanSection';
+import { PricingSection, PlanCardData } from './landing/PricingSection';
 import { FaqSection } from './landing/FaqSection';
 import { FinalCtaSection } from './landing/FinalCtaSection';
 import { Footer } from './landing/Footer';
@@ -15,17 +16,20 @@ import { SmoothScrollProvider } from './landing/SmoothScrollProvider';
 
 export interface LandingService extends ServiceCardData {}
 export interface LandingStaff extends StaffMemberData {}
+export interface LandingPlan extends PlanCardData {}
 
 interface ApexLandingPageProps {
   defaultWorkspaceSlug?: string;
   services?: LandingService[];
   staff?: LandingStaff[];
+  plans?: LandingPlan[];
 }
 
 export function ApexLandingPage({
   defaultWorkspaceSlug,
   services = [],
   staff = [],
+  plans = [],
 }: ApexLandingPageProps = {}) {
   const targetSlug =
     defaultWorkspaceSlug ||
@@ -61,6 +65,9 @@ export function ApexLandingPage({
 
         {/* 7. Why Rooman Technologies (6 Value Pillars) */}
         <WhyRoomanSection />
+
+        {/* 7b. Pricing Plans (platform-admin managed, omitted when none are published) */}
+        <PricingSection plans={plans} />
 
         {/* 8. Frequently Asked Questions Accordion */}
         <FaqSection />
