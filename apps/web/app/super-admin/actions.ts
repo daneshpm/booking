@@ -35,10 +35,7 @@ export interface OrganizationSummary {
 
 /** A single feature module a platform admin can enable/disable per organization. */
 export type OrganizationFeature =
-  | 'workflowsEnabled'
-  | 'analyticsEnabled'
-  | 'dataExportEnabled'
-  | 'bookingPagesEnabled';
+  'workflowsEnabled' | 'analyticsEnabled' | 'dataExportEnabled' | 'bookingPagesEnabled';
 
 export async function getOrganizationsAction(): Promise<
   { success: true; organizations: OrganizationSummary[] } | { success: false; error: string }

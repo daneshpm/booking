@@ -85,7 +85,10 @@ describe('pricing plans (super admin)', () => {
     expect(listed.plans[0].name).toBe('Pro');
     expect(listed.plans[0].features).toEqual(['Unlimited bookings', 'Priority support']);
 
-    const updated = await updatePlanAction(created.planId, { ...validInput, name: 'Pro (renamed)' });
+    const updated = await updatePlanAction(created.planId, {
+      ...validInput,
+      name: 'Pro (renamed)',
+    });
     expect(updated.success).toBe(true);
     const afterUpdate = await prisma.plan.findUniqueOrThrow({ where: { id: created.planId } });
     expect(afterUpdate.name).toBe('Pro (renamed)');
