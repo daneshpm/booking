@@ -10,7 +10,13 @@ import type { AuthSession } from '../src/session';
 function session(overrides: Partial<AuthSession> = {}): AuthSession {
   return {
     sessionId: 'sess-1',
-    user: { id: 'user-1', email: 'a@example.com', name: 'A', avatarUrl: null },
+    user: {
+      id: 'user-1',
+      email: 'a@example.com',
+      name: 'A',
+      avatarUrl: null,
+      isPlatformAdmin: false,
+    },
     expiresAt: new Date(Date.now() + 60_000),
     workspaces: [
       {

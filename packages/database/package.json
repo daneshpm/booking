@@ -14,6 +14,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx src/seed.ts",
+    "seed:platform-admin": "tsx src/seed-platform-admin.ts",
     "purge:sessions": "tsx src/purge-sessions.ts",
     "studio": "prisma studio"
   },

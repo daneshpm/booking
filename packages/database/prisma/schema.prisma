@@ -96,6 +96,13 @@ model User {
   twitter         String?
   website         String?
   isActive        Boolean              @default(true) @map("is_active")
+  /// Grants cross-tenant, read-only access to the platform-admin dashboard
+  /// (every workspace's name, size and activity). This is the one deliberate
+  /// exception to tenant isolation in the whole schema, so it stays a single
+  /// flag on the account rather than a role: nothing about the ordinary
+  /// signup, invite, or role-management flows can ever set it. It is set by
+  /// direct database action only (see packages/database/src/seed-platform-admin.ts).
+  isPlatformAdmin Boolean              @default(false) @map("is_platform_admin")
   lastLoginAt     DateTime?            @map("last_login_at") @db.Timestamptz
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt

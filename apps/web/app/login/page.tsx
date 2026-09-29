@@ -31,11 +31,14 @@ function LoginForm() {
       const res = await loginUserAction(email, password);
       if (res.success) {
         // Only follow an in-app path, so a crafted ?next= cannot bounce the
-        // user to another site straight after authenticating.
+        // user to another site straight after authenticating. redirectTo is
+        // server-chosen (a platform admin has no workspace to land on), so it
+        // does not need that same check.
         const target =
-          nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+          res.redirectTo ||
+          (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
             ? nextPath
-            : '/appointments';
+            : '/appointments');
         router.push(target);
         router.refresh();
       } else {

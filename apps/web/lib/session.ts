@@ -11,6 +11,7 @@ export {
   requireSession,
   requireWorkspace,
   requireWorkspaceBySlug,
+  requirePlatformAdmin,
   startSession,
   endSession,
   toActionError,

@@ -1,0 +1,140 @@
+import { Building2, LogOut, Users, Calendar } from 'lucide-react';
+import { requirePlatformAdmin } from '@/lib/session';
+import { logoutAction } from '../signup/actions';
+import { getOrganizationsAction } from './actions';
+
+export const dynamic = 'force-dynamic';
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export default async function SuperAdminPage() {
+  // Called directly, not through the action below: redirect() throws a
+  // Next-internal signal that must reach Next's own machinery unwrapped by
+  // any try/catch — see the comment on requirePlatformAdmin() itself, and on
+  // getOrganizationsAction's try/catch, for why that distinction matters here.
+  const session = await requirePlatformAdmin();
+
+  const result = await getOrganizationsAction();
+  const organizations = result.success ? result.organizations : [];
+
+  const totals = organizations.reduce(
+    (acc, org) => ({
+      workspaces: acc.workspaces + 1,
+      members: acc.members + org.memberCount,
+      bookings: acc.bookings + org.bookingCount,
+    }),
+    { workspaces: 0, members: 0, bookings: 0 }
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              Platform Admin
+            </p>
+            <h1 className="text-lg font-extrabold text-slate-900">Organizations</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-slate-500">{session.user.email}</span>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        {!result.success && (
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm"
+          >
+            {result.error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Building2 className="h-4 w-4" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">Organizations</span>
+            </div>
+            <p className="text-2xl font-extrabold text-slate-900">{totals.workspaces}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Users className="h-4 w-4" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">Total members</span>
+            </div>
+            <p className="text-2xl font-extrabold text-slate-900">{totals.members}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5">
+            <div className="flex items-center gap-2 text-slate-400 mb-1">
+              <Calendar className="h-4 w-4" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">Total bookings</span>
+            </div>
+            <p className="text-2xl font-extrabold text-slate-900">{totals.bookings}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="px-4 py-3">Organization</th>
+                <th className="px-4 py-3">Owner</th>
+                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Members</th>
+                <th className="px-4 py-3 text-right">Staff</th>
+                <th className="px-4 py-3 text-right">Services</th>
+                <th className="px-4 py-3 text-right">Bookings</th>
+                <th className="px-4 py-3">Last booking</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {organizations.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-400">
+                    No organizations yet.
+                  </td>
+                </tr>
+              ) : (
+                organizations.map((org) => (
+                  <tr key={org.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-900">{org.name}</div>
+                      <div className="text-slate-400">{org.slug}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{org.ownerEmail ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDate(org.createdAt)}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{org.memberCount}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{org.staffCount}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{org.serviceCount}</td>
+                    <td className="px-4 py-3 text-right text-slate-700">{org.bookingCount}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {org.lastBookingAt ? formatDate(org.lastBookingAt) : 'None yet'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  );
+}

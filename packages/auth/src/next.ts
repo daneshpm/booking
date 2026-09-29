@@ -87,7 +87,11 @@ export async function requireWorkspace(
         redirect('/appointments');
       }
       if (err.code === 'NO_WORKSPACE') {
-        redirect('/login');
+        // A platform admin deliberately holds no workspace membership (see
+        // User.isPlatformAdmin), so this is not the dead end it is for
+        // anyone else — send them to the one place their account works,
+        // rather than bouncing them to a login page they are already past.
+        redirect(session.user.isPlatformAdmin ? '/super-admin' : '/login');
       }
     }
     throw err;
@@ -125,13 +129,53 @@ export async function requireWorkspaceBySlug(
         redirect('/appointments');
       }
       if (err.code === 'NO_WORKSPACE') {
-        redirect('/login');
+        redirect(session.user.isPlatformAdmin ? '/super-admin' : '/login');
       }
     }
     throw err;
   }
 
   return { session, workspace };
+}
+
+/**
+ * The platform-admin guard.
+ *
+ * Deliberately not a variant of requireWorkspace: that function's whole job is
+ * resolving *a* workspace, and this one exists specifically for the one page
+ * that must never resolve to a single workspace at all. Keeping them as two
+ * separate functions means a bug in one cannot silently widen the other.
+ *
+ * A non-admin who is signed in is sent to their own dashboard, not told this
+ * page exists and refused — the same "don't confirm what you can't see"
+ * posture requireWorkspace already uses for a foreign workspace id.
+ *
+ * Same server-action distinction requireWorkspace makes, for the same
+ * reason: redirect() throws a Next-internal signal that Next's own machinery
+ * must be the one to catch. A server action's own try/catch would otherwise
+ * swallow it and turn a redirect into a generic error message instead — this
+ * is why it throws AuthorizationError there rather than redirecting.
+ */
+export async function requirePlatformAdmin(): Promise<AuthSession> {
+  const session = await getSession();
+
+  // Checked lazily, only on a failure path, matching requireWorkspace above:
+  // a successful call never needs to know whether it arrived as a server
+  // action, so it never asks.
+  if (!session) {
+    const headerList = await headers();
+    if (!headerList.has('next-action')) redirect('/login');
+    throw new AuthorizationError(
+      'UNAUTHENTICATED',
+      'You must be signed in to perform this action.'
+    );
+  }
+  if (!session.user.isPlatformAdmin) {
+    const headerList = await headers();
+    if (!headerList.has('next-action')) redirect('/appointments');
+    throw new AuthorizationError('FORBIDDEN', 'You do not have access to this page.');
+  }
+  return session;
 }
 
 /** Issue a session for a user and attach the cookie to the response. */

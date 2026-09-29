@@ -29,6 +29,8 @@ export interface SignupInput {
 export interface AuthResult {
   success: boolean;
   workspaceSlug?: string;
+  /** Set only for an account with no workspace at all (a platform admin). */
+  redirectTo?: string;
   error?: string;
   fieldErrors?: Record<string, string[]>;
 }
@@ -223,7 +225,10 @@ export async function loginUserAction(email: string, password: string): Promise<
       };
     }
 
-    if (user.memberships.length === 0) {
+    // A platform admin deliberately has no workspace membership (see
+    // User.isPlatformAdmin) — for every other account, no membership is a
+    // dead end and login is refused before a session is ever started.
+    if (user.memberships.length === 0 && !user.isPlatformAdmin) {
       return {
         success: false,
         error: 'Your account is not linked to a workspace. Contact your administrator.',
@@ -233,6 +238,9 @@ export async function loginUserAction(email: string, password: string): Promise<
     await startSession(user.id);
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
+    if (user.memberships.length === 0) {
+      return { success: true, redirectTo: '/super-admin' };
+    }
     return { success: true, workspaceSlug: user.memberships[0].workspace.slug };
   } catch (err) {
     logger.error('Login failed', { err });

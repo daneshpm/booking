@@ -82,14 +82,23 @@ Memberships are re-read from the database on every request rather than carried i
 - `PasswordResetToken` — likewise.
 - The public booking flow resolves the workspace **from the URL slug**, not from a session, because the customer has no account. Everything downstream is then scoped to that resolved workspace.
 
+## The one deliberate exception
+
+`User.isPlatformAdmin` and the `/super-admin` dashboard it gates read across every workspace at once — every other server action in the codebase scopes its query to the single workspace `requireWorkspace` resolves. This exists so a platform operator can see how many organizations exist and how active each is, without needing a membership in any of them.
+
+It is a single boolean on the account, not a role, and nothing in the ordinary signup, invite, or role-management flows can ever set it — see the comment on the field in `schema.prisma`. It is granted by direct database action only: `npm run db:seed-platform-admin`, which never overwrites an existing account's password, only adds the flag. `requirePlatformAdmin()` (`packages/auth/src/next.ts`) is a separate function from `requireWorkspace`, deliberately not a variant of it, so a bug in one cannot silently widen the other.
+
+A platform admin holds no workspace membership at all, which is why it needed its own path through login (`loginUserAction` in `apps/web/app/signup/actions.ts` refuses login for a zero-membership account, unless `isPlatformAdmin` is set) and its own `NO_WORKSPACE` handling in `requireWorkspace` itself (redirect to `/super-admin` instead of the login dead-end everyone else hits).
+
 ## Verification
 
 Isolation is asserted in two places, and the distinction matters:
 
 - `test/integration/tenant-isolation.spec.ts` — the guard itself rejects a foreign workspace id.
 - `test/integration/cross-tenant-actions.spec.ts` — **the real server actions** refuse a foreign resource, covering both attack shapes (foreign `workspaceId`, and own `workspaceId` with a foreign resource id). Includes positive controls proving the same calls succeed on the caller's own resources, so a refusal cannot pass for the wrong reason.
+- `test/integration/platform-admin.spec.ts` — the mirror image of the above: proves an ordinary workspace owner, even the owner of one of several seeded tenants, is refused the cross-tenant view, and that a genuine platform admin sees real data (not a placeholder) for every one of them.
 
-The second exists because the first is not sufficient: the guarantee in practice depends on every author remembering to call the guard _and_ scope the query, and only a test at the call site can see that.
+The second and third exist because the first is not sufficient: the guarantee in practice depends on every author remembering to call the guard _and_ scope the query, and only a test at the call site can see that.
 
 ## Known limitation
 

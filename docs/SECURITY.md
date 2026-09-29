@@ -27,6 +27,8 @@ See [MULTI_TENANCY.md](./MULTI_TENANCY.md). In short: `requireWorkspace(workspac
 
 There are **no `route.ts` API handlers** other than `/health`, which is a read-only GET. Every mutation is a Next.js server action and inherits its origin check, which is why there is no separate CSRF token scheme.
 
+**One account type sits outside that model entirely.** `User.isPlatformAdmin` grants read-only access to `/super-admin`, a cross-tenant list of every organization — the single query in the codebase that is not scoped to one workspace. It cannot be granted through signup, invites, or any role-management action; only `npm run db:seed-platform-admin`, run directly against the database, can set it, and that script never touches an existing account's password. See MULTI_TENANCY.md's "the one deliberate exception" for the full reasoning and its test coverage.
+
 ## Rate limiting
 
 Redis-backed when `REDIS_URL` is set (shared across instances), falling back to a per-process counter with a hard key ceiling so that key rotation causes eviction rather than unbounded memory growth.
