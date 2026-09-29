@@ -18,7 +18,7 @@ export default async function ServiceBookerPage({ params }: ServiceBookerProps) 
     where: { slug },
   });
 
-  if (!workspace) {
+  if (!workspace || !workspace.isActive) {
     return notFound();
   }
 

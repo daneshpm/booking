@@ -90,6 +90,12 @@ It is a single boolean on the account, not a role, and nothing in the ordinary s
 
 A platform admin holds no workspace membership at all, which is why it needed its own path through login (`loginUserAction` in `apps/web/app/signup/actions.ts` refuses login for a zero-membership account, unless `isPlatformAdmin` is set) and its own `NO_WORKSPACE` handling in `requireWorkspace` itself (redirect to `/super-admin` instead of the login dead-end everyone else hits).
 
+### Organization lifecycle: soft delete and billing status
+
+A platform admin can deactivate an organization (`setOrganizationActiveAction` in `apps/web/app/super-admin/actions.ts`) rather than delete it. `Workspace.isActive` is a soft-delete flag, not a hard delete — every `onDelete: Cascade` relation on `Workspace` means a real delete would wipe every booking, customer and staff record with it, so deactivation is the only destructive-looking action exposed. Turning it off does exactly one thing at the data layer: `resolveSession()` (`packages/auth/src/session.ts`) filters the workspace out of `session.workspaces` when building the session, so `requireWorkspace` sees it as `NO_WORKSPACE` — a code path that already existed and is already tested, not a new one. The public booking page and the two internal `workspace.findUnique` lookups in `apps/web/app/book/actions.ts` additionally check `isActive` directly, since those requests never go through `requireWorkspace` at all.
+
+Billing status (`Workspace.billingStatus`, `TRIAL | SUBSCRIBED`) is a manual toggle, not a real subscription state — there is no payment processor wired up for organization-level billing, so a platform admin flips it by hand once payment happens through whatever real-world process is actually used (`updateBillingStatusAction`). A new workspace starts on `TRIAL` with a `trialEndsAt` date; marking it `SUBSCRIBED` clears that date rather than leaving a stale one behind.
+
 ## Verification
 
 Isolation is asserted in two places, and the distinction matters:
@@ -97,6 +103,7 @@ Isolation is asserted in two places, and the distinction matters:
 - `test/integration/tenant-isolation.spec.ts` — the guard itself rejects a foreign workspace id.
 - `test/integration/cross-tenant-actions.spec.ts` — **the real server actions** refuse a foreign resource, covering both attack shapes (foreign `workspaceId`, and own `workspaceId` with a foreign resource id). Includes positive controls proving the same calls succeed on the caller's own resources, so a refusal cannot pass for the wrong reason.
 - `test/integration/platform-admin.spec.ts` — the mirror image of the above: proves an ordinary workspace owner, even the owner of one of several seeded tenants, is refused the cross-tenant view, and that a genuine platform admin sees real data (not a placeholder) for every one of them.
+- `test/integration/organization-lifecycle.spec.ts` — deactivation and the billing toggle both refuse a non-admin caller; deactivation removes the workspace from its owner's session without touching its rows, and restores it on reactivation; `public-booking.spec.ts` covers the same deactivated-workspace refusal at the two internal booking call sites.
 
 The second and third exist because the first is not sufficient: the guarantee in practice depends on every author remembering to call the guard _and_ scope the query, and only a test at the call site can see that.
 

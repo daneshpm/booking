@@ -345,7 +345,7 @@ export async function getAvailableSlotsAction(
     }
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-    if (!workspace) {
+    if (!workspace || !workspace.isActive) {
       return { success: false, slots: [], error: 'Workspace not found.' };
     }
 
@@ -575,7 +575,7 @@ export async function createPublicBookingAction(data: BookingFormData): Promise<
     }
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-    if (!workspace) {
+    if (!workspace || !workspace.isActive) {
       return { success: false, error: 'Workspace not found.' };
     }
 

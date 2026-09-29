@@ -96,6 +96,34 @@ describe('public booking', () => {
     expect(await prisma.booking.count()).toBe(0);
   });
 
+  it('refuses to list slots for a deactivated workspace', async () => {
+    await prisma.workspace.update({ where: { id: tenant.workspaceId }, data: { isActive: false } });
+
+    const result = await getAvailableSlotsAction(
+      tenant.workspaceId,
+      tenant.serviceId,
+      upcomingWeekday()
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.slots).toEqual([]);
+  });
+
+  it('refuses to create a booking against a deactivated workspace', async () => {
+    await prisma.workspace.update({ where: { id: tenant.workspaceId }, data: { isActive: false } });
+
+    const result = await createPublicBookingAction({
+      workspaceId: tenant.workspaceId,
+      serviceId: tenant.serviceId,
+      date: upcomingWeekday(),
+      time: '10:00',
+      ...customer,
+    });
+
+    expect(result.success).toBe(false);
+    expect(await prisma.booking.count()).toBe(0);
+  });
+
   it('refuses a booking on a day the staff member does not work', async () => {
     // The fixture works Monday to Friday only.
     const sunday = new Date();

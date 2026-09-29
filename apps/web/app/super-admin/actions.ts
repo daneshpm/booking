@@ -1,6 +1,7 @@
 'use server';
 
-import { prisma } from '@bookings/database';
+import { revalidatePath } from 'next/cache';
+import { prisma, type BillingStatus } from '@bookings/database';
 import { requirePlatformAdmin, toActionError } from '@/lib/session';
 
 /**
@@ -23,6 +24,9 @@ export interface OrganizationSummary {
   serviceCount: number;
   bookingCount: number;
   lastBookingAt: string | null;
+  isActive: boolean;
+  billingStatus: BillingStatus;
+  trialEndsAt: string | null;
 }
 
 export async function getOrganizationsAction(): Promise<
@@ -38,6 +42,9 @@ export async function getOrganizationsAction(): Promise<
         name: true,
         slug: true,
         createdAt: true,
+        isActive: true,
+        billingStatus: true,
+        trialEndsAt: true,
         members: {
           where: { role: 'OWNER' },
           orderBy: { createdAt: 'asc' },
@@ -64,6 +71,9 @@ export async function getOrganizationsAction(): Promise<
       serviceCount: w._count.services,
       bookingCount: w._count.bookings,
       lastBookingAt: w.bookings[0]?.createdAt.toISOString() ?? null,
+      isActive: w.isActive,
+      billingStatus: w.billingStatus,
+      trialEndsAt: w.trialEndsAt?.toISOString() ?? null,
     }));
 
     return { success: true, organizations };
@@ -72,6 +82,61 @@ export async function getOrganizationsAction(): Promise<
     // during a page render; called from client-side JS (a real "action"), it
     // throws AuthorizationError instead, which toActionError converts to a
     // safe message here — never a raw database error.
+    return toActionError(err);
+  }
+}
+
+/**
+ * Soft-deletes (or restores) an organization. A deactivated workspace is
+ * dropped from its members' sessions and its public booking page 404s, but
+ * every booking, customer and staff record stays intact — see
+ * Workspace.isActive in the schema.
+ */
+export async function setOrganizationActiveAction(
+  workspaceId: string,
+  isActive: boolean
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requirePlatformAdmin();
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { isActive },
+    });
+
+    revalidatePath('/super-admin');
+    return { success: true };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+/**
+ * Manually flips an organization between Trial and Subscribed. There is no
+ * payment processor wired up for organization-level billing today, so this is
+ * the entire mechanism: a platform admin marks an org Subscribed by hand once
+ * payment happens through whatever real-world process is actually used.
+ */
+export async function updateBillingStatusAction(
+  workspaceId: string,
+  billingStatus: BillingStatus
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    await requirePlatformAdmin();
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        billingStatus,
+        // Subscribed orgs aren't on a trial clock; reactivating a trial from
+        // here would need a new end date set explicitly, not a stale old one.
+        trialEndsAt: billingStatus === 'SUBSCRIBED' ? null : undefined,
+      },
+    });
+
+    revalidatePath('/super-admin');
+    return { success: true };
+  } catch (err) {
     return toActionError(err);
   }
 }
