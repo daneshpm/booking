@@ -28,7 +28,9 @@ export function OrganizationStatusBadges({
 }: Pick<OrganizationActionsProps, 'isActive' | 'billingStatus' | 'trialEndsAt'>) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      <Badge variant={isActive ? 'success' : 'default'}>{isActive ? 'Active' : 'Deactivated'}</Badge>
+      <Badge variant={isActive ? 'success' : 'default'}>
+        {isActive ? 'Active' : 'Deactivated'}
+      </Badge>
       <Badge variant={billingStatus === 'SUBSCRIBED' ? 'success' : 'warning'}>
         {billingStatus === 'SUBSCRIBED'
           ? 'Subscribed'
