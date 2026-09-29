@@ -5,7 +5,7 @@ import { localTimeToUtc } from '@bookings/core';
 import { formatInTimeZone } from 'date-fns-tz';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { requireWorkspace, toActionError } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature, toActionError } from '@/lib/session';
 import { EXPORTABLE_FIELDS, type FieldKey } from './fields';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -55,6 +55,7 @@ export async function exportAppointmentsAction(
 ): Promise<ExportResult> {
   try {
     const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'dataExport');
     const data = exportSchema.parse(input);
 
     if (data.dateTo < data.dateFrom) {

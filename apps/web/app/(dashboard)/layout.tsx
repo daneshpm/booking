@@ -84,6 +84,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         slug: activeWorkspace.slug,
         role: activeWorkspace.role,
         logoUrl: currentLogoUrl,
+        workflowsEnabled: activeWorkspace.workflowsEnabled,
+        analyticsEnabled: activeWorkspace.analyticsEnabled,
+        dataExportEnabled: activeWorkspace.dataExportEnabled,
+        bookingPagesEnabled: activeWorkspace.bookingPagesEnabled,
       }}
       completedSteps={completedSteps}
     >

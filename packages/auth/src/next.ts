@@ -178,6 +178,38 @@ export async function requirePlatformAdmin(): Promise<AuthSession> {
   return session;
 }
 
+/** A per-organization module a platform admin can turn off (see Workspace.*Enabled). */
+export type WorkspaceFeature = 'workflows' | 'analytics' | 'dataExport' | 'bookingPages';
+
+const FEATURE_FLAG_KEYS: Record<WorkspaceFeature, keyof SessionWorkspace> = {
+  workflows: 'workflowsEnabled',
+  analytics: 'analyticsEnabled',
+  dataExport: 'dataExportEnabled',
+  bookingPages: 'bookingPagesEnabled',
+};
+
+/**
+ * The per-organization feature gate, layered on top of requireWorkspace rather
+ * than folded into it: requireWorkspace's job is tenant isolation and role
+ * rank, and mixing a third, unrelated concern into it is how a bug in one
+ * check quietly widens the other. Call this after requireWorkspace has
+ * already resolved the workspace.
+ *
+ * Same "hide is not enforcement" posture as everywhere else here: the nav
+ * link disappearing is a courtesy, this is what actually blocks a direct
+ * call.
+ */
+export async function requireWorkspaceFeature(
+  workspace: SessionWorkspace,
+  feature: WorkspaceFeature
+): Promise<void> {
+  if (workspace[FEATURE_FLAG_KEYS[feature]]) return;
+
+  const headerList = await headers();
+  if (!headerList.has('next-action')) redirect('/appointments');
+  throw new AuthorizationError('FORBIDDEN', 'This feature is not enabled for your organization.');
+}
+
 /** Issue a session for a user and attach the cookie to the response. */
 export async function startSession(userId: string): Promise<void> {
   const headerList = await headers();

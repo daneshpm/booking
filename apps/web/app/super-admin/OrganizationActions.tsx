@@ -3,7 +3,19 @@
 import * as React from 'react';
 import { Badge, Button, Modal } from '@bookings/ui';
 import type { BillingStatus } from '@bookings/database';
-import { setOrganizationActiveAction, updateBillingStatusAction } from './actions';
+import {
+  setOrganizationActiveAction,
+  updateBillingStatusAction,
+  updateOrganizationFeatureAction,
+  type OrganizationFeature,
+} from './actions';
+
+const FEATURE_TOGGLES: { key: OrganizationFeature; label: string }[] = [
+  { key: 'workflowsEnabled', label: 'Workflows' },
+  { key: 'analyticsEnabled', label: 'Analytics' },
+  { key: 'dataExportEnabled', label: 'Data export' },
+  { key: 'bookingPagesEnabled', label: 'Booking pages' },
+];
 
 interface OrganizationActionsProps {
   workspaceId: string;
@@ -11,6 +23,10 @@ interface OrganizationActionsProps {
   isActive: boolean;
   billingStatus: BillingStatus;
   trialEndsAt: string | null;
+  workflowsEnabled: boolean;
+  analyticsEnabled: boolean;
+  dataExportEnabled: boolean;
+  bookingPagesEnabled: boolean;
 }
 
 function formatDate(iso: string): string {
@@ -47,10 +63,21 @@ export function OrganizationActions({
   workspaceName,
   isActive,
   billingStatus,
+  workflowsEnabled,
+  analyticsEnabled,
+  dataExportEnabled,
+  bookingPagesEnabled,
 }: OrganizationActionsProps) {
   const [pending, startTransition] = React.useTransition();
   const [confirmingDeactivate, setConfirmingDeactivate] = React.useState(false);
+  const [editingFeatures, setEditingFeatures] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [features, setFeatures] = React.useState({
+    workflowsEnabled,
+    analyticsEnabled,
+    dataExportEnabled,
+    bookingPagesEnabled,
+  });
 
   function toggleActive() {
     setError(null);
@@ -70,9 +97,29 @@ export function OrganizationActions({
     });
   }
 
+  function toggleFeature(key: OrganizationFeature) {
+    const next = !features[key];
+    setFeatures((prev) => ({ ...prev, [key]: next }));
+    startTransition(async () => {
+      const result = await updateOrganizationFeatureAction(workspaceId, key, next);
+      if (!result.success) {
+        setFeatures((prev) => ({ ...prev, [key]: !next }));
+        setError(result.error);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => setEditingFeatures(true)}
+          className="text-[11px] font-bold text-slate-600 hover:text-slate-900 disabled:opacity-50"
+        >
+          Features
+        </button>
         <button
           type="button"
           disabled={pending}
@@ -91,6 +138,37 @@ export function OrganizationActions({
         </button>
       </div>
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
+
+      <Modal
+        isOpen={editingFeatures}
+        onClose={() => setEditingFeatures(false)}
+        title={`Features for ${workspaceName}`}
+        description="Turning a module off hides it from the sidebar and blocks its pages/actions directly, even if called by hand."
+        maxWidth="sm"
+      >
+        <div className="space-y-2.5 mt-1">
+          {FEATURE_TOGGLES.map((f) => (
+            <label
+              key={f.key}
+              className="flex items-center justify-between gap-3 py-1 cursor-pointer"
+            >
+              <span className="text-sm font-medium text-slate-700">{f.label}</span>
+              <input
+                type="checkbox"
+                checked={features[f.key]}
+                disabled={pending}
+                onChange={() => toggleFeature(f.key)}
+                className="h-4 w-4 rounded border-slate-300 text-[#5c34ad] focus:ring-[#5c34ad]"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="flex justify-end mt-4">
+          <Button variant="secondary" onClick={() => setEditingFeatures(false)}>
+            Done
+          </Button>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={confirmingDeactivate}

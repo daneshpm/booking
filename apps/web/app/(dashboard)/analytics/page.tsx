@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { prisma } from '@bookings/database';
-import { requireWorkspace } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
 import { AnalyticsClient, type AnalyticsData } from './AnalyticsClient';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,7 @@ function monthLabel(date: Date): string {
 
 export default async function AnalyticsPage() {
   const { workspace } = await requireWorkspace(null, 'ADMIN');
+  await requireWorkspaceFeature(workspace, 'analytics');
 
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);

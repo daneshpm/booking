@@ -11,6 +11,7 @@ export {
   requireSession,
   requireWorkspace,
   requireWorkspaceBySlug,
+  requireWorkspaceFeature,
   requirePlatformAdmin,
   startSession,
   endSession,
@@ -18,4 +19,5 @@ export {
   AuthorizationError,
   type AuthSession,
   type SessionWorkspace,
+  type WorkspaceFeature,
 } from '@bookings/auth/next';

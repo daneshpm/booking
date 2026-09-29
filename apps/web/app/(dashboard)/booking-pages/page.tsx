@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { prisma } from '@bookings/database';
-import { requireWorkspace } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
 import { BookingPagesClient } from './BookingPagesClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BookingPagesPage() {
   const { workspace: access } = await requireWorkspace(null, 'ADMIN');
+  await requireWorkspaceFeature(access, 'bookingPages');
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: access.id },

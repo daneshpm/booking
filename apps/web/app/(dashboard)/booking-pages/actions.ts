@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@bookings/database';
 import { z } from 'zod';
-import { requireWorkspace, toActionError } from '@/lib/session';
+import { requireWorkspace, requireWorkspaceFeature, toActionError } from '@/lib/session';
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
@@ -31,7 +31,8 @@ export async function updateBookingPageBrandingAction(
   input: BrandingInput
 ): Promise<BookingPageActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'bookingPages');
     const data = brandingSchema.parse(input);
 
     await prisma.workspace.update({
@@ -88,7 +89,8 @@ export async function saveRoutingFormAction(
   input: RoutingFormInput
 ): Promise<RoutingFormActionResult> {
   try {
-    await requireWorkspace(workspaceId, 'ADMIN');
+    const { workspace } = await requireWorkspace(workspaceId, 'ADMIN');
+    await requireWorkspaceFeature(workspace, 'bookingPages');
     const data = routingFormSchema.parse(input);
 
     // Every option's service must belong to this workspace: a service id

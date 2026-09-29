@@ -1,4 +1,5 @@
-import { Building2, LogOut, Users, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { Building2, LogOut, Users, Calendar, Tag } from 'lucide-react';
 import { requirePlatformAdmin } from '@/lib/session';
 import { logoutAction } from '../signup/actions';
 import { getOrganizationsAction } from './actions';
@@ -44,6 +45,13 @@ export default async function SuperAdminPage() {
             <h1 className="text-lg font-extrabold text-slate-900">Organizations</h1>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              href="/super-admin/plans"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+            >
+              <Tag className="h-3.5 w-3.5" />
+              Pricing plans
+            </Link>
             <span className="text-xs text-slate-500">{session.user.email}</span>
             <form action={logoutAction}>
               <button
@@ -145,6 +153,10 @@ export default async function SuperAdminPage() {
                         isActive={org.isActive}
                         billingStatus={org.billingStatus}
                         trialEndsAt={org.trialEndsAt}
+                        workflowsEnabled={org.workflowsEnabled}
+                        analyticsEnabled={org.analyticsEnabled}
+                        dataExportEnabled={org.dataExportEnabled}
+                        bookingPagesEnabled={org.bookingPagesEnabled}
                       />
                     </td>
                   </tr>

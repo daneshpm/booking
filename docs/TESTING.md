@@ -7,7 +7,7 @@ Four suites, three of which need something running. The commands below are the r
 | Suite       | Tests            | Needs                                       | Command                                                   |
 | ----------- | ---------------- | ------------------------------------------- | --------------------------------------------------------- |
 | Unit        | 246              | nothing                                     | `npx vitest run`                                          |
-| Integration | 160              | PostgreSQL, Redis                           | `npm run test:integration`                                |
+| Integration | 169              | PostgreSQL, Redis                           | `npm run test:integration`                                |
 | E2E         | 45               | PostgreSQL, a build                         | `npm run test:e2e`                                        |
 | Python      | 42 (+14 skipped) | its own venv (skipped ones need a database) | `cd apps/api && .venv/Scripts/python -m pytest tests/ -q` |
 
@@ -89,6 +89,7 @@ The venv also isolates `app` from anything on the system path. `apps/api/app/__i
 - Privilege escalation inside a workspace (STAFF/RECEPTIONIST/ADMIN reaching above their rank)
 - The platform-admin boundary: an ordinary workspace owner refused the cross-tenant `/super-admin` view, a genuine platform admin seeing real data for every organization
 - Organization soft-delete: a deactivated workspace disappears from its own members' sessions without touching their rows, its public booking page 404s, and only a platform admin may flip it
+- Per-organization feature toggles: disabling a module blocks its real server action directly, not just its nav link, even for the organization's own owner; pricing-plan CRUD is platform-admin only
 - Log redaction asserted on the serialised output line, not just the redactor's return value
 - Upstream `x-request-id` validation, including oversized and hostile values
 - Phone-width layout (375px): no sideways document scroll, and no control clipped by the right edge, on the public booking page, login, and both appointments views
