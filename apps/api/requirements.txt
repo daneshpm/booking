@@ -1,5 +1,5 @@
 fastapi>=0.141.1
-uvicorn[standard]>=0.52.4
+uvicorn[standard]>=0.54.0
 # The [asyncio] extra pins in greenlet explicitly, rather than relying on it
 # arriving as an implicit transitive dependency. Bare sqlalchemy>=2.0.54
 # resolved greenlet on Python 3.10 but not on 3.12 or newer during testing —
