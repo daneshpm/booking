@@ -14,10 +14,10 @@
     "@bookings/core": "*",
     "@bookings/database": "*",
     "date-fns-tz": "^3.2.0",
-    "nodemailer": "^10.0.10"
+    "nodemailer": "^10.1.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
