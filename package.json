@@ -162,6 +162,6 @@
   "dependencies": {
     "framer-motion": "^13.4.4",
     "motion-dom": "^13.2.0",
-    "motion-utils": "^13.0.0"
+    "motion-utils": "^14.1.1"
   }
 }
