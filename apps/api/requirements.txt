@@ -14,7 +14,7 @@ pydantic-settings>=2.15.0
 bcrypt>=5.0.0
 python-multipart>=0.0.32
 httpx>=0.28.1
-python-dotenv>=1.0.1
+python-dotenv>=1.2.4
 redis>=8.1.0
 email-validator>=2.3.0
 # zoneinfo has no bundled timezone database on Windows, so availability
