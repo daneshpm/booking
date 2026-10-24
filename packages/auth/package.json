@@ -16,14 +16,14 @@
     "@bookings/core": "*",
     "@bookings/database": "*",
     "server-only": "^0.0.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
-    "next": "^16.3.6"
+    "next": "^16.4.2"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "next": "^16.3.6",
+    "@types/node": "^26.6.5",
+    "next": "^16.4.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"
   }
