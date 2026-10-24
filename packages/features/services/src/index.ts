@@ -1,3 +1,6 @@
+// Feature Manifest
+export * from './manifest';
+
 // Domain
 export * from './domain/entities/Service';
 export * from './domain/value-objects/ServiceDuration';

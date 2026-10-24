@@ -1,0 +1,32 @@
+{
+  "name": "@bookings/feature-booking-pages",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bookings/auth": "*",
+    "@bookings/core": "*",
+    "@bookings/database": "*",
+    "@bookings/ui": "*",
+    "lucide-react": "^1.48.0",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.2.7",
+    "next": "^16.3.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^7.0.2"
+  }
+}

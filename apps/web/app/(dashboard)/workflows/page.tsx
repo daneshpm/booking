@@ -2,7 +2,7 @@ import * as React from 'react';
 import { prisma } from '@bookings/database';
 import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
 import { isMailConfigured, isSmsConfigured } from '@/lib/notifications';
-import { WorkflowsClient, type WorkflowItem } from './WorkflowsClient';
+import { WorkflowsClient, type WorkflowItem } from '@bookings/feature-workflows';
 
 export const dynamic = 'force-dynamic';
 

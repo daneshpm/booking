@@ -26,6 +26,7 @@ import {
 import { SetupWizardModal } from './components/SetupWizardModal';
 import { FastPassModal } from './components/FastPassModal';
 import { logoutAction } from '../signup/actions';
+import { webModuleRegistry, MODULE_ICON_MAP } from '@/lib/modules';
 
 export interface ShellWorkspace {
   id: string;
@@ -54,34 +55,6 @@ export interface DashboardShellProps {
   children: React.ReactNode;
 }
 
-const NAV_ITEMS = [
-  { label: 'Appointments', href: '/appointments', icon: CalendarCheck },
-  { label: 'Event Types', href: '/event-types', icon: Tag },
-  { label: 'Schedules', href: '/schedules', icon: Clock },
-  { label: 'Workflows', href: '/workflows', icon: Activity, feature: 'workflowsEnabled' as const },
-  { label: 'Users', href: '/users', icon: Users },
-  {
-    label: 'Booking Pages',
-    href: '/booking-pages',
-    icon: Layers,
-    feature: 'bookingPagesEnabled' as const,
-  },
-  {
-    label: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3,
-    adminOnly: true,
-    feature: 'analyticsEnabled' as const,
-  },
-  {
-    label: 'Export Data',
-    href: '/export',
-    icon: Download,
-    adminOnly: true,
-    feature: 'dataExportEnabled' as const,
-  },
-];
-
 export function DashboardShell({
   user,
   workspaces,
@@ -95,6 +68,22 @@ export function DashboardShell({
   const [isSetupOpen, setIsSetupOpen] = React.useState(false);
   const [isFastPassOpen, setIsFastPassOpen] = React.useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = React.useState(false);
+
+  // Compute navigation dynamically from registered feature modules
+  const visibleNavItems = React.useMemo(() => {
+    return webModuleRegistry.getVisibleNavItems(activeWorkspace.role || 'STAFF', {
+      workflowsEnabled: activeWorkspace.workflowsEnabled,
+      analyticsEnabled: activeWorkspace.analyticsEnabled,
+      dataExportEnabled: activeWorkspace.dataExportEnabled,
+      bookingPagesEnabled: activeWorkspace.bookingPagesEnabled,
+    });
+  }, [
+    activeWorkspace.role,
+    activeWorkspace.workflowsEnabled,
+    activeWorkspace.analyticsEnabled,
+    activeWorkspace.dataExportEnabled,
+    activeWorkspace.bookingPagesEnabled,
+  ]);
 
   // Below the lg breakpoint the sidebar is an off-canvas drawer; close it
   // whenever the route changes so navigating doesn't leave it open over the
@@ -249,16 +238,10 @@ export function DashboardShell({
             )}
           </div>
 
-          {/* Navigation Items */}
+          {/* Navigation Items (Pluggable Module Registry) */}
           <nav className="px-3 space-y-1 mt-1">
-            {NAV_ITEMS.filter(
-              (item) =>
-                (!item.adminOnly ||
-                  activeWorkspace.role === 'OWNER' ||
-                  activeWorkspace.role === 'ADMIN') &&
-                (!item.feature || activeWorkspace[item.feature] !== false)
-            ).map((item) => {
-              const Icon = item.icon;
+            {visibleNavItems.map((item) => {
+              const Icon = MODULE_ICON_MAP[item.iconName] || Tag;
               const isActive =
                 pathname === item.href ||
                 (item.href === '/appointments' && pathname === '/calendar') ||

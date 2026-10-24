@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
-import { ExportClient } from './ExportClient';
-import { EXPORTABLE_FIELDS } from './fields';
+import { ExportClient, EXPORTABLE_FIELDS } from '@bookings/feature-export';
 
 export const dynamic = 'force-dynamic';
 

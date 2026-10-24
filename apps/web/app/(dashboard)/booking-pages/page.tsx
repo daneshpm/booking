@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { prisma } from '@bookings/database';
 import { requireWorkspace, requireWorkspaceFeature } from '@/lib/session';
-import { BookingPagesClient } from './BookingPagesClient';
+import { BookingPagesClient } from '@bookings/feature-booking-pages';
 
 export const dynamic = 'force-dynamic';
 

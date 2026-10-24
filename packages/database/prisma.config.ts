@@ -1,5 +1,17 @@
-import 'dotenv/config';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { config as dotenvConfig } from 'dotenv';
 import { defineConfig } from 'prisma/config';
+
+for (const envPath of [
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), '../../.env'),
+]) {
+  if (existsSync(envPath)) {
+    dotenvConfig({ path: envPath });
+    break;
+  }
+}
 
 /**
  * Prisma CLI configuration.

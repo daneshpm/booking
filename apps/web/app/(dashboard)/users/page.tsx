@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { getStaffPageData } from '../staff/getStaffPageData';
-import { StaffManagementClient } from '../staff/StaffManagementClient';
+import { getStaffPageData, StaffManagementClient } from '@bookings/feature-staff';
 
 export const dynamic = 'force-dynamic';
 
