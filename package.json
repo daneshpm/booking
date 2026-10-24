@@ -160,7 +160,7 @@
     "sharp": "^0.35.4"
   },
   "dependencies": {
-    "framer-motion": "^13.4.4",
+    "framer-motion": "^14.5.0",
     "motion-dom": "^13.2.0",
     "motion-utils": "^13.0.0"
   }

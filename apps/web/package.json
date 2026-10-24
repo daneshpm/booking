@@ -23,7 +23,7 @@
     "@bookings/ui": "*",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
-    "framer-motion": "^13.4.4",
+    "framer-motion": "^14.5.0",
     "googleapis": "^182.0.0",
     "lenis": "^1.3.26",
     "lucide-react": "^1.48.0",
